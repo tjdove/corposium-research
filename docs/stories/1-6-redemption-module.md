@@ -1,6 +1,6 @@
 # Story 1.6: Redemption Module
 
-Status: review
+Status: done
 
 ## Story
 
@@ -243,3 +243,74 @@ completed	success	story 1.6: redemption module	ci	main	push	37017835481	33s	2026
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.5 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5); 232 tests pass; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+The price promise is now explicit state. Reviewer re-ran on a separate machine: 232 passed,
+ruff clean; an independent engine run with the baseline redemption parameters and a
+30,000/step redeem stream terminated by `reserves_exhausted` at `steps_run == 21` with
+exactly one exhaustion event, `reserves == 0.0`, queued backlog 129,499.5 stable, the
+accounting identity holding, repeat-run identical, `ReservesView` True and `PegView` False.
+CI run 37017987294 green. Module at 99% (the unreachable `fill <= 0` guard).
+
+### Rulings on the flagged items
+
+1. **`set_spread_bps(ctx, bps, source)` — ctx first.** Correct; the context file's signature
+   omitted `ctx` and the method cannot emit without it. **Ratified.** Standard from here:
+   any subsystem method that emits takes `ctx` as its first argument.
+2. **Last reserve-limited fill pays out exactly the remainder and sets reserves to `0.0`.**
+   Right call; avoids float dust producing repeated micro-fills. `paid_total` as the exact
+   sum of recorded payouts is the correct bookkeeping. **Ratified.**
+3. **`requested_total`, read-only `pending`, `step_requested` in `redeem_fulfilled`.** All
+   useful, all read-only, snapshot keys unchanged. **Ratified.** `step_requested` in the
+   fulfilment event gives fulfilment latency from one event, which the 1.8 metrics will use.
+4. **`spread_changed` emitted even when unchanged.** Acceptable but noisy for decision
+   traces. **Decision:** the *caller* avoids no-op calls; Story 1.7's defender only calls
+   `set_spread_bps` when the target differs from the current value. No change to this module.
+5. **Exhaustion step computed as `ceil(500_000/0.999/25_000) − 1 = 20` → `steps_run 21`.**
+   Matches the Dev Notes working and the reviewer's run. **Ratified.**
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | Class, three protocols, `phases == {EXECUTION, PROTOCOL_EVENTS}` |
+| 2 | ✅ | `execute("redeem")` queues; `redeem_requested`/`redeem_rejected` |
+| 3 | ✅ | FIFO settlement with reason strings; partial remainder stays at head |
+| 4 | ✅ | Exhaustion requires both; latches; one event (reviewer: count 1) |
+| 5 | ✅ | All properties; `set_spread_bps` emits `spread_changed` |
+| 6 | ✅ | 200-step randomised invariant; paid at fill time |
+| 7 | ✅ | 60/60/60 capacity-100 table case with reasons |
+| 8 | ✅ | Reserves-50 case: ≈50.05 fill, `partial_reserves`, exhaustion fires |
+| 9 | ✅ | Snapshot keys exact; `from_config` |
+| 10 | ✅ | Construction guards; no domain exceptions in execution |
+| 11 | ✅ | Integration: computed 21, one event, repeat identical (reviewer reproduced) |
+| 12 | ✅ | `registry.find(ReservesView)`; `termination.check` reads it |
+| 13 | ✅ | `232 passed`, `All checks passed!`, CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+No High or Medium issues. No Low items requiring action.
+
+### Learnings for Story 1.7
+
+- Three `ActionTarget`s now exist for agents to address: `amm` (`swap`), `redemption`
+  (`redeem`). Agents are `ActionSource`s; `decide(ctx)` returns `Action(source=agent_id,
+  target=..., kind=..., params=...)`.
+- Agents observe via the registry: `ctx.registry.get("amm").spot_price`,
+  `ctx.registry.get("oracle").price`, `ctx.registry.get("redemption").payout_per_unit`.
+  Observation happens in `decide`; the `STATE_OBSERVATION` phase hook is available if an
+  agent wants to cache a view before deciding.
+- `ExecutionResult` is returned by `execute()` to the kernel, not to the agent. Agents
+  learn outcomes from events or by re-observing next step. (The kernel discards the result
+  today; 1.7 may add `ctx.last_results` if PnL needs it — see 1.7 Dev Notes.)
+- Methods that emit take `ctx` first.
+- 2026-10-02: Senior review APPROVE; status set to done. ctx-first signature standard ratified.
