@@ -2,8 +2,9 @@
 
 One step runs every phase in ``PHASES`` order. Within each phase:
 
-1. If the phase is ``AGENT_DECISION``, ``ctx.action_queue`` is cleared first, so
-   the queue only ever holds the current step's actions.
+1. If the phase is ``AGENT_DECISION``, ``ctx.action_queue`` and
+   ``ctx.execution_results`` are cleared first, so both only ever hold the current
+   step's actions and their results.
 2. ``on_phase(ctx, phase)`` is called on every registered subsystem whose
    ``phases`` contains the phase, in registration order.
 3. Then the kernel's phase-specific action runs:
@@ -11,8 +12,9 @@ One step runs every phase in ``PHASES`` order. Within each phase:
      ``decide(ctx)`` and its actions are appended to ``ctx.action_queue``.
    - ``ACTION_QUEUE``: nothing; hooks in this phase see the full queue.
    - ``EXECUTION``: each queued action is routed, in queue order, to the
-     ``ActionTarget`` named by ``action.target``. An unknown target is a
-     ``KernelError``, never a skip.
+     ``ActionTarget`` named by ``action.target``, and ``(action, result)`` is
+     appended to ``ctx.execution_results``. An unknown target is a ``KernelError``,
+     never a skip.
    - ``PERSISTENCE``: a checkpoint is written if one is due.
 
 Ordering subtlety: ``on_phase`` hooks run *before* the kernel's phase-specific
@@ -107,6 +109,7 @@ class Engine:
         for phase in PHASES:
             if phase is Phase.AGENT_DECISION:
                 ctx.action_queue.clear()
+                ctx.execution_results.clear()
             for sub in registry.by_phase(phase):
                 sub.on_phase(ctx, phase)
             if phase is Phase.AGENT_DECISION:
@@ -129,7 +132,7 @@ class Engine:
                 f"step {step}: subsystem {action.target!r} is not an ActionTarget; "
                 f"cannot execute {action}"
             )
-        target.execute(ctx, action)
+        ctx.execution_results.append((action, target.execute(ctx, action)))
 
     def _checkpointing(self) -> bool:
         return (

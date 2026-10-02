@@ -19,6 +19,7 @@ from depeg_sim.kernel.interfaces import (
     Action,
     ActionSource,
     ActionTarget,
+    ExecutionResult,
     KernelError,
     Subsystem,
 )
@@ -89,6 +90,7 @@ class RunContext:
     decisions: DecisionTrace = field(default_factory=DecisionTrace)
     registry: Registry = field(default_factory=Registry)
     action_queue: list[Action] = field(default_factory=list)
+    execution_results: list[tuple[Action, ExecutionResult]] = field(default_factory=list)
     term_state: PegRecoveredTracker = field(default_factory=PegRecoveredTracker)
     output_dir: Path | None = None
 

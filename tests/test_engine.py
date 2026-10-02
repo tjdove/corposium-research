@@ -11,7 +11,7 @@ from kernel_stubs import (
 from depeg_sim.kernel.context import RunContext
 from depeg_sim.kernel.engine import Engine, RunResult
 from depeg_sim.kernel.events import Event
-from depeg_sim.kernel.interfaces import Action, KernelError
+from depeg_sim.kernel.interfaces import Action, ExecutionResult, KernelError
 from depeg_sim.kernel.scheduler import PHASE_ORDER_VERSION, PHASES, Phase
 
 
@@ -66,6 +66,37 @@ def test_actions_routed_to_target_in_queue_order():
         ("s2", 2),
     ]
     assert tgt.received[0] == Action(source="s1", target="t", kind="ping", params={"n": 0})
+
+
+def test_execution_results_recorded_in_queue_order_and_cleared_each_step():
+    class ResultTarget(TargetStub):
+        def execute(self, ctx, action):
+            super().execute(ctx, action)
+            return ExecutionResult(ok=True, detail={"src": action.source, "n": action.params["n"]})
+
+    seen = []
+
+    class ResultObserver(RecordingStub):
+        def on_phase(self, ctx, phase):
+            seen.append((ctx.clock.step_index, phase, list(ctx.execution_results)))
+
+    rob = ResultObserver("rob", {Phase.AGENT_DECISION, Phase.PROTOCOL_EVENTS})
+    ctx = make_ctx(
+        SourceStub("s1", target="t"),
+        ResultTarget("t"),
+        SourceStub("s2", target="t"),
+        rob,
+        max_steps=3,
+    )
+    Engine(ctx).run()
+    for step in range(3):
+        at = {phase: res for s, phase, res in seen if s == step}
+        assert at[Phase.AGENT_DECISION] == []  # cleared before decide hooks
+        got = at[Phase.PROTOCOL_EVENTS]
+        assert [(a.source, a.params["n"]) for a, _ in got] == [("s1", step), ("s2", step)]
+        assert [r.detail for _, r in got] == [{"src": "s1", "n": step}, {"src": "s2", "n": step}]
+        assert all(r.ok for _, r in got)
+    assert len(ctx.execution_results) == 2  # last step's results remain after the run
 
 
 def test_actions_route_by_target_name():
