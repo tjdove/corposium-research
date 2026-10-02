@@ -1,6 +1,6 @@
 # Story 1.2: Scenario Configuration Model
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,33 +26,33 @@ so that every run is fully described by one human-readable file.
 - [ ] Carry-over from Story 1.1 review (no AC; housekeeping)
   - [ ] In `.github/workflows/ci.yml` set `runs-on: ubuntu-24.04`, bump to `actions/checkout@v5` and `actions/setup-python@v6`; confirm CI still passes after push
 
-- [ ] Define the config models (AC: 1, 2, 3, 4, 6)
-  - [ ] Create `src/depeg_sim/kernel/config.py`
-  - [ ] Base class `StrictModel(BaseModel)` with `model_config = ConfigDict(extra="forbid", frozen=True)`
-  - [ ] `StepsConfig`, `AssetConfig`, `AMMConfig`, `OracleConfig`, `RedemptionConfig`, `EnvironmentConfig` (with `ShockEvent`), `TerminationConfig` (with `PegRecoveredConfig`), `MetricsConfig`
-  - [ ] `AttackerConfig`, `ArbitrageurConfig`, `DefenderConfig`, each with `type: Literal[...]`; `AgentConfig = Annotated[Union[...], Field(discriminator="type")]`
-  - [ ] `ScenarioConfig` with `version: Literal[1]` and a `model_validator` on `TerminationConfig` requiring at least one condition enabled
-  - [ ] Use `Field(gt=0)` / `ge=0` constraints where Dev Notes specify
+- [x] Define the config models (AC: 1, 2, 3, 4, 6)
+  - [x] Create `src/depeg_sim/kernel/config.py`
+  - [x] Base class `StrictModel(BaseModel)` with `model_config = ConfigDict(extra="forbid", frozen=True)`
+  - [x] `StepsConfig`, `AssetConfig`, `AMMConfig`, `OracleConfig`, `RedemptionConfig`, `EnvironmentConfig` (with `ShockEvent`), `TerminationConfig` (with `PegRecoveredConfig`), `MetricsConfig`
+  - [x] `AttackerConfig`, `ArbitrageurConfig`, `DefenderConfig`, each with `type: Literal[...]`; `AgentConfig = Annotated[Union[...], Field(discriminator="type")]`
+  - [x] `ScenarioConfig` with `version: Literal[1]` and a `model_validator` on `TerminationConfig` requiring at least one condition enabled
+  - [x] Use `Field(gt=0)` / `ge=0` constraints where Dev Notes specify
 
-- [ ] Loader and hash (AC: 5, 7)
-  - [ ] `load_scenario(path)` reads with `yaml.safe_load`, passes to `ScenarioConfig.model_validate`
-  - [ ] `content_hash()` using `hashlib.sha256` over `model_dump_json(by_alias=True)` of a dict with sorted keys (dump to dict, `json.dumps(..., sort_keys=True, separators=(",", ":"))`)
+- [x] Loader and hash (AC: 5, 7)
+  - [x] `load_scenario(path)` reads with `yaml.safe_load`, passes to `ScenarioConfig.model_validate`
+  - [x] `content_hash()` using `hashlib.sha256` over `model_dump_json(by_alias=True)` of a dict with sorted keys (dump to dict, `json.dumps(..., sort_keys=True, separators=(",", ":"))`)
 
-- [ ] Rewrite the baseline scenario (AC: 8)
-  - [ ] Replace `scenarios/soros-baseline.yaml` with the full structure from Dev Notes
-  - [ ] Confirm `load_scenario(Path("scenarios/soros-baseline.yaml"))` succeeds
+- [x] Rewrite the baseline scenario (AC: 8)
+  - [x] Replace `scenarios/soros-baseline.yaml` with the full structure from Dev Notes
+  - [x] Confirm `load_scenario(Path("scenarios/soros-baseline.yaml"))` succeeds
 
-- [ ] Wire the CLI to validate (partial AC 5; keeps `run.py` honest)
-  - [ ] `cli.main` calls `load_scenario` and prints `name`, `seed`, `content_hash()[:12]` before the "kernel not implemented" line; validation errors print to stderr and return 3
-  - [ ] Update `tests/test_smoke.py` expectations accordingly
+- [x] Wire the CLI to validate (partial AC 5; keeps `run.py` honest)
+  - [x] `cli.main` calls `load_scenario` and prints `name`, `seed`, `content_hash()[:12]` before the "kernel not implemented" line; validation errors print to stderr and return 3
+  - [x] Update `tests/test_smoke.py` expectations accordingly
 
-- [ ] Tests (AC: 9, 10)
-  - [ ] Write `tests/test_config.py` covering every case in AC 9
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .`; paste output in Debug Log
+- [x] Tests (AC: 9, 10)
+  - [x] Write `tests/test_config.py` covering every case in AC 9
+  - [x] `pytest`, `ruff check .`, `ruff format --check .`; paste output in Debug Log
 
-- [ ] Close out
-  - [ ] Fill Dev Agent Record, Change Log, set `Status: review`
-  - [ ] Commit `story 1.2: scenario config model`, push to `main`
+- [x] Close out
+  - [x] Fill Dev Agent Record, Change Log, set `Status: review`
+  - [x] Commit `story 1.2: scenario config model`, push to `main`
 
 ## Dev Notes
 
@@ -180,20 +180,105 @@ Validation failure → message on stderr, exit 3. Missing file stays exit 2.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code on Seoul.
 
 ### Debug Log References
 
-_(real command output with exit codes)_
+Environment: Seoul, Arch Linux, Python 3.14.7 in the existing `.venv` (editable install from
+Story 1.1; no new dependencies). pydantic 2.13.5, pyyaml 6.0.3, ruff 0.16.10.
+
+**Tests and lint (AC 10)**
+
+```
+$ pytest
+................................                                         [100%]
+32 passed in 0.18s
+exit=0
+$ ruff check .
+All checks passed!
+exit=0
+$ ruff format --check .
+20 files already formatted
+exit=0
+```
+
+**CLI (AC 5)** — `$SCRATCH/v2.yaml` is the baseline with `version: 2`, written outside the repo.
+
+```
+$ python run.py scenarios/soros-baseline.yaml
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+kernel not implemented yet (see docs/epics.md, Story 1.3)
+exit=0
+$ depeg scenarios/soros-baseline.yaml
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+kernel not implemented yet (see docs/epics.md, Story 1.3)
+exit=0
+$ python run.py scenarios/missing.yaml
+error: scenario not found: scenarios/missing.yaml
+exit=2
+$ python run.py $SCRATCH/v2.yaml
+error: invalid scenario $SCRATCH/v2.yaml:
+1 validation error for ScenarioConfig
+version
+  Input should be 1 [type=literal_error, input_value=2, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.13/v/literal_error
+exit=3
+```
+
+**Baseline load + hash (AC 7, 8)**
+
+```
+$ python -c "...load_scenario(Path('scenarios/soros-baseline.yaml'))..."
+soros-baseline 3 ['AttackerConfig', 'ArbitrageurConfig', 'DefenderConfig'] 7c4f870b2d8a5ec7e2e0426bc41e994c7ee0e63cc425e4c61959bba809bece22
+exit=0
+```
+
+PyYAML 6.0.3 parses `1_000_000` as int 1000000 (checked: `amm` loads as
+`{'reserve_stable': 1000000, 'reserve_reference': 1000000, 'fee_bps': 30}`), so underscores kept.
+
+**CI workflow YAML (carry-over)**
+
+```
+$ python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
+{'test': {'runs-on': 'ubuntu-24.04', 'steps': [{'uses': 'actions/checkout@v5'}, {'uses': 'actions/setup-python@v6', 'with': {'python-version': '3.12'}}, {'run': 'pip install -e ".[dev]"'}, {'run': 'ruff check .'}, {'run': 'pytest'}]}}
+exit=0
+```
 
 ### Completion Notes List
+
+- Models implemented exactly per Dev Notes field list; nothing added. All inherit `StrictModel`
+  (`extra="forbid"`, `frozen=True`). `AgentConfig` is a `type`-discriminated union.
+- Validators: `TerminationConfig` requires at least one condition; `ScenarioConfig` rejects
+  duplicate agent ids (error names the duplicates).
+- `version: Literal[1]` — pydantic's error reads `Input should be 1`, which names the supported
+  version (AC 6), so no custom message was needed.
+- CLI: one judgement call beyond the letter of the story — unparseable YAML (`yaml.YAMLError`)
+  is also reported on stderr with exit 3 rather than a traceback. The `--seed` flag is still
+  parsed but not applied; the printed seed is the scenario's. Override semantics are left to the
+  story that wires the engine.
+- `tests/test_config.py`: 29 tests (12 parametrized missing-field cases + one per remaining AC 9
+  bullet + duplicate id, frozen, interval default, single-condition termination, field-list
+  check). `tests/test_smoke.py` updated to the new stdout format plus a version-2 → exit 3 test.
+- Nothing in the existing scaffold needed fixing. No kernel/engine, protocol or agent code written.
+- Assignment prompt said to commit as `story 1.2: project foundation verified, CI added`; that is
+  Story 1.1's message, so the story file's `story 1.2: scenario config model` was used instead.
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/kernel/config.py`
+- `tests/test_config.py`
+
 **Modified:**
+
+- `.github/workflows/ci.yml`
+- `scenarios/soros-baseline.yaml`
+- `src/depeg_sim/cli.py`
+- `tests/test_smoke.py`
+- `docs/stories/1-2-scenario-config-model.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.1 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5); status review

@@ -7,3 +7,34 @@ seed: 42
 steps:
   interval_seconds: 12
   max_steps: 5000
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 1_000_000
+  reserve_reference: 1_000_000
+  fee_bps: 30
+oracle:
+  heartbeat_steps: 25
+  deviation_threshold_pct: 0.5
+redemption:
+  reserves: 500_000
+  spread_bps: 10
+  capacity_per_step: 25_000
+  peg_price: 1.0
+environment:
+  base_price: 1.0
+  volatility_per_step: 0.0
+  shocks: []
+agents:
+  - { type: attacker, id: attacker-1, capital: 300_000, start_step: 50, pace: 0.1 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - { type: defender, id: defender-1, budget: 400_000, threshold_pct: 1.0, spend_pace: 0.2 }
+termination:
+  reserves_exhausted: true
+  peg_recovered: { for_steps: 100, tolerance: 0.001 }
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: true
+  checkpoint_every: 500
