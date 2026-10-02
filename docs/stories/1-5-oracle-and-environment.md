@@ -1,6 +1,6 @@
 # Story 1.5: Oracle and Environment Modules
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,31 +26,31 @@ so that oracle delay is a first-class, calibratable parameter.
 
 ## Tasks / Subtasks
 
-- [ ] Carry-over from 1.4 review (AC: 1)
-  - [ ] Split `cumulative_fees` in `protocol/amm.py`; update docstring, `snapshot()`, `swap()`
-  - [ ] Update `tests/test_amm.py` (snapshot key set, any fee assertions); add the per-token assertion
-  - [ ] `pytest` green; commit separately as `story 1.5: split amm cumulative fees by token`
+- [x] Carry-over from 1.4 review (AC: 1)
+  - [x] Split `cumulative_fees` in `protocol/amm.py`; update docstring, `snapshot()`, `swap()`
+  - [x] Update `tests/test_amm.py` (snapshot key set, any fee assertions); add the per-token assertion
+  - [x] `pytest` green; commit separately as `story 1.5: split amm cumulative fees by token`
 
-- [ ] Reference price process (AC: 2, 3, 4, 5, 10, 12)
-  - [ ] `environment/price_process.py`: `ReferencePrice` class; `_shocks_by_step: dict[int, float]` built at construction (sum pcts if two shocks share a step; document)
-  - [ ] `on_phase(ctx, ENVIRONMENT_UPDATE)` per AC 3; guard the rng draw on `volatility_per_step > 0`
-  - [ ] `snapshot()`, `from_config`
-  - [ ] Tests: flat price, rng untouched (compare `ctx.rng.bit_generator.state` dicts), shock at step 0 and step N, determinism across seeds, two shocks same step
+- [x] Reference price process (AC: 2, 3, 4, 5, 10, 12)
+  - [x] `environment/price_process.py`: `ReferencePrice` class; `_shocks_by_step: dict[int, float]` built at construction (sum pcts if two shocks share a step; document)
+  - [x] `on_phase(ctx, ENVIRONMENT_UPDATE)` per AC 3; guard the rng draw on `volatility_per_step > 0`
+  - [x] `snapshot()`, `from_config`
+  - [x] Tests: flat price, rng untouched (compare `ctx.rng.bit_generator.state` dicts), shock at step 0 and step N, determinism across seeds, two shocks same step
 
-- [ ] Oracle (AC: 6, 7, 8, 9, 10)
-  - [ ] `protocol/oracle.py`: `Oracle` class holding a reference to the price source (duck-typed: anything with `.price`)
-  - [ ] `on_phase(ctx, ORACLE_UPDATE)` per AC 7 with the three reasons; `staleness_steps` property
-  - [ ] `snapshot()`, `from_config`
-  - [ ] `tests/test_oracle.py` with a `ScriptedPriceSource` stub (put it in `tests/kernel_stubs.py`); cover every bullet of AC 9
+- [x] Oracle (AC: 6, 7, 8, 9, 10)
+  - [x] `protocol/oracle.py`: `Oracle` class holding a reference to the price source (duck-typed: anything with `.price`)
+  - [x] `on_phase(ctx, ORACLE_UPDATE)` per AC 7 with the three reasons; `staleness_steps` property
+  - [x] `snapshot()`, `from_config`
+  - [x] `tests/test_oracle.py` with a `ScriptedPriceSource` stub (put it in `tests/kernel_stubs.py`); cover every bullet of AC 9
 
-- [ ] Integration (AC: 11)
-  - [ ] `tests/test_oracle_integration.py`: register `environment`, `oracle`, `amm` in that order; assertions per AC 11; repeat-run equality
+- [x] Integration (AC: 11)
+  - [x] `tests/test_oracle_integration.py`: register `environment`, `oracle`, `amm` in that order; assertions per AC 11; repeat-run equality
 
-- [ ] Tests, lint, close out (AC: 13)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] `python run.py scenarios/soros-baseline.yaml` (unchanged output; modules not yet registered by the CLI)
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 1.5: oracle and environment`, push to `main`
+- [x] Tests, lint, close out (AC: 13)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] `python run.py scenarios/soros-baseline.yaml` (unchanged output; modules not yet registered by the CLI)
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 1.5: oracle and environment`, push to `main`
 
 ## Dev Notes
 
@@ -143,20 +143,110 @@ so the oracle always sees this step's reference price.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output with exit codes)_
+Task 1 baseline (before fee split) and after:
+
+```
+$ pytest            # at f1013e5, before task 1
+139 passed in 0.36s
+$ pytest            # after task 1 (6fe6174)
+140 passed in 0.32s
+```
+
+Final:
+
+```
+$ pytest; echo exit=$?
+193 passed in 0.43s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+37 files already formatted
+exit=0
+
+$ python run.py scenarios/soros-baseline.yaml; echo exit=$?
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+run: steps=5000 terminated_by=max_steps
+exit=0
+
+$ pytest --cov=depeg_sim --cov-report=term-missing   (excerpt)
+src/depeg_sim/environment/price_process.py      58      0   100%
+src/depeg_sim/protocol/amm.py                  111      0   100%
+src/depeg_sim/protocol/oracle.py                68      0   100%
+TOTAL                                          627      2    99%
+193 passed in 0.91s
+```
+
+CLI output is identical to the same command run at `e36aa45` (pre-story), in a
+temporary worktree.
 
 ### Completion Notes List
+
+- **Task 1** landed separately (`6fe6174`). Fee accrues in the swap's input token:
+  `sell_stable` → `cumulative_fees_stable`, `buy_stable` → `cumulative_fees_reference`.
+  `tests/test_amm_integration.py` also asserted the old `cumulative_fees` and had to be
+  updated (one assertion became two); that file is outside the context's "amm.py and
+  test_amm.py only" list, but it was not possible to keep the suite green otherwise.
+- **Threshold 0.** Under the normative `>=` rule, `deviation_threshold_pct == 0` publishes
+  every step, flat price included (AC 9 says this). The Dev Notes line "fires whenever
+  `ref != published`" doesn't match `>=`. I followed the AC and the `>=` rule. Because
+  the oracle publishes every step, the heartbeat never comes due, so every reason after
+  `initial` is `deviation` (tested).
+- **`Oracle.price` is `None` before the first publish** (the interface listed `float`).
+  In an engine run it is set from step 0's `ORACLE_UPDATE` on, so agents (which run in
+  `AGENT_DECISION`) always see a float. `staleness_steps` is 0 before the first publish.
+- **Shock validation (small addition).** Shocks on the same step are summed at
+  construction. Each step's summed pct must be > -100, otherwise `ValueError`, so the
+  price stays positive. Shock steps must be ints ≥ 0 and pcts finite.
+- **`step_applied_shocks`** is the list of `(step, summed_pct)` applied so far; the
+  snapshot renders it as `[[step, pct], ...]` for JSON.
+- **The oracle never raises in its hook.** If a published price is 0 (impossible with
+  `ReferencePrice`, possible with a scripted source), the deviation is treated as
+  infinite rather than dividing by zero. A source with no `.price` is rejected at
+  construction (`ValueError`, via the runtime-checkable `PriceSource` protocol).
+- `isinstance(oracle, PegView)` is False, and neither module is an `ActionSource` or
+  `ActionTarget` (tested). The oracle holds `source` directly; no registry lookup.
+- `ScriptedPriceSource` (in `tests/kernel_stubs.py`) is a `Subsystem` on
+  `ENVIRONMENT_UPDATE` that sets `price = prices[step]` (last value repeats). `price` is
+  also a plain attribute for direct setting.
+- The rng tests compare `ctx.rng.bit_generator.state` before and after. The vol > 0 test
+  replays a fresh `default_rng(seed)` and checks that exactly one `standard_normal()`
+  was drawn per step (equal prices and equal final generator state).
+- The integration test registers `environment`, `oracle`, `amm` in that order. It
+  checks `max_steps` termination, an update count between 10 and 100, that each
+  `oracle_updated.price` matches the same step's `price_updated.price`, that no gap
+  between updates exceeds the heartbeat, and that a repeat run gives equal events and
+  decisions lists.
+- Neither module is registered by the CLI (scope), so the CLI output is unchanged.
+- Test count 139 → 193 (+1 task 1, +25 `test_price_process.py`, +25 `test_oracle.py`,
+  +3 `test_oracle_integration.py`).
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/environment/price_process.py`
+- `src/depeg_sim/protocol/oracle.py`
+- `tests/test_price_process.py`
+- `tests/test_oracle.py`
+- `tests/test_oracle_integration.py`
+
 **Modified:**
+
+- `src/depeg_sim/protocol/amm.py` (task 1)
+- `tests/test_amm.py` (task 1)
+- `tests/test_amm_integration.py` (task 1; see notes)
+- `tests/kernel_stubs.py` (`ScriptedPriceSource`)
+- `docs/stories/1-5-oracle-and-environment.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.4 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5): AMM fee split, `ReferencePrice`, `Oracle`, tests (193 passed); status set to review

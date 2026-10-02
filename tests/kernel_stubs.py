@@ -161,3 +161,18 @@ class QueueObserverStub(Subsystem):
 
     def on_phase(self, ctx, phase: Phase) -> None:
         self.seen.append((ctx.clock.step_index, phase, len(ctx.action_queue)))
+
+
+class ScriptedPriceSource(Subsystem):
+    """A price source for oracle tests: on ENVIRONMENT_UPDATE, ``price`` becomes
+    ``prices[step]`` (last value repeats past the end). ``price`` is also a plain
+    attribute, so a test can set it directly without running a phase."""
+
+    def __init__(self, prices: list[float], name: str = "scripted") -> None:
+        self.name = name
+        self.phases = frozenset({Phase.ENVIRONMENT_UPDATE})
+        self.prices = list(prices)
+        self.price = self.prices[0]
+
+    def on_phase(self, ctx, phase: Phase) -> None:
+        self.price = self.prices[min(ctx.clock.step_index, len(self.prices) - 1)]
