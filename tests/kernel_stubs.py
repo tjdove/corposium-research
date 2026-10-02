@@ -101,12 +101,23 @@ class PegStub(Subsystem):
 
 
 class SourceStub(Subsystem):
-    """ActionSource: one action per step to ``target``."""
+    """ActionSource: one action per step to ``target``. By default a ``ping`` with
+    ``{"n": step}``; pass ``kind`` and ``params`` to send something else (the same
+    params every step)."""
 
-    def __init__(self, name: str = "source", target: str = "target", phases=()) -> None:
+    def __init__(
+        self,
+        name: str = "source",
+        target: str = "target",
+        phases=(),
+        kind: str = "ping",
+        params: dict[str, Any] | None = None,
+    ) -> None:
         self.name = name
         self.phases = frozenset(phases)
         self.target = target
+        self.kind = kind
+        self.params = params
         self.log: list[tuple[str, int]] = []
 
     def on_phase(self, ctx, phase: Phase) -> None:
@@ -115,7 +126,8 @@ class SourceStub(Subsystem):
     def decide(self, ctx) -> list[Action]:
         step = ctx.clock.step_index
         self.log.append(("decide", step))
-        return [Action(source=self.name, target=self.target, kind="ping", params={"n": step})]
+        params = {"n": step} if self.params is None else dict(self.params)
+        return [Action(source=self.name, target=self.target, kind=self.kind, params=params)]
 
 
 class TargetStub(Subsystem):

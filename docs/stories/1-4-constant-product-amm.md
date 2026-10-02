@@ -1,6 +1,6 @@
 # Story 1.4: Constant-Product AMM Module
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,32 +26,32 @@ so that pool price impact of attacker and arbitrageur trades is exact and testab
 
 ## Tasks / Subtasks
 
-- [ ] Carry-over from 1.3 review (AC: 1)
-  - [ ] Add `model_validator` on `ScenarioConfig` (or `TerminationConfig`): `max_steps` must be `True`
-  - [ ] Rewrite `test_termination_nothing_enabled_rejected` → `test_termination_max_steps_false_rejected`; keep `test_termination_single_condition_accepted` meaningful (e.g. `reserves_exhausted: false, peg_recovered: null, max_steps: true` accepted)
-  - [ ] Also assert the validator error message mentions "safety cap"
+- [x] Carry-over from 1.3 review (AC: 1)
+  - [x] Add `model_validator` on `ScenarioConfig` (or `TerminationConfig`): `max_steps` must be `True`
+  - [x] Rewrite `test_termination_nothing_enabled_rejected` → `test_termination_max_steps_false_rejected`; keep `test_termination_single_condition_accepted` meaningful (e.g. `reserves_exhausted: false, peg_recovered: null, max_steps: true` accepted)
+  - [x] Also assert the validator error message mentions "safety cap"
 
-- [ ] AMM math and state (AC: 3, 4, 5, 6, 8)
-  - [ ] `protocol/amm.py`: `Quote`, `SwapResult` frozen dataclasses; `ConstantProductAMM` class
-  - [ ] Implement `_apply_fee(amount_in) -> (net_in, fee)`; `_out_for_in(net_in, r_in, r_out)`
-  - [ ] `quote` and `swap` sharing one internal `_compute(amount_in, side)`
-  - [ ] Reserve-drain guard; zero/negative guard
-  - [ ] `spot_price`, `peg_deviation`, `k` properties; `cumulative_fees` counter
-  - [ ] Tests: hand-computed case (AC 9); symmetry sanity (`buy_stable` moves spot up); invariant property test (AC 5); guards (AC 8)
+- [x] AMM math and state (AC: 3, 4, 5, 6, 8)
+  - [x] `protocol/amm.py`: `Quote`, `SwapResult` frozen dataclasses; `ConstantProductAMM` class
+  - [x] Implement `_apply_fee(amount_in) -> (net_in, fee)`; `_out_for_in(net_in, r_in, r_out)`
+  - [x] `quote` and `swap` sharing one internal `_compute(amount_in, side)`
+  - [x] Reserve-drain guard; zero/negative guard
+  - [x] `spot_price`, `peg_deviation`, `k` properties; `cumulative_fees` counter
+  - [x] Tests: hand-computed case (AC 9); symmetry sanity (`buy_stable` moves spot up); invariant property test (AC 5); guards (AC 8)
 
-- [ ] Subsystem contract (AC: 2, 7, 10, 11)
-  - [ ] `name`, `phases`, `on_phase` no-op, `snapshot`, `execute`, `from_config`
-  - [ ] `execute` → event emission via `ctx.events.emit(step, kind, source="amm", payload)`
-  - [ ] Tests: `isinstance(amm, Subsystem/ActionTarget/PegView)`; execute happy path; unknown kind; rejected swap emits `swap_rejected` and returns `ok=False`
+- [x] Subsystem contract (AC: 2, 7, 10, 11)
+  - [x] `name`, `phases`, `on_phase` no-op, `snapshot`, `execute`, `from_config`
+  - [x] `execute` → event emission via `ctx.events.emit(step, kind, source="amm", payload)`
+  - [x] Tests: `isinstance(amm, Subsystem/ActionTarget/PegView)`; execute happy path; unknown kind; rejected swap emits `swap_rejected` and returns `ok=False`
 
-- [ ] Engine integration (AC: 12)
-  - [ ] `tests/test_amm_integration.py` using `kernel_stubs.SourceStub` targeting `"amm"`
-  - [ ] Second integration case: a source that sells stable every step until `peg_deviation` crosses a `PegRecoveredConfig` band is impossible to re-enter → confirm `peg_recovered` does *not* fire; then a scenario with no trades → `peg_recovered` fires at `for_steps`
+- [x] Engine integration (AC: 12)
+  - [x] `tests/test_amm_integration.py` using `kernel_stubs.SourceStub` targeting `"amm"`
+  - [x] Second integration case: a source that sells stable every step until `peg_deviation` crosses a `PegRecoveredConfig` band is impossible to re-enter → confirm `peg_recovered` does *not* fire; then a scenario with no trades → `peg_recovered` fires at `for_steps`
 
-- [ ] Tests, lint, close out (AC: 13)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 1.4: constant-product amm`, push to `main`
+- [x] Tests, lint, close out (AC: 13)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 1.4: constant-product amm`, push to `main`
 
 ## Dev Notes
 
@@ -163,20 +163,116 @@ it is easy to get backwards.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code on Seoul.
 
 ### Debug Log References
 
-_(real command output with exit codes)_
+Task 1 (before touching the AMM), commit `dee88a0`:
+
+```
+$ pytest
+........................................................................ [ 78%]
+....................                                                     [100%]
+92 passed in 0.28s
+exit=0
+$ ruff check .
+All checks passed!
+exit=0
+$ ruff format --check .
+29 files already formatted
+exit=0
+```
+
+Final, story complete:
+
+```
+$ pytest
+........................................................................ [ 51%]
+...................................................................      [100%]
+139 passed in 0.32s
+exit=0
+$ ruff check .
+All checks passed!
+exit=0
+$ ruff format --check .
+32 files already formatted
+exit=0
+$ pytest --cov=depeg_sim.protocol.amm --cov-report=term-missing
+src/depeg_sim/protocol/amm.py     108      0   100%
+TOTAL                             108      0   100%
+$ python run.py scenarios/soros-baseline.yaml
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+run: steps=5000 terminated_by=max_steps
+exit=0
+```
+
+Test counts: `tests/test_amm.py` 41 collected, `tests/test_amm_integration.py` 6 collected;
+92 existing + 47 new = 139. The CLI output is unchanged from 1.3 (the AMM is not registered
+until 1.8).
 
 ### Completion Notes List
+
+- **AC 1 / Task 1.** `TerminationConfig._at_least_one_enabled` is replaced by
+  `_max_steps_mandatory`. The message is "termination.max_steps must be true:
+  steps.max_steps is the mandatory safety cap on every run". The old "at least one enabled"
+  check is now implied, because `max_steps` is always on. In `tests/test_config.py`,
+  `test_termination_nothing_enabled_rejected` became `test_termination_max_steps_false_rejected`
+  (other conditions enabled, so it isolates the new rule, and it asserts "safety cap").
+  `test_termination_single_condition_accepted` now means "only max_steps enabled".
+- **One more test the story did not list.** `tests/test_termination.py::test_max_steps_disabled_runs_until_other_condition`
+  built a `max_steps: false` config, which is now invalid. I rewrote it as
+  `test_max_steps_caps_run_while_other_condition_pending`: reserves are due to exhaust at
+  step 20 and `max_steps=5`, so the run stops at `max_steps` after 5 steps. The test count
+  stays 92. `termination.check` still has its `if term.max_steps` branch; I did not edit the
+  kernel beyond config.py.
+- **AMM.** `protocol/amm.py` follows the Dev Notes math exactly: fee on input, fee left in
+  the reserves, and the drain guard rejects instead of clamping
+  (`"would drain reserve_out"`). Event payloads match the Dev Notes, including the
+  `reserve_stable` / `reserve_reference` keys in `swap_executed`. `quote()` and `swap()`
+  share `_compute()`, which is pure. `swap()` assigns only the reserves and `cumulative_fees`.
+  The class subclasses `ActionTarget` explicitly and satisfies `PegView` structurally.
+  It does not satisfy `ActionSource` or `ReservesView` (tested).
+- **AC 9.** `math.isclose(r.amount_out, 996.006981, rel_tol=1e-9)` is asserted, plus the
+  exact `1_000_000 * 997 / 1_000_997` (= 996.0069810399032) to 1e-12.
+- **AC 5.** 1,000 swaps with random side and size in [1, 10000], drawn from
+  `RunContext.from_config(...).rng` (seed 12345). `k` is checked after every swap, and final
+  `k` > initial `k`. A zero-fee companion test checks that `k` stays constant to 1e-9.
+- **Rejection paths in `execute()`** (never raised): unknown kind, unknown or non-str side,
+  `amount_in` missing / non-numeric / bool, `amount_in <= 0` / NaN / inf, and drain. Each
+  returns `ExecutionResult(ok=False, detail={"error": reason})` and emits `swap_rejected` with
+  `{source, side, amount_in, reason}`. Missing params are reported as `None`.
+- **Two judgement calls for review:**
+  1. The constructor also raises `ValueError` for reserves `<= 0` and `peg_price <= 0`, as
+     well as for the specified `fee_bps` range. A zero reserve would divide by zero in
+     `spot_price`. `AMMConfig` already enforces `gt=0` on the reserves, so this only matters
+     for direct construction. Easy to remove if "only fee_bps raises" was meant literally.
+  2. `cumulative_fees` is one float, as specified. It sums `fee_paid` in each swap's input
+     token, so stable and reference fees are mixed. The module docstring says so. If later
+     PnL work needs per-token fee totals, that is a follow-up.
+- **`tests/kernel_stubs.py`.** `SourceStub` gained optional `kind` / `params` arguments. The
+  defaults reproduce the old `ping` / `{"n": step}` behaviour, so existing tests are
+  untouched. Integration tests use `SourceStub(target="amm", kind="swap", params=...)`.
+  No `PegStub` is registered, and `test_amm_is_the_peg_view` asserts that
+  `registry.find(PegView) is amm`.
+- **AC 13.** CI result is pending until the push.
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/protocol/amm.py`
+- `tests/test_amm.py`
+- `tests/test_amm_integration.py`
+
 **Modified:**
+
+- `src/depeg_sim/kernel/config.py` (task 1: max_steps mandatory)
+- `tests/test_config.py` (task 1: rewritten termination tests)
+- `tests/test_termination.py` (task 1: max_steps-disabled test rewritten, see notes)
+- `tests/kernel_stubs.py` (`SourceStub` optional `kind` / `params`)
+- `docs/stories/1-4-constant-product-amm.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.3 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5): max_steps mandatory; ConstantProductAMM with unit and engine-integration tests; 139 passed; status review

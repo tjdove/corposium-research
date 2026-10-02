@@ -1,0 +1,258 @@
+"""Constant-product AMM: one STABLE/REF pool as a formal state machine.
+
+State:      ``reserve_stable``, ``reserve_reference``, ``fee_bps``, ``cumulative_fees``.
+Actions:    ``swap`` with side ``"sell_stable"`` (stable in, reference out) or
+            ``"buy_stable"`` (reference in, stable out).
+Execution:  Uniswap-V2 style, fee taken on input and left in the pool::
+
+                net_in       = amount_in * (1 - fee_bps / 10_000)
+                fee          = amount_in - net_in
+                out          = reserve_out * net_in / (reserve_in + net_in)
+                reserve_in  += amount_in
+                reserve_out -= out
+
+Invariant:  ``k = reserve_stable * reserve_reference`` never decreases across a swap.
+Events:     ``swap_executed`` and ``swap_rejected`` (emitted by ``execute``).
+Outputs:    ``Quote`` / ``SwapResult``, ``spot_price``, ``peg_deviation``, ``snapshot()``.
+
+Prices are quoted as **reference per unit stable**: ``spot_price = reserve_reference /
+reserve_stable``. ``execution_price`` uses the same unit for both sides (``out /
+amount_in`` when selling stable, ``amount_in / out`` when buying it), and ``slippage =
+(execution_price - spot_before) / spot_before``, so it is negative when selling stable
+and positive when buying it.
+
+Peg deviation sign convention: ``peg_deviation = spot_price / peg_price - 1.0``.
+Selling stable pushes ``spot_price`` **down**, so ``peg_deviation`` goes **negative**
+under a stable-selling attack and positive when stable is bought. ``peg_deviation`` is
+the ``PegView`` the kernel's ``peg_recovered`` termination check reads.
+
+Amounts are floats in token units (not Decimal, not integer wei). The goal is
+reproducibility, not wei-exactness; integer-exact behaviour is checked by the Anvil
+replay (Epic 3 stretch). ``cumulative_fees`` is the plain sum of ``fee_paid`` over
+executed swaps, each fee in its own input token's units (stable for ``sell_stable``,
+reference for ``buy_stable``).
+
+Invalid swaps raise ``AMMError`` from ``quote`` / ``swap``. ``execute`` catches these
+and turns them into ``ExecutionResult(ok=False)`` plus a ``swap_rejected`` event. It
+never raises. Liquidity add/remove is out of scope for Epic 1.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from depeg_sim.kernel.config import AMMConfig
+from depeg_sim.kernel.interfaces import Action, ActionTarget, ExecutionResult
+from depeg_sim.kernel.scheduler import Phase
+
+if TYPE_CHECKING:
+    from depeg_sim.kernel.context import RunContext
+
+SELL_STABLE = "sell_stable"
+BUY_STABLE = "buy_stable"
+SIDES = frozenset({SELL_STABLE, BUY_STABLE})
+BPS = 10_000
+
+
+class AMMError(Exception):
+    """An invalid swap request (bad side, non-positive amount, reserve drain)."""
+
+
+@dataclass(frozen=True)
+class Quote:
+    side: str
+    amount_in: float
+    amount_out: float
+    execution_price: float
+    spot_before: float
+    spot_after: float
+    slippage: float
+    fee_paid: float
+
+
+@dataclass(frozen=True)
+class SwapResult(Quote):
+    reserve_stable_after: float
+    reserve_reference_after: float
+
+
+class ConstantProductAMM(ActionTarget):
+    def __init__(
+        self,
+        reserve_stable: float,
+        reserve_reference: float,
+        fee_bps: int,
+        peg_price: float = 1.0,
+        name: str = "amm",
+    ) -> None:
+        if not 0 <= fee_bps < BPS:
+            raise ValueError(f"fee_bps must be in [0, {BPS}), got {fee_bps}")
+        if not (reserve_stable > 0 and reserve_reference > 0):
+            raise ValueError(
+                f"reserves must be > 0, got stable={reserve_stable}, reference={reserve_reference}"
+            )
+        if not peg_price > 0:
+            raise ValueError(f"peg_price must be > 0, got {peg_price}")
+        self.name = name
+        self.phases = frozenset({Phase.EXECUTION})
+        self.reserve_stable = float(reserve_stable)
+        self.reserve_reference = float(reserve_reference)
+        self.fee_bps = int(fee_bps)
+        self.peg_price = float(peg_price)
+        self.cumulative_fees = 0.0
+
+    @classmethod
+    def from_config(cls, cfg: AMMConfig, peg_price: float) -> ConstantProductAMM:
+        return cls(
+            reserve_stable=cfg.reserve_stable,
+            reserve_reference=cfg.reserve_reference,
+            fee_bps=cfg.fee_bps,
+            peg_price=peg_price,
+        )
+
+    # -- views -------------------------------------------------------------
+
+    @property
+    def spot_price(self) -> float:
+        """Reference per unit stable."""
+        return self.reserve_reference / self.reserve_stable
+
+    @property
+    def peg_deviation(self) -> float:
+        """``spot_price / peg_price - 1.0``; negative when stable trades below peg."""
+        return self.spot_price / self.peg_price - 1.0
+
+    @property
+    def k(self) -> float:
+        return self.reserve_stable * self.reserve_reference
+
+    # -- math --------------------------------------------------------------
+
+    def _apply_fee(self, amount_in: float) -> tuple[float, float]:
+        net_in = amount_in * (1 - self.fee_bps / BPS)
+        return net_in, amount_in - net_in
+
+    @staticmethod
+    def _out_for_in(net_in: float, r_in: float, r_out: float) -> float:
+        return r_out * net_in / (r_in + net_in)
+
+    def _compute(self, amount_in: float, side: str) -> SwapResult:
+        """The swap as it would execute now. Pure; raises ``AMMError`` if invalid."""
+        if not isinstance(side, str) or side not in SIDES:
+            raise AMMError(f"unknown side {side!r}")
+        if not (math.isfinite(amount_in) and amount_in > 0):
+            raise AMMError("amount_in must be > 0")
+
+        if side == SELL_STABLE:
+            r_in, r_out = self.reserve_stable, self.reserve_reference
+        else:
+            r_in, r_out = self.reserve_reference, self.reserve_stable
+
+        net_in, fee = self._apply_fee(amount_in)
+        out = self._out_for_in(net_in, r_in, r_out)
+        if out >= r_out:
+            raise AMMError("would drain reserve_out")
+
+        new_in, new_out = r_in + amount_in, r_out - out
+        if side == SELL_STABLE:
+            stable_after, reference_after = new_in, new_out
+            execution_price = out / amount_in
+        else:
+            stable_after, reference_after = new_out, new_in
+            execution_price = amount_in / out
+
+        spot_before = self.spot_price
+        return SwapResult(
+            side=side,
+            amount_in=amount_in,
+            amount_out=out,
+            execution_price=execution_price,
+            spot_before=spot_before,
+            spot_after=reference_after / stable_after,
+            slippage=(execution_price - spot_before) / spot_before,
+            fee_paid=fee,
+            reserve_stable_after=stable_after,
+            reserve_reference_after=reference_after,
+        )
+
+    def quote(self, amount_in: float, side: str) -> Quote:
+        """What ``swap`` would return, without changing state."""
+        r = self._compute(amount_in, side)
+        return Quote(
+            side=r.side,
+            amount_in=r.amount_in,
+            amount_out=r.amount_out,
+            execution_price=r.execution_price,
+            spot_before=r.spot_before,
+            spot_after=r.spot_after,
+            slippage=r.slippage,
+            fee_paid=r.fee_paid,
+        )
+
+    def swap(self, amount_in: float, side: str) -> SwapResult:
+        """Execute a swap: updates reserves and ``cumulative_fees`` only."""
+        r = self._compute(amount_in, side)
+        self.reserve_stable = r.reserve_stable_after
+        self.reserve_reference = r.reserve_reference_after
+        self.cumulative_fees += r.fee_paid
+        return r
+
+    # -- Subsystem / ActionTarget -----------------------------------------
+
+    def on_phase(self, ctx: RunContext, phase: Phase) -> None:
+        """No per-phase behaviour; the AMM only acts when actions are routed to it."""
+
+    def execute(self, ctx: RunContext, action: Action) -> ExecutionResult:
+        params = action.params
+        side = params.get("side")
+        amount_in = params.get("amount_in")
+        try:
+            if action.kind != "swap":
+                raise AMMError(f"unknown action kind {action.kind!r}")
+            if isinstance(amount_in, bool) or not isinstance(amount_in, int | float):
+                raise AMMError("amount_in must be a number")
+            r = self.swap(float(amount_in), side)
+        except AMMError as exc:
+            reason = str(exc)
+            ctx.events.emit(
+                step=ctx.clock.step_index,
+                kind="swap_rejected",
+                source=self.name,
+                payload={
+                    "source": action.source,
+                    "side": side,
+                    "amount_in": amount_in,
+                    "reason": reason,
+                },
+            )
+            return ExecutionResult(ok=False, detail={"error": reason})
+
+        payload = {
+            "source": action.source,
+            "side": r.side,
+            "amount_in": r.amount_in,
+            "amount_out": r.amount_out,
+            "execution_price": r.execution_price,
+            "spot_before": r.spot_before,
+            "spot_after": r.spot_after,
+            "slippage": r.slippage,
+            "fee_paid": r.fee_paid,
+            "reserve_stable": r.reserve_stable_after,
+            "reserve_reference": r.reserve_reference_after,
+        }
+        ctx.events.emit(
+            step=ctx.clock.step_index, kind="swap_executed", source=self.name, payload=payload
+        )
+        return ExecutionResult(ok=True, detail=payload)
+
+    def snapshot(self) -> dict:
+        return {
+            "reserve_stable": self.reserve_stable,
+            "reserve_reference": self.reserve_reference,
+            "fee_bps": self.fee_bps,
+            "k": self.k,
+            "spot_price": self.spot_price,
+            "cumulative_fees": self.cumulative_fees,
+        }
