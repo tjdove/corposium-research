@@ -1,6 +1,6 @@
 # Story 1.7: Attacker, Arbitrageur and Defender Agents
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -25,37 +25,37 @@ so that every action in a run can be explained by a rule and a threshold.
 
 ## Tasks / Subtasks
 
-- [ ] Kernel: execution results (AC: 1)
-  - [ ] `context.py`: `execution_results` list; `engine.py`: clear at `AGENT_DECISION`, append in `_route`
-  - [ ] `test_engine.py`: results recorded in queue order; cleared each step
+- [x] Kernel: execution results (AC: 1)
+  - [x] `context.py`: `execution_results` list; `engine.py`: clear at `AGENT_DECISION`, append in `_route`
+  - [x] `test_engine.py`: results recorded in queue order; cleared each step
 
-- [ ] Agent base (AC: 2, 9, 11)
-  - [ ] `agents/base.py`: `Agent` ABC with the contract above; `_amm(ctx)`, `_oracle(ctx)`, `_redemption(ctx)` helpers via `ctx.registry.get`
-  - [ ] `settle`: iterate `ctx.execution_results` for `action.source == agent_id` and `kind == "swap"` with `ok`; iterate this step's events for `kind == "redeem_fulfilled"` and `payload["source"] == agent_id` (add `EventSink.at_step(step)` helper in `events.py` if absent — returns events with that step; keep it O(tail))
-  - [ ] `record` gated on `ctx.config.metrics.trace_decisions`
-  - [ ] Tests: balances arithmetic with a scripted `execution_results`; trace gating
+- [x] Agent base (AC: 2, 9, 11)
+  - [x] `agents/base.py`: `Agent` ABC with the contract above; `_amm(ctx)`, `_oracle(ctx)`, `_redemption(ctx)` helpers via `ctx.registry.get`
+  - [x] `settle`: iterate `ctx.execution_results` for `action.source == agent_id` and `kind == "swap"` with `ok`; iterate this step's events for `kind == "redeem_fulfilled"` and `payload["source"] == agent_id` (add `EventSink.at_step(step)` helper in `events.py` if absent — returns events with that step; keep it O(tail))
+  - [x] `record` gated on `ctx.config.metrics.trace_decisions`
+  - [x] Tests: balances arithmetic with a scripted `execution_results`; trace gating
 
-- [ ] Attacker (AC: 3, 8)
-  - [ ] `agents/attacker.py`; tests per AC 8
+- [x] Attacker (AC: 3, 8)
+  - [x] `agents/attacker.py`; tests per AC 8
 
-- [ ] Arbitrageur (AC: 4, 8)
-  - [ ] `agents/arbitrageur.py`; closed-form sizing helpers `_reference_to_reach(k, R, target)` and `_stable_to_reach(k, S, target)`; latency plan queue; tests per AC 8 incl. sizing precision
+- [x] Arbitrageur (AC: 4, 8)
+  - [x] `agents/arbitrageur.py`; closed-form sizing helpers `_reference_to_reach(k, R, target)` and `_stable_to_reach(k, S, target)`; latency plan queue; tests per AC 8 incl. sizing precision
 
-- [ ] Defender (AC: 5, 8)
-  - [ ] `agents/defender.py`; spread widen/restore state machine; tests per AC 8
+- [x] Defender (AC: 5, 8)
+  - [x] `agents/defender.py`; spread widen/restore state machine; tests per AC 8
 
-- [ ] Factory and settle verification (AC: 6, 7)
-  - [ ] `agents/factory.py`; `test_agents_factory.py` (three types, order preserved, unknown type impossible by config)
-  - [ ] `test_agents_settle.py` with real AMM + redemption in an engine
+- [x] Factory and settle verification (AC: 6, 7)
+  - [x] `agents/factory.py`; `test_agents_factory.py` (three types, order preserved, unknown type impossible by config)
+  - [x] `test_agents_settle.py` with real AMM + redemption in an engine
 
-- [ ] Full integration (AC: 10)
-  - [ ] `tests/test_agents_integration.py` on the baseline scenario; repeat-run equality
+- [x] Full integration (AC: 10)
+  - [x] `tests/test_agents_integration.py` on the baseline scenario; repeat-run equality
 
-- [ ] Tests, lint, close out (AC: 12)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] `python run.py scenarios/soros-baseline.yaml` (unchanged; CLI registration is 1.8)
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 1.7: attacker, arbitrageur and defender agents`, push to `main`
+- [x] Tests, lint, close out (AC: 12)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] `python run.py scenarios/soros-baseline.yaml` (unchanged; CLI registration is 1.8)
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 1.7: attacker, arbitrageur and defender agents`, push to `main`
 
 ## Dev Notes
 
@@ -176,20 +176,155 @@ you, that is a finding, not a bug — record it in Completion Notes.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output with exit codes)_
+Task 1 (`2694cc0`). The baseline before it is 232 passing, per Story 1.6's Debug Log;
+not re-run here:
+
+```
+$ pytest; echo exit=$?   # after task 1
+233 passed in 0.45s
+exit=0
+```
+
+Final:
+
+```
+$ pytest; echo exit=$?
+296 passed in 0.60s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+53 files already formatted
+exit=0
+
+$ python run.py scenarios/soros-baseline.yaml; echo exit=$?
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+run: steps=5000 terminated_by=max_steps
+exit=0
+
+$ pytest --cov=depeg_sim --cov-report=term-missing   (excerpt)
+src/depeg_sim/agents/arbitrageur.py             99      2    98%   105, 147
+src/depeg_sim/agents/attacker.py                42      0   100%
+src/depeg_sim/agents/base.py                    84      3    96%   62, 64, 199
+src/depeg_sim/agents/defender.py                81      0   100%
+src/depeg_sim/agents/factory.py                 18      0   100%
+src/depeg_sim/kernel/engine.py                  73      0   100%
+src/depeg_sim/kernel/events.py                  48      0   100%
+TOTAL                                         1099      7    99%
+```
+
+232 → 296 tests (+64): 1 engine (task 1), 1 `EventSink.at_step`, 62 across the agent
+test files. CLI output is identical to the Story 1.6 record; agents are not registered by
+the CLI yet (1.8).
+
+Baseline 300-step run, exploratory script (same setup as `test_agents_integration.py`):
+
+```
+terminated_by=max_steps steps_run=300
+spot: step 49 1.0 | 50 0.94268 | 52 1.00439 | 100 0.99562 | 150..299 0.99817
+steps with |deviation| <= 0.1%: 0-49, then scattered up to 111, none after
+last defend_buy step 77 (16 buys, spent 200,656 of 400,000)
+last arbitrageur trade step 114 (12 buys, 12 redeems, 1 sell)
+redemption: 90,990 stable fulfilled, reserves 409,101 left, never exhausted
+same scenario at max_steps 5000: terminated_by=max_steps
+```
 
 ### Completion Notes List
+
+- **AC 10 / research finding: the baseline never recovers the peg; `max_steps` fires.**
+  I ran the scenario before writing the assertion, so the reasoning comment in
+  `tests/test_agents_integration.py` explains an observed result. It was not a blind
+  prediction. The attack is absorbed within ~60 steps (min spot 0.943 at step 50; the
+  defender's last buy is step 77). After that the pool parks at ~0.9982 (-18 bps). That
+  is inside the arbitrage band (fee 30 + min profit 20 = 50 bps) and above the defender's
+  -1% trigger, so no agent has a rule that moves it. `peg_recovered` needs
+  |deviation| <= 10 bps for 100 steps, which is tighter than the no-arbitrage band, so it
+  can't fire once an attack has moved the price. It still hasn't fired at 5000 steps.
+  Two consequences for Epic 2 calibration:
+  (a) `peg_recovered.tolerance` must be >= the arbitrage band to be reachable, or there
+  has to be a force inside the band (e.g. redemption at 0.999 arbitraged against an AMM
+  above 0.999). With the current parameters, buy-then-redeem loses fee + spread = 40 bps.
+  (b) Before the attack the pool sits at peg for 50 steps (0-49). With
+  `start_step >= 100` the run would end `peg_recovered` before the attacker ever acts.
+  The reserves were never under real pressure: 91k of 500k paid out.
+- **`Decision.action` for multi-action steps is `{"actions": [...]}`, not a bare list.**
+  `DecisionTrace.record` does `dict(action)` and `Decision.action` is typed `Mapping`.
+  The context allows no kernel changes beyond task 1 and `at_step`, so `Agent.record`
+  wraps a list. Only the defender's widen+buy step produces one.
+- **Defender widen step rule.** The step that widens the spread is recorded as
+  `defend_spread_widen` (action list `[spread change, buy]` when it also buys). Later
+  defense steps record `defend_buy`. So `interventions` can exceed the count of
+  `defend_buy` records by one when the spread lever is configured. `interventions` and
+  `spent` count executed buys (from `execution_results`), not planned ones. The spread
+  target is capped at 9,999 bps. The defender captures `base_spread` at the moment it
+  widens and restores that value. It calls `set_spread_bps` only when the value would
+  change.
+- **Arbitrageur latency semantics (interpretation).** Each opportunity becomes a plan
+  stamped with the step it was first seen. A later observation of the same kind refreshes
+  the size but keeps the original step. Otherwise a persistent opportunity would reset its
+  clock every step and never execute when `latency_steps >= 1`. An observation that no
+  longer sees that kind drops the plan, so the market doesn't trade on a gap that closed
+  before it reacted. At most one plan executes per step, FIFO. Size is clamped to the
+  balance at execution. Within one observation the redeem plan is created before the buy
+  plan, so a held position is redeemed first (tested).
+- **Queued redemptions.** Stable queued for redemption stays in `balances["stable"]`
+  until filled (AC 7 semantics) and is tracked in `queued_redeem`, set from the agent's
+  own `ok` redeem results in `settle`. The arbitrageur redeems only `available_stable`
+  (= stable − queued), so queued stable is never redeemed twice. A test shows the
+  arbitrageur recycling redemption proceeds: it buys on the AMM, then redeems only the
+  new stable.
+- **Redeem route without an oracle.** The redeem check (`payout_per_unit > spot`) doesn't
+  need an oracle price. AMM buy/sell plans do, and are skipped while `oracle.price` is
+  None. `observe` tolerates missing modules (values `None`), which lets the AC 7 settle
+  tests run in an engine with only the modules they need.
+- `decide` uses `last_obs` from `STATE_OBSERVATION` (nothing changes the pool between
+  observation and decision). `pnl_last` is updated in `settle` so `snapshot()` needs no
+  ctx. `initial_value` uses `config.redemption.peg_price` (factory).
+- `EventSink.at_step(step)` added to `kernel/events.py` (allowed by the context). It scans
+  from the tail and stops at the first earlier step.
+- Agent unit tests use `tests/agent_world.py` (new helper, test-only). It wires a real
+  `ScriptedPriceSource`, `Oracle`, `ConstantProductAMM` and `RedemptionModule` and runs a
+  step by hand in phase order. `World.set_spot` resets pool reserves directly to place
+  spot (test-only).
+- Uncovered lines are defensive: empty `agent_id`, bad `peg_price`, abstract `decide`
+  body, a ready plan whose clamped size is dust, and the `amm is None` early return.
+- No existing tests broke. `tests/test_engine.py` and `tests/test_events.py` gained one
+  test each.
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/agents/base.py`
+- `src/depeg_sim/agents/attacker.py`
+- `src/depeg_sim/agents/arbitrageur.py`
+- `src/depeg_sim/agents/defender.py`
+- `src/depeg_sim/agents/factory.py`
+- `tests/agent_world.py`
+- `tests/test_agents_base.py`
+- `tests/test_attacker.py`
+- `tests/test_arbitrageur.py`
+- `tests/test_defender.py`
+- `tests/test_agents_factory.py`
+- `tests/test_agents_settle.py`
+- `tests/test_agents_integration.py`
+
 **Modified:**
+
+- `src/depeg_sim/kernel/context.py` (task 1: `execution_results`)
+- `src/depeg_sim/kernel/engine.py` (task 1: clear at `AGENT_DECISION`, append in `_route`)
+- `src/depeg_sim/kernel/events.py` (`EventSink.at_step`)
+- `tests/test_engine.py`, `tests/test_events.py`
+- `docs/stories/1-7-agents.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.6 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5); 296 tests pass; baseline 300-step run ends `max_steps` (finding in Completion Notes); status → review

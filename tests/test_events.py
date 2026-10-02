@@ -48,3 +48,14 @@ def test_decision_is_frozen():
     d = DecisionTrace().record(0, "a", "r", {}, None)
     with pytest.raises(dataclasses.FrozenInstanceError):
         d.rule = "other"
+
+
+def test_at_step_returns_only_that_step_in_order():
+    sink = EventSink()
+    for step, kind in [(0, "a"), (1, "b"), (1, "c"), (2, "d"), (2, "e")]:
+        sink.emit(step, kind, "s")
+    assert [e.kind for e in sink.at_step(2)] == ["d", "e"]
+    assert [e.kind for e in sink.at_step(1)] == ["b", "c"]
+    assert [e.kind for e in sink.at_step(0)] == ["a"]
+    assert sink.at_step(3) == []
+    assert EventSink().at_step(0) == []

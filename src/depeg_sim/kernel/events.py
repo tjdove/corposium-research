@@ -42,6 +42,18 @@ class EventSink:
     def all(self) -> list[Event]:
         return list(self._events)
 
+    def at_step(self, step: int) -> list[Event]:
+        """Events emitted at ``step``, in emission order. Scans back from the tail and
+        stops at the first earlier step, so asking for the current step is cheap."""
+        out: list[Event] = []
+        for event in reversed(self._events):
+            if event.step < step:
+                break
+            if event.step == step:
+                out.append(event)
+        out.reverse()
+        return out
+
     def __len__(self) -> int:
         return len(self._events)
 
