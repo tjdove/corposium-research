@@ -254,7 +254,8 @@ until 1.8).
   untouched. Integration tests use `SourceStub(target="amm", kind="swap", params=...)`.
   No `PegStub` is registered, and `test_amm_is_the_peg_view` asserts that
   `registry.find(PegView) is amm`.
-- **AC 13.** CI result is pending until the push.
+- **AC 13.** CI is green on `b85632c`: GitHub Actions run 37008807755, `success` in 34s.
+  Its log shows `All checks passed!` and `139 passed in 1.16s`.
 
 ### File List
 
