@@ -1,6 +1,6 @@
 # Story 1.2: Scenario Configuration Model
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
