@@ -1,6 +1,6 @@
 # Story 1.5: Oracle and Environment Modules
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
