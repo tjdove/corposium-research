@@ -1,6 +1,6 @@
 # Story 1.6: Redemption Module
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
