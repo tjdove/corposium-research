@@ -1,6 +1,6 @@
 # Story 1.7: Attacker, Arbitrageur and Defender Agents
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
