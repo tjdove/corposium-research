@@ -1,6 +1,6 @@
 # Story 1.2: Scenario Configuration Model
 
-Status: review
+Status: done
 
 ## Story
 
@@ -296,3 +296,68 @@ All checks passed!
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.1 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5); status review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+Schema implemented exactly as specified in Dev Notes; no extra fields, no invented defaults.
+Models are strict and frozen. Reviewer re-ran the suite on a separate machine (Python 3.13):
+32 passed, ruff clean. Content hash of the baseline is `7c4f870b2d8a…` on both Seoul (3.14)
+and the review box (3.13), confirming the canonical dump is platform- and version-stable.
+CI runs 37004446787 and 37004512675 green on 3.12 with the updated runner and actions.
+
+Builder also correctly followed the story file over a mismatched kickoff prompt (the 1.1
+prompt was reused). That is the intended precedence per CLAUDE.md.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `kernel/config.py:120-132` — all twelve fields; `test_top_level_field_list_matches_spec` |
+| 2 | ✅ | `StepsConfig` gt=0 constraints; `test_interval_seconds_zero_rejected`, `_defaults_to_12` |
+| 3 | ✅ | `TerminationConfig` + validator; `test_termination_nothing_enabled_rejected`, `_single_condition_accepted` |
+| 4 | ✅ | Discriminated union `AgentConfig`; `test_each_agent_type_parses_to_its_model`, `test_unknown_agent_type_rejected` |
+| 5 | ✅ | `load_scenario`, `extra="forbid"` on `StrictModel`; three unknown-field tests |
+| 6 | ✅ | `version: Literal[1]`; `test_version_2_rejected` |
+| 7 | ✅ | `content_hash()` sorted/compact/mode=json; `test_hash_stable_across_loads`, `_changes_when_seed_changes`; reviewer confirmed 64 hex chars |
+| 8 | ✅ | `scenarios/soros-baseline.yaml` matches Dev Notes; loads with 3 agents |
+| 9 | ✅ | 17 test functions (29 cases with parametrize) cover every bullet; plus duplicate-id and frozen tests |
+| 10 | ✅ | `32 passed`, `All checks passed!`, CI green |
+
+**10 of 10 ACs met.**
+
+### Task Completion Validation
+
+All tasks ticked and verified. Carry-over CI housekeeping done (`ubuntu-24.04`, `checkout@v5`,
+`setup-python@v6`) and confirmed green before the main story commit, as instructed.
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] `--seed` is accepted but inert.** Builder flagged this. Correct to leave it; Story 1.3
+  gives `RunContext` a seed and Story 1.8 wires the override. Added to 1.3 Dev Notes.
+- **[LOW-2] Unparseable YAML → exit 3.** Good judgment call; a traceback on bad YAML would look
+  broken to an outside user. Kept.
+- **[LOW-3] `test_top_level_field_list_matches_spec` hard-codes the field list.** Fine for now
+  (it is the spec), but it will need updating if Epic 2 adds a `calibration` section. Not a
+  problem today.
+
+### Learnings for Story 1.3
+
+- `StrictModel` base (`extra="forbid"`, `frozen=True`) is the pattern for any further config.
+  Do not subclass `BaseModel` directly elsewhere.
+- Pydantic coerces YAML ints into float fields; `1_000_000` underscore syntax parsed fine on
+  3.12 CI, so it can stay in scenarios.
+- `cfg.content_hash()` is what the run manifest (1.8) records; do not recompute it any other way.
+
+### Action Items
+
+- [ ] [Low] Wire `--seed` override → Story 1.8 (noted in 1.3 Dev Notes as `RunContext.seed`)
+- 2026-10-02: Senior review APPROVE; status set to done. --seed wiring deferred to 1.8.
