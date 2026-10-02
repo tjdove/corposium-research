@@ -1,6 +1,6 @@
 # Story 1.6: Redemption Module
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,28 +26,28 @@ so that the "price promise" and its capacity limit are explicit state.
 
 ## Tasks / Subtasks
 
-- [ ] Module and queue (AC: 1, 2, 5, 9, 10)
-  - [ ] `protocol/redemption.py`: `RedemptionRequest` dataclass (mutable: `remaining` changes), `RedemptionModule`
-  - [ ] Constructor validation; `payout_per_unit` property; `set_spread_bps`
-  - [ ] `execute` → queue + `redeem_requested` / `redeem_rejected`
-  - [ ] `snapshot`, `from_config`
-  - [ ] Tests: construction guards; queue FIFO; rejection paths; snapshot keys; protocol `isinstance` checks (incl. `ReservesView` True, `PegView` False)
+- [x] Module and queue (AC: 1, 2, 5, 9, 10)
+  - [x] `protocol/redemption.py`: `RedemptionRequest` dataclass (mutable: `remaining` changes), `RedemptionModule`
+  - [x] Constructor validation; `payout_per_unit` property; `set_spread_bps`
+  - [x] `execute` → queue + `redeem_requested` / `redeem_rejected`
+  - [x] `snapshot`, `from_config`
+  - [x] Tests: construction guards; queue FIFO; rejection paths; snapshot keys; protocol `isinstance` checks (incl. `ReservesView` True, `PegView` False)
 
-- [ ] Processing (AC: 3, 4, 6, 7, 8)
-  - [ ] `on_phase(ctx, PROTOCOL_EVENTS)` → `process(ctx)`
-  - [ ] Capacity accounting per step; partial fills keep remainder at head
-  - [ ] Reserves-affordable logic; exhaustion flag + single event
-  - [ ] Tests: AC 7 table case; AC 8 reserves case; invariant over 200 random steps using `numpy.random.default_rng(99)` for request sizes; exhaustion fires once and latches
+- [x] Processing (AC: 3, 4, 6, 7, 8)
+  - [x] `on_phase(ctx, PROTOCOL_EVENTS)` → `process(ctx)`
+  - [x] Capacity accounting per step; partial fills keep remainder at head
+  - [x] Reserves-affordable logic; exhaustion flag + single event
+  - [x] Tests: AC 7 table case; AC 8 reserves case; invariant over 200 random steps using `numpy.random.default_rng(99)` for request sizes; exhaustion fires once and latches
 
-- [ ] Kernel integration (AC: 11, 12)
-  - [ ] `tests/test_redemption_integration.py`
-  - [ ] Compute expected `steps_run` in the test from parameters (do not hard-code a magic number without the formula in a comment)
+- [x] Kernel integration (AC: 11, 12)
+  - [x] `tests/test_redemption_integration.py`
+  - [x] Compute expected `steps_run` in the test from parameters (do not hard-code a magic number without the formula in a comment)
 
-- [ ] Tests, lint, close out (AC: 13)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] `python run.py scenarios/soros-baseline.yaml` (unchanged output)
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 1.6: redemption module`, push to `main`
+- [x] Tests, lint, close out (AC: 13)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] `python run.py scenarios/soros-baseline.yaml` (unchanged output)
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 1.6: redemption module`, push to `main`
 
 ## Dev Notes
 
@@ -153,20 +153,86 @@ in the test as comments and compute it, don't hard-code 21.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output with exit codes)_
+```
+$ pytest; echo exit=$?
+232 passed in 0.45s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+40 files already formatted
+exit=0
+
+$ python run.py scenarios/soros-baseline.yaml; echo exit=$?
+depeg-sim: scenario=soros-baseline seed=42 hash=7c4f870b2d8a
+run: steps=5000 terminated_by=max_steps
+exit=0
+
+$ pytest --cov=depeg_sim --cov-report=term-missing   (excerpt)
+src/depeg_sim/protocol/redemption.py           137      1    99%   233
+TOTAL                                          764      3    99%
+```
+
+193 → 232 tests (+39: 35 collected from `test_redemption.py` including parametrized
+cases, 4 from `test_redemption_integration.py`). CLI output is
+identical to the Story 1.5 record; the CLI does not register the module yet.
 
 ### Completion Notes List
+
+- **`set_spread_bps` takes `ctx` first: `set_spread_bps(ctx, bps, source="redemption")`.**
+  The context interface lists `set_spread_bps(bps, source)`, but AC 5 requires it to emit
+  `spread_changed`, and emitting needs the event sink and the step. Every other emitting
+  method here (`execute`, `process`) takes `ctx` first, so I followed that. It raises
+  `ValueError` for `bps` outside `[0, 10_000)` (a direct-call API, not `execute`/`on_phase`).
+  It emits on every call, including a call that sets the same value, so traces show each
+  time the lever was pulled. Story 1.7's defender has `ctx` in `decide`, so this should fit.
+- **Reserves-limited fills pay exactly the remaining reserves** and set `reserves = 0.0`,
+  rather than `reserves -= fill * ppu`. That removes float residue (which would leave
+  tiny positive reserves and cause repeated tiny fills). `paid` differs from `fill * ppu` by
+  at most an ulp. `paid_total` is the sum of per-fill `paid`, exactly equal in the invariant
+  test.
+- **Reason precedence:** `full` if the remainder is under 1e-12 (then clamped to 0), else
+  `partial_reserves` if reserves are now 0, else `partial_capacity`. Capacity residue under
+  1e-12 also ends the step's loop.
+- **Exhaustion threshold** is `reserves < ppu * 1e-9` with a non-empty queue, checked after
+  the settlement loop, as in the normative block. Tested: empty reserves + empty queue is
+  not exhausted; exact spend-down with an empty queue is not exhausted; demand arriving
+  later against empty reserves is; event fires once and latches.
+- **Additions beyond the ACs** (small, read-only): `requested_total` property (AC 6 names
+  it), `pending` (copy of the queue for tests), and `step_requested` in the
+  `redeem_fulfilled` payload so fulfilment time (spec output) can be computed from one
+  event. The snapshot has exactly the AC 9 keys.
+- **AC 11 arithmetic** is in `expected_exhaustion_step()` in
+  `tests/test_redemption_integration.py`: `ceil((500_000 / 0.999) / 25_000) - 1 = 20`, so
+  `steps_run == 21`, computed in the test. The test also checks every step before 20 fills
+  exactly 25,000, step 20 fills `500_500.5 - 20 * 25_000` with `partial_reserves`, and
+  `run_terminated` fires at step 20.
+- `spread_bps` must be an `int` (bools and floats rejected). `RedemptionConfig.spread_bps`
+  is an int, so `from_config` is unaffected.
+- The single uncovered line (233) is the normative `if fill <= 0: break` guard. The loop
+  guards make it unreachable in practice; kept as written in the Dev Notes.
+- No tests elsewhere broke; no other files changed.
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/protocol/redemption.py`
+- `tests/test_redemption.py`
+- `tests/test_redemption_integration.py`
+
 **Modified:**
+
+- `docs/stories/1-6-redemption-module.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.5 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5); 232 tests pass; status → review
