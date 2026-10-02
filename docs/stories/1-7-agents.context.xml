@@ -1,0 +1,100 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.7</storyId>
+    <title>Attacker, Arbitrageur and Defender Agents</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-7-agents.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>the three core agents with explicit, parameterised policies and decision traces</iWant>
+    <soThat>every action in a run can be explained by a rule and a threshold</soThat>
+    <tasks>
+      - Kernel: execution results (AC: 1)
+      - Agent base (AC: 2, 9, 11)
+      - Attacker (AC: 3, 8)
+      - Arbitrageur (AC: 4, 8)
+      - Defender (AC: 5, 8)
+      - Factory and settle verification (AC: 6, 7)
+      - Full integration (AC: 10)
+      - Tests, lint, close out (AC: 12)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–12. Closed-form sizing, arbitrage band, defender band and the decision-record shape in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-7-agents.md" section="Dev Notes">Phase usage table, Soros mapping, sizing formulas, bands, record shape, baseline expectation.</doc>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Dev Notes">Step loop; execution_results is a minimal extension of it.</doc>
+      <doc path="docs/stories/1-4-constant-product-amm.md" section="Dev Notes">Math and sign convention the sizing relies on.</doc>
+      <doc path="docs/stories/1-6-redemption-module.md" section="Senior Developer Review">ctx-first emit rule; spread_changed noise rule.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/engine.py" symbol="Engine._step, Engine._route" reason="AC 1: append (action, result) in _route; clear ctx.execution_results where the queue is cleared."/>
+      <existing path="src/depeg_sim/kernel/context.py" symbol="RunContext" reason="Add execution_results: list[tuple[Action, ExecutionResult]]."/>
+      <existing path="src/depeg_sim/kernel/events.py" symbol="EventSink" reason="Add at_step(step) if needed for settle."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="AttackerConfig, ArbitrageurConfig, DefenderConfig, MetricsConfig.trace_decisions" reason="Factory inputs; trace gate."/>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="spot_price, peg_deviation, k, fee_bps, reserve_stable, reserve_reference" reason="Observed by agents; used in sizing."/>
+      <existing path="src/depeg_sim/protocol/oracle.py" symbol="price" reason="Observed by arbitrageur."/>
+      <existing path="src/depeg_sim/protocol/redemption.py" symbol="payout_per_unit, spread_bps, set_spread_bps" reason="Observed by arbitrageur; lever for defender."/>
+      <existing path="tests/kernel_stubs.py" reason="May add nothing; prefer real modules for agent tests."/>
+    </code>
+    <dependencies>
+      <python>math.sqrt. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Files under src/: agents/base.py, agents/attacker.py, agents/arbitrageur.py, agents/defender.py, agents/factory.py; plus the AC 1 edits to kernel/context.py and kernel/engine.py (and optionally kernel/events.py). No other kernel changes; PHASE_ORDER_VERSION stays 1.
+    - Agents read protocol state through ctx.registry.get(name) and never mutate it, except defender → redemption.set_spread_bps.
+    - No randomness in agents. Agents never call ctx.rng.
+    - Each agent emits at most: attacker 1 action/step; arbitrageur 1 action/step; defender up to 1 swap/step plus spread calls (which are method calls, not actions).
+    - Decision trace: exactly one Decision per agent per decide call when tracing; none otherwise.
+    - Balances are plain floats; mark-to-market uses AMM spot at call time.
+    - Sizing uses the closed forms in Dev Notes; no iterative solvers.
+    - Rule names are exactly those listed in the ACs.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="Agent" kind="ABC / ActionSource" path="src/depeg_sim/agents/base.py">
+      agent_id: str; name == agent_id; phases == frozenset({STATE_OBSERVATION, AGENT_DECISION, METRIC_UPDATE})
+      balances: dict[str, float]; initial_value: float; last_obs: dict
+      observe(ctx) -> dict ; decide(ctx) -> list[Action] ; settle(ctx) -> None
+      mark_to_market(ctx) -> float ; pnl(ctx) -> float
+      record(ctx, rule: str, observed: dict, action: dict | list[dict] | None) -> None
+      on_phase(ctx, phase) -> None  (dispatches to observe/settle; AGENT_DECISION is handled by the kernel calling decide)
+      snapshot() -> dict
+    </interface>
+    <interface name="Attacker / Arbitrageur / Defender" kind="Agent subclasses" path="src/depeg_sim/agents/*.py">Constructors mirror their *Config fields plus agent_id; classmethod from_config(cfg) on each.</interface>
+    <interface name="build_agents" kind="function" path="src/depeg_sim/agents/factory.py">build_agents(config: ScenarioConfig) -> list[Agent] in config order</interface>
+    <interface name="RunContext.execution_results" kind="attribute" path="src/depeg_sim/kernel/context.py">list[tuple[Action, ExecutionResult]]; cleared at AGENT_DECISION; filled during EXECUTION in queue order</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest. Unit tests for agents use a real ConstantProductAMM, Oracle (with ScriptedPriceSource) and RedemptionModule, with a RunContext built from the baseline config and phases invoked manually; integration tests use Engine. Numeric assertions via math.isclose. One test file per agent plus base, factory, settle, integration.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="engine with SourceStub + TargetStub: execution_results has one (action, result) per step in order; empty at start of next AGENT_DECISION"/>
+      <test ac="3" idea="attacker start_step 5 pace 0.1 capital 1000: steps 0-4 no action (attack_waiting); step 5 sells 100; step 6 sells 90; stop_below_price triggers attack_stop_price"/>
+      <test ac="4" idea="spot == oracle → arb_idle; spot 2% below oracle, fee 30, min 20 → arb_buy_amm with x == sqrt(k*oracle)-R (uncapped case uses large capital)"/>
+      <test ac="4" idea="latency 2: observe at step 3, decide returns [] at 3 and 4 (arb_waiting_latency), action at 5"/>
+      <test ac="4" idea="holding stable, ppu 0.999 > spot 0.98 → arb_redeem of full stable balance"/>
+      <test ac="5" idea="deviation -0.5% threshold 1% → defend_idle; -2% → defend_buy sized min(pace*ref, sqrt(k*peg)-R); max_spend 1000 caps cumulative spent"/>
+      <test ac="5" idea="spread_adjust 50: first defense step calls set_spread_bps once (one spread_changed event); stays widened across consecutive defense steps (no extra events); restore emits once when back in band"/>
+      <test ac="7" idea="engine with AMM + attacker: after one swap, stable -1000, reference +amount_out from the swap_executed event"/>
+      <test ac="7" idea="engine with redemption + arb holding stable: after redeem fulfilment, balances match paid_reference"/>
+      <test ac="8" idea="sizing precision: fee_bps 0 → spot_after/target within 1e-9"/>
+      <test ac="9" idea="trace on: len(decisions) == steps * n_agents; trace off: 0"/>
+      <test ac="10" idea="baseline scenario 300 steps; repeat identical; terminated_by asserted with reasoning comment"/>
+      <test ac="11" idea="snapshot keys per agent type"/>
+    </ideas>
+  </tests>
+</story-context>
