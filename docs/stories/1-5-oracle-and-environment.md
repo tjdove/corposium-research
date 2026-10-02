@@ -187,6 +187,13 @@ TOTAL                                          627      2    99%
 CLI output is identical to the same command run at `e36aa45` (pre-story), in a
 temporary worktree.
 
+CI on push of `75254c9`:
+
+```
+$ gh run list --branch main --limit 1
+completed	success	story 1.5: oracle and environment	ci	main	push	37015325742	31s	2026-10-02T13:47:15Z
+```
+
 ### Completion Notes List
 
 - **Task 1** landed separately (`6fe6174`). Fee accrues in the swap's input token:
