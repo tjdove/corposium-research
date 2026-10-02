@@ -1,6 +1,6 @@
 # Story 1.4: Constant-Product AMM Module
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
