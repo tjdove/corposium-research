@@ -1,0 +1,91 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.4</storyId>
+    <title>Constant-Product AMM Module</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-4-constant-product-amm.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>a constant-product AMM with fees as a formal state machine</iWant>
+    <soThat>pool price impact of attacker and arbitrageur trades is exact and testable</soThat>
+    <tasks>
+      - Carry-over: termination.max_steps mandatory (AC: 1)
+      - AMM math and state (AC: 3, 4, 5, 6, 8, 9)
+      - Subsystem contract (AC: 2, 7, 10, 11)
+      - Engine integration (AC: 12)
+      - Tests, lint, close out (AC: 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. The math block in Dev Notes is normative; the sign convention for peg_deviation is normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-4-constant-product-amm.md" section="Dev Notes">Math, drain guard, event payloads, sign convention, registration name.</doc>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Dev Notes / Interfaces">Subsystem, ActionTarget, PegView contracts this module implements.</doc>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Senior Developer Review">max_steps safety-cap decision; interfaces.py allow-list.</doc>
+      <doc path="docs/CHARTER.md" section="4. Scope">No liquidity add/remove in Epic 1.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/interfaces.py" symbol="Subsystem, ActionTarget, PegView, Action, ExecutionResult" reason="Implement against these; do not modify."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="AMMConfig, TerminationConfig, ScenarioConfig" reason="from_config reads AMMConfig; task 1 adds the max_steps validator."/>
+      <existing path="src/depeg_sim/kernel/context.py" symbol="RunContext, Registry" reason="register the AMM in integration tests; registry.find(PegView) must find it."/>
+      <existing path="src/depeg_sim/kernel/engine.py" symbol="Engine" reason="Integration tests run a real engine."/>
+      <existing path="tests/kernel_stubs.py" symbol="SourceStub, PegStub" reason="Reuse SourceStub targeting 'amm'. Do NOT register PegStub in AMM integration tests."/>
+      <existing path="tests/test_config.py" symbol="test_termination_nothing_enabled_rejected" reason="Rewrite per task 1."/>
+    </code>
+    <dependencies>
+      <python>No new dependencies. math.isclose for tolerances.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - File: src/depeg_sim/protocol/amm.py only (plus tests). No changes to kernel/ except config.py task 1.
+    - Floats in token units; no Decimal; no integer wei scaling.
+    - Fee on input; fee remains in reserves; k non-decreasing.
+    - Rejections are ExecutionResult(ok=False) + swap_rejected event, never exceptions. Only fee_bps range at construction raises.
+    - quote() must not mutate state; swap() must mutate exactly reserves and cumulative_fees.
+    - No liquidity add/remove. No multi-pool. No routing.
+    - peg_deviation = spot_price / peg_price - 1.0; negative under stable selling.
+    - name="amm" fixed; phases == frozenset({Phase.EXECUTION}).
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="ConstantProductAMM" kind="class" path="src/depeg_sim/protocol/amm.py">
+      __init__(reserve_stable: float, reserve_reference: float, fee_bps: int, peg_price: float = 1.0, name: str = "amm")
+      quote(amount_in: float, side: str) -> Quote
+      swap(amount_in: float, side: str) -> SwapResult
+      spot_price: float (property); peg_deviation: float (property); k: float (property); cumulative_fees: float
+      execute(ctx, action) -> ExecutionResult ; on_phase(ctx, phase) -> None ; snapshot() -> dict
+      classmethod from_config(cfg: AMMConfig, peg_price: float) -> ConstantProductAMM
+    </interface>
+    <interface name="Quote" kind="frozen dataclass" path="src/depeg_sim/protocol/amm.py">side, amount_in, amount_out, execution_price, spot_before, spot_after, slippage, fee_paid</interface>
+    <interface name="SwapResult" kind="frozen dataclass" path="src/depeg_sim/protocol/amm.py">Quote fields + reserve_stable_after, reserve_reference_after</interface>
+    <interface name="AMMError" kind="exception" path="src/depeg_sim/protocol/amm.py">Internal; raised by _compute on invalid input and caught by execute() to produce swap_rejected. quote()/swap() called directly may raise it.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>tests/test_amm.py for unit; tests/test_amm_integration.py for engine runs. Numeric assertions via math.isclose with explicit tolerances. Property test draws from numpy.random.default_rng(12345) directly (unit test, no ctx) or from a RunContext rng (integration).</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="9" idea="1M/1M, 30bps, sell_stable 1000: amount_out ≈ 996.006981, fee 3.0, slippage ≈ -0.00399"/>
+      <test ac="5" idea="1000 random swaps alternating sides, sizes 1..10000: k after >= k before each time; final k > initial k"/>
+      <test ac="3" idea="quote then snapshot unchanged; swap then reserves changed"/>
+      <test ac="6" idea="after sell_stable, peg_deviation < 0; after buy_stable from fresh pool, > 0; fresh pool == 0.0"/>
+      <test ac="8" idea="amount_in 0 and -5 → swap_rejected; fee_bps 10000 → ValueError"/>
+      <test ac="7" idea="execute with kind='swap' emits swap_executed with source=action.source; kind='mint' → ok=False + swap_rejected"/>
+      <test ac="10" idea="snapshot keys exact set; phases == {EXECUTION}; isinstance checks for the three protocols"/>
+      <test ac="12" idea="Engine + AMM + SourceStub(swap sell_stable 100 each step), max_steps 20: 20 swap_executed events; reserve_stable == 1M + 2000; terminated_by max_steps"/>
+      <test ac="12" idea="Engine + AMM, no sources, peg_recovered for_steps 5 tol 0.001 → terminated_by peg_recovered, steps_run 5"/>
+      <test ac="1" idea="termination.max_steps: false → ValidationError mentioning 'safety cap'"/>
+    </ideas>
+  </tests>
+</story-context>

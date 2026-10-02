@@ -1,6 +1,6 @@
 # Story 1.3: Simulation Kernel
 
-Status: review
+Status: done
 
 ## Story
 
@@ -386,3 +386,93 @@ view lookups and its docstring) and `interfaces.py`: line 12 is the module docst
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.2 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5); 92 tests pass, ruff clean; queue-clear deviation and AC 13 location flagged in Completion Notes; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+The kernel is built as specified and, in two places, better than specified. Reviewer re-ran
+on a separate machine: 92 passed, ruff clean, purity grep identical to the builder's,
+`run.py` reports `steps=5000 terminated_by=max_steps` and `--seed 7` now shows `seed=7`.
+CI run 37006797542 green on 3.12. Engine module docstring documents the ordering subtlety
+and the queue-clearing correction clearly enough that a future reader will not re-break it.
+
+### Rulings on the two spec contradictions
+
+**1. Action-queue clearing — builder is right, spec was wrong.** The Dev Notes step loop
+cleared the queue at the start of `ACTION_QUEUE`, which follows `AGENT_DECISION` in the
+phase order; built literally, no action would ever execute. Clearing at the start of
+`AGENT_DECISION` is the correct reading. **Ratified.** `ACTION_QUEUE` is now defined as the
+phase in which hooks may inspect (not mutate) the full queue before execution. This story's
+Dev Notes are left as-is as a record; `docs/epics.md` is unaffected.
+
+**2. View protocols in `interfaces.py` — ratified.** AC 13 said `termination.py`; the
+normative Interfaces block said `interfaces.py`. The Interfaces block wins and is the better
+home. AC 13's allow-list is amended to: `config.py`, `interfaces.py`, `termination.py`.
+
+### Rulings on the open items
+
+- **Endless-run hazard** (`termination.max_steps: false` with no view registered): real,
+  and the right fix is at the config boundary, not a hidden cap in the engine.
+  **Decision:** `steps.max_steps` is always the hard safety cap. `termination.max_steps`
+  must be `true`; a `ScenarioConfig` validator rejects `false` with a message saying so.
+  The field stays in the schema for readability. Carried into Story 1.4 as the first task
+  (touches `config.py`, `test_config.py`; `test_termination_nothing_enabled_rejected` becomes
+  the `max_steps: false` case).
+- **`[tool.ruff.format] exclude = ["*.md"]`:** correct. Story files are specs, not code;
+  ruff must not rewrite them. Kept.
+- **`.venv` on Python 3.12 via uv:** good; this is now the Seoul standard. Tim installed
+  3.12 alongside 3.14.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `scheduler.py` Phase enum, 9 members, `PHASE_ORDER_VERSION = 1`; `test_scheduler.py` |
+| 2 | ✅ | `clock.py`; `test_clock.py` |
+| 3 | ✅ | `context.py` RunContext/Registry; `from_config(seed_override)`; `test_context.py` |
+| 4 | ✅ | `events.py` frozen dataclasses, append-only sinks; `test_events.py` |
+| 5 | ✅ | `interfaces.py` Protocols as given (runtime_checkable); `test_interfaces.py` |
+| 6 | ✅ | `engine.py:104-119` step loop; `_route` raises `KernelError`; `test_engine.py` |
+| 7 | ✅ | `termination.py` precedence order, view lookup via `registry.find`; skipped when absent |
+| 8 | ✅ | `checkpoint.py` sorted JSON incl. rng state; `test_checkpoint.py` |
+| 9 | ✅ | `RunResult` dataclass with all five fields |
+| 10 | ✅ | Determinism test compares event lists and checkpoint bytes |
+| 11 | ✅ | All four termination cases incl. counter reset and precedence |
+| 12 | ✅ | Recording-stub phase-order tests, full and subset |
+| 13 | ✅ | Grep clean under the amended allow-list; output in Debug Log and reproduced by reviewer |
+| 14 | ✅ | `92 passed`, `All checks passed!`, CI green |
+
+**14 of 14 ACs met** (AC 13 under the amended allow-list).
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] Final checkpoint path collision.** When termination lands on a step that is also a
+  `checkpoint_every` multiple, the engine correctly avoids writing twice. Fine. But a run
+  resumed later (out of scope) would need the `run_terminated` event to know which file is
+  final. Not an issue until Epic 2+; noting for the manifest in 1.8.
+- **[LOW-2] `RunResult` is a mutable dataclass.** Harmless; it's a return value. Leave it.
+- **[LOW-3] Kernel coverage 99%.** The uncovered line is almost certainly the double-write
+  guard branch. Not worth a test.
+
+### Learnings for Story 1.4
+
+- The builder found two contradictions in the spec and resolved both by reading intent
+  rather than text, then documented the reasoning in code. That is the standard. Keep doing it.
+- Subsystems register with `name` and `phases`; protocol modules in 1.4–1.6 implement
+  `on_phase`, `snapshot()`, and `ActionTarget.execute`. The AMM is the first real
+  `ActionTarget` and the first `PegView` provider.
+- Stubs in `tests/kernel_stubs.py` are reusable for protocol-module tests; don't duplicate them.
+
+### Action Items
+
+- [ ] [Med] `termination.max_steps` must be true (validator + test update) → Story 1.4 task 1
+- [ ] [Low] Note final-checkpoint identification in the 1.8 manifest design
+- 2026-10-02: Senior review APPROVE; status set to done. Queue-clear and interfaces.py rulings ratified; max_steps safety-cap decision carried to 1.4.
