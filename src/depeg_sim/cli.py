@@ -1,7 +1,8 @@
 """Command-line entry point.
 
-Loads and validates the scenario (Story 1.2), then reports that the kernel is not
-yet implemented. Story 1.8 wires it to the engine.
+Loads and validates the scenario (Story 1.2) and runs the kernel (Story 1.3) with
+no subsystems registered, so only ``max_steps`` can fire. Story 1.8 registers the
+protocol modules and agents and writes run output.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ import yaml
 from pydantic import ValidationError
 
 from depeg_sim.kernel.config import load_scenario
+from depeg_sim.kernel.context import RunContext
+from depeg_sim.kernel.engine import Engine
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     except (ValidationError, yaml.YAMLError) as exc:
         print(f"error: invalid scenario {args.scenario}:\n{exc}", file=sys.stderr)
         return 3
-    print(f"depeg-sim: scenario={cfg.name} seed={cfg.seed} hash={cfg.content_hash()[:12]}")
-    print("kernel not implemented yet (see docs/epics.md, Story 1.3)")
+    ctx = RunContext.from_config(cfg, seed_override=args.seed)
+    print(f"depeg-sim: scenario={cfg.name} seed={ctx.seed} hash={cfg.content_hash()[:12]}")
+    result = Engine(ctx).run()
+    print(f"run: steps={result.steps_run} terminated_by={result.terminated_by}")
     return 0

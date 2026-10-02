@@ -13,7 +13,12 @@ def test_cli_runs_on_baseline_scenario(capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert re.search(r"^depeg-sim: scenario=soros-baseline seed=42 hash=[0-9a-f]{12}$", out, re.M)
-    assert "kernel not implemented yet" in out
+    assert re.search(r"^run: steps=5000 terminated_by=max_steps$", out, re.M)
+
+
+def test_cli_seed_override_reported(capsys):
+    assert main(["scenarios/soros-baseline.yaml", "--seed", "7"]) == 0
+    assert " seed=7 " in capsys.readouterr().out
 
 
 def test_cli_missing_scenario():
