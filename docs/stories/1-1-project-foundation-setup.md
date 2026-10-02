@@ -1,6 +1,6 @@
 # Story 1.1: Project Foundation Setup
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
