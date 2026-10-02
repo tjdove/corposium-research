@@ -1,0 +1,89 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Scenario Configuration Model</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-2-scenario-config-model.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>scenarios defined in versioned YAML validated by Pydantic</iWant>
+    <soThat>every run is fully described by one human-readable file</soThat>
+    <tasks>
+      - Carry-over: pin ubuntu-24.04, bump checkout/setup-python actions
+      - Define config models (AC: 1, 2, 3, 4, 6)
+      - Loader and content hash (AC: 5, 7)
+      - Rewrite baseline scenario (AC: 8)
+      - Wire CLI to validate (AC: 5)
+      - Tests (AC: 9, 10)
+      - Close out
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–10. The field-level schema is normative and lives in Dev Notes.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-2-scenario-config-model.md" section="Dev Notes / Model fields">Normative field list with constraints. Implement exactly these; add nothing.</doc>
+      <doc path="docs/epics.md" section="Stories 1.3–1.7">Downstream consumers of this schema. Read their ACs to understand why each field exists; do not implement them.</doc>
+      <doc path="docs/CHARTER.md" section="4. Scope">No lending/liquidation fields. No SQL.</doc>
+      <doc path="docs/stories/1-1-project-foundation-setup.md" section="Senior Developer Review">Carry-over action items and learnings.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/cli.py" symbol="main" reason="Add load_scenario call; new exit code 3 for validation errors."/>
+      <existing path="tests/test_smoke.py" reason="Update expected stdout to new CLI format."/>
+      <existing path="scenarios/soros-baseline.yaml" reason="Replace entirely with the Dev Notes content."/>
+      <existing path=".github/workflows/ci.yml" reason="Housekeeping task: ubuntu-24.04, checkout@v5, setup-python@v6."/>
+    </code>
+    <dependencies>
+      <python>pydantic>=2.7 (already installed), pyyaml>=6.0 (already installed). No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Pydantic v2 API only (ConfigDict, model_validator, Field, Annotated discriminated union). No pydantic.v1 shims.
+    - All models extra="forbid" and frozen=True.
+    - Models are data only: no methods except content_hash() on ScenarioConfig and validators.
+    - No mechanism defaults beyond those listed; if a value is unclear, make it required rather than guessing a default.
+    - Python 3.12-compatible syntax (CI target), even though Seoul runs 3.14.
+    - Do not create kernel/engine, protocol, or agent code. Config only.
+  </constraints>
+
+  <interfaces>
+    <interface name="load_scenario" kind="function" path="src/depeg_sim/kernel/config.py">
+      load_scenario(path: Path) -> ScenarioConfig ; raises pydantic.ValidationError on invalid input, FileNotFoundError on missing path
+    </interface>
+    <interface name="ScenarioConfig.content_hash" kind="method" path="src/depeg_sim/kernel/config.py">
+      content_hash(self) -> str ; 64-char lowercase hex SHA-256 over canonical JSON (sorted keys, compact separators, mode="json")
+    </interface>
+    <interface name="AgentConfig" kind="type alias" path="src/depeg_sim/kernel/config.py">
+      Annotated[AttackerConfig | ArbitrageurConfig | DefenderConfig, Field(discriminator="type")]
+    </interface>
+    <interface name="cli.main" kind="function" path="src/depeg_sim/cli.py">
+      exit 0 valid; 2 missing file; 3 validation error (message on stderr)
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest in tests/, one test per AC-9 bullet, descriptive names (test_unknown_agent_type_rejected). Use tmp_path to write invalid YAML variants rather than committing many fixture files. Assert on pydantic.ValidationError and, where cheap, on the offending field name in str(exc).</standards>
+    <locations>tests/test_config.py (new), tests/test_smoke.py (update)</locations>
+    <ideas>
+      <test ac="5,8" idea="load_scenario on scenarios/soros-baseline.yaml returns ScenarioConfig with name == 'soros-baseline' and 3 agents"/>
+      <test ac="5" idea="for each top-level field: delete it from a dict copy of the baseline, dump to tmp YAML, expect ValidationError"/>
+      <test ac="5" idea="add foo: 1 at top level and inside amm; both raise"/>
+      <test ac="6" idea="version: 2 raises; error text mentions 1"/>
+      <test ac="4" idea="isinstance checks: agents[0] is AttackerConfig etc.; type: liquidator raises"/>
+      <test ac="2" idea="interval_seconds: 0 raises"/>
+      <test ac="3" idea="termination all false / None raises"/>
+      <test ac="7" idea="hash equal across two loads; differs after seed change; len == 64"/>
+      <test ac="1" idea="duplicate agent id raises"/>
+      <test ac="5" idea="cli.main returns 3 on a YAML with version: 2 (tmp_path)"/>
+    </ideas>
+  </tests>
+</story-context>
