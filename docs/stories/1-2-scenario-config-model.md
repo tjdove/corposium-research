@@ -23,8 +23,8 @@ so that every run is fully described by one human-readable file.
 
 ## Tasks / Subtasks
 
-- [ ] Carry-over from Story 1.1 review (no AC; housekeeping)
-  - [ ] In `.github/workflows/ci.yml` set `runs-on: ubuntu-24.04`, bump to `actions/checkout@v5` and `actions/setup-python@v6`; confirm CI still passes after push
+- [x] Carry-over from Story 1.1 review (no AC; housekeeping)
+  - [x] In `.github/workflows/ci.yml` set `runs-on: ubuntu-24.04`, bump to `actions/checkout@v5` and `actions/setup-python@v6`; confirm CI still passes after push
 
 - [x] Define the config models (AC: 1, 2, 3, 4, 6)
   - [x] Create `src/depeg_sim/kernel/config.py`
@@ -242,6 +242,20 @@ PyYAML 6.0.3 parses `1_000_000` as int 1000000 (checked: `amm` loads as
 $ python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 {'test': {'runs-on': 'ubuntu-24.04', 'steps': [{'uses': 'actions/checkout@v5'}, {'uses': 'actions/setup-python@v6', 'with': {'python-version': '3.12'}}, {'run': 'pip install -e ".[dev]"'}, {'run': 'ruff check .'}, {'run': 'pytest'}]}}
 exit=0
+```
+
+**CI after push (carry-over, AC 10)** — run 37004446787 on `149533e`,
+https://github.com/tjdove/corposium-research/actions/runs/37004446787
+
+```
+$ gh run watch 37004446787 --exit-status
+exit=0
+conclusion=success
+Image: ubuntu-24.04
+Download action repository 'actions/checkout@v5'
+Download action repository 'actions/setup-python@v6'
+All checks passed!
+32 passed in 0.39s
 ```
 
 ### Completion Notes List
