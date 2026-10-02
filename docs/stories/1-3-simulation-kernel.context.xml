@@ -1,0 +1,93 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>Simulation Kernel</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-3-simulation-kernel.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>the engine, clock, scheduler and run context implemented with no domain logic</iWant>
+    <soThat>protocol modules and agents plug into a fixed, versioned step order</soThat>
+    <tasks>
+      - Phases and clock (AC: 1, 2)
+      - Events, actions, interfaces (AC: 4, 5)
+      - Run context and registry (AC: 3)
+      - Termination (AC: 7, 11)
+      - Checkpoints (AC: 8)
+      - Engine (AC: 6, 9, 10, 12)
+      - Kernel purity check (AC: 13)
+      - Wire CLI minimally
+      - Tests, lint, close out (AC: 14)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–14. The Interfaces block in Dev Notes is normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Dev Notes">Normative step loop, interfaces, event shapes, termination semantics, checkpoint JSON shape.</doc>
+      <doc path="docs/epics.md" section="Stories 1.4–1.8">Consumers of these interfaces. Read to understand what will register; do not implement.</doc>
+      <doc path="CLAUDE.md" section="Hard rules">Determinism via ctx.rng only; phase order versioned; no domain logic in kernel.</doc>
+      <doc path="docs/stories/1-2-scenario-config-model.md" section="Senior Developer Review">--seed wiring, StrictModel pattern.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="ScenarioConfig, TerminationConfig, MetricsConfig" reason="RunContext.from_config consumes this; termination reads config.termination; checkpoint cadence from config.metrics.checkpoint_every."/>
+      <existing path="src/depeg_sim/cli.py" symbol="main" reason="Replace the placeholder line with RunContext + Engine; pass args.seed as seed_override."/>
+      <existing path="tests/test_smoke.py" reason="Update expected CLI output."/>
+    </code>
+    <dependencies>
+      <python>numpy (installed) for numpy.random.default_rng. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Kernel files: scheduler.py, clock.py, events.py, interfaces.py, context.py, termination.py, checkpoint.py, engine.py. No others.
+    - No pydantic in runtime objects; frozen dataclasses for Event/Decision/Action/ExecutionResult.
+    - Only ctx.rng for randomness. Kernel itself draws nothing; it only owns and checkpoints the generator.
+    - Registry preserves registration order; never sorts.
+    - Phase enum order is the only source of truth; PHASES is derived from it; PHASE_ORDER_VERSION = 1.
+    - Unknown action target is a hard error (KernelError), not a skip.
+    - All stubs live in tests/kernel_stubs.py; no stub or example subsystem under src/.
+    - Python 3.12-compatible syntax.
+    - AC 13 grep must be run and its output pasted; it is the purity gate.
+  </constraints>
+
+  <interfaces>
+    <interface name="Engine" kind="class" path="src/depeg_sim/kernel/engine.py">Engine(ctx: RunContext); run() -> RunResult</interface>
+    <interface name="RunResult" kind="dataclass" path="src/depeg_sim/kernel/engine.py">steps_run: int; terminated_by: str; events: list[Event]; decisions: list[Decision]; checkpoints: list[Path]</interface>
+    <interface name="RunContext" kind="class" path="src/depeg_sim/kernel/context.py">config, seed, rng, clock, events, decisions, registry, action_queue: list[Action], term_state; classmethod from_config(config, seed_override: int | None = None, output_dir: Path | None = None)</interface>
+    <interface name="Registry" kind="class" path="src/depeg_sim/kernel/context.py">register(sub) (raises on duplicate name); get(name); by_phase(phase) -> list; sources() -> list[ActionSource]; targets() -> list[ActionTarget]; find(protocol) -> Subsystem | None</interface>
+    <interface name="termination.check" kind="function" path="src/depeg_sim/kernel/termination.py">check(ctx) -> str | None ; returns "reserves_exhausted" | "peg_recovered" | "max_steps" | None</interface>
+    <interface name="write_checkpoint" kind="function" path="src/depeg_sim/kernel/checkpoint.py">write_checkpoint(ctx, path: Path) -> None ; sorted-key JSON</interface>
+    <interface name="Subsystem / ActionSource / ActionTarget / ReservesView / PegView" kind="Protocol" path="src/depeg_sim/kernel/interfaces.py">As given verbatim in story Dev Notes.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; one test module per kernel module (test_scheduler.py, test_clock.py, test_events.py, test_context.py, test_termination.py, test_checkpoint.py, test_engine.py). Stubs in tests/kernel_stubs.py. Determinism tests compare lists/bytes, not "roughly equal".</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="len(PHASES) == 9 and names match the AC order exactly"/>
+      <test ac="2" idea="Clock(12): after 5 ticks step_index 5, elapsed 60"/>
+      <test ac="3" idea="two RunContexts same seed -> rng.random() sequences equal; seed_override changes them"/>
+      <test ac="3" idea="Registry.register duplicate name raises; by_phase returns registration order"/>
+      <test ac="4" idea="EventSink preserves emit order; Event is frozen"/>
+      <test ac="6" idea="SourceStub emits one action per step; TargetStub receives exactly those in order"/>
+      <test ac="6" idea="action with unknown target raises KernelError mentioning target and step"/>
+      <test ac="7,11" idea="ReservesStub exhausting at step 7 -> terminated_by reserves_exhausted, steps_run 8"/>
+      <test ac="7,11" idea="PegStub deviations [0,0,0.01,0,0,0,0] with for_steps 3 tol 0.001 -> fires at step 5 (counter reset by the excursion)"/>
+      <test ac="7,11" idea="max_steps 10 -> steps_run 10"/>
+      <test ac="7,11" idea="reserves and max_steps both fire same step -> reserves_exhausted wins"/>
+      <test ac="8" idea="checkpoint_every 5, max_steps 12 -> files at steps 5, 10 and final 12; JSON sorted; rng_state present"/>
+      <test ac="10" idea="two runs with RngStub: identical events list and identical checkpoint bytes"/>
+      <test ac="12" idea="RecordingStub(all phases) sees PHASES order each step; RecordingStub({ORACLE_UPDATE, PERSISTENCE}) sees only those"/>
+      <test ac="13" idea="(manual) grep output pasted in Debug Log"/>
+    </ideas>
+  </tests>
+</story-context>
