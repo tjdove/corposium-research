@@ -224,6 +224,13 @@ TOTAL                                         1099      7    99%
 test files. CLI output is identical to the Story 1.6 record; agents are not registered by
 the CLI yet (1.8).
 
+CI on push of `7b4d2e1`:
+
+```
+$ gh run list --limit 1
+completed	success	story 1.7: attacker, arbitrageur and defender agents	ci	main	push	37029331879	29s	2026-10-02T15:46:27Z
+```
+
 Baseline 300-step run, exploratory script (same setup as `test_agents_integration.py`):
 
 ```
