@@ -1,6 +1,6 @@
 # Story 1.5: Oracle and Environment Modules
 
-Status: review
+Status: done
 
 ## Story
 
@@ -257,3 +257,84 @@ completed	success	story 1.5: oracle and environment	ci	main	push	37015325742	31s
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.4 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5): AMM fee split, `ReferencePrice`, `Oracle`, tests (193 passed); status set to review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+Both modules match the normative rules. Reviewer re-ran on a separate machine: 193 passed,
+ruff clean, and an independent 100-step engine run (environment vol 0.001, oracle heartbeat
+10 / threshold 1.0, AMM) produced exactly 10 `oracle_updated` events with reasons
+`{initial, heartbeat}`, identical events on repeat, different events with another seed,
+`isinstance(oracle, PegView) is False`, and an untouched rng state under zero volatility.
+CI run 37015403889 green. Both new modules at full line coverage.
+
+### Rulings on the flagged items
+
+1. **`test_amm_integration.py` touched during the fee split.** Necessary; the allow-list in
+   the context file was incomplete. **Ratified.** Allow-lists name intent, not a cage; when a
+   listed change breaks a test elsewhere, fixing that test is in scope.
+2. **Threshold `0` publishes every step, including when flat.** AC 9 and the Dev Notes
+   disagreed; the builder followed the AC. **Ratified: AC wins.** Semantics are now:
+   `deviation_threshold_pct: 0` = a perfect, zero-lag oracle (publishes every step, reason
+   `deviation`). This is a useful sweep endpoint for Epic 2 ("what if the oracle were
+   instantaneous"). Docstring should say so; builder already noted it.
+3. **`Oracle.price` is `None` before first publish.** Acceptable. Phase order guarantees
+   `ORACLE_UPDATE` precedes `AGENT_DECISION` within step 0, so no agent ever observes `None`
+   in a real run. Story 1.7 agents may assume a float. Type hint should read
+   `float | None`; no further action.
+4. **Shocks summing to ≤ −100% rejected at construction.** Correct application of the
+   construction-validates rule. **Ratified.**
+5. **Zero published price treated as infinite move.** Only reachable via a test stub;
+   harmless, and better than a `ZeroDivisionError`. **Ratified.**
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `cumulative_fees_stable` / `_reference`; snapshot keys; per-token assertion; commit `6fe6174` green at 140 |
+| 2 | ✅ | `ReferencePrice`, `phases == {ENVIRONMENT_UPDATE}` |
+| 3 | ✅ | Log-normal step, shock as percent, `price_updated` payload |
+| 4 | ✅ | Flat-price test; rng state equality (reviewer reproduced) |
+| 5 | ✅ | Seed determinism tests (reviewer reproduced) |
+| 6 | ✅ | `Oracle`, `phases == {ORACLE_UPDATE}` |
+| 7 | ✅ | Three-branch rule with reason strings; `oracle_updated` only on publish |
+| 8 | ✅ | `price`, `last_update_step`, `staleness_steps`, `reference_price`; not `PegView` (tested) |
+| 9 | ✅ | 25 oracle tests cover each bullet incl. 0.4% non-trigger and threshold 0 |
+| 10 | ✅ | `snapshot()` and `from_config` on both |
+| 11 | ✅ | 3 integration tests; repeat-run equality (reviewer reproduced) |
+| 12 | ✅ | Percent semantics in module docstring |
+| 13 | ✅ | `193 passed`, `All checks passed!`, CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] Dev Notes vs AC on threshold 0.** Spec defect, resolved by ruling 2. Future
+  story Dev Notes will be checked against their ACs before drafting.
+- **[LOW-2] The reviewer's ad-hoc run terminated by `peg_recovered` at step 100** (no trades,
+  deviation 0 for 100 steps, `for_steps: 100`) rather than `max_steps`, because both fired the
+  same step and `peg_recovered` has precedence. Correct per 1.3. Noting it because 1.8's
+  baseline scenario must have the attacker actually move the price or every run will
+  "recover" trivially.
+
+### Learnings for Story 1.6
+
+- Hook-only subsystems are now proven (`ReferencePrice`, `Oracle`). Redemption is a hybrid:
+  an `ActionTarget` (`redeem` requests) **and** a hook (`PROTOCOL_EVENTS` to process the
+  queue and set the exhaustion flag). It is also the first `ReservesView` provider.
+- Registration order for 1.8 is now stated: `environment, oracle, amm, redemption, agents…, metrics`.
+- Reason strings in events (`initial/heartbeat/deviation`) made the oracle tests readable.
+  Redemption should emit reasons the same way (`fulfilled/partial/queued/exhausted`).
+
+### Action Items
+
+- [ ] [Low] `Oracle.price` type hint `float | None` (fold into any later touch of oracle.py; not a task)
+- 2026-10-02: Senior review APPROVE; status set to done. Threshold-0 semantics ratified as zero-lag oracle.

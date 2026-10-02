@@ -1,0 +1,85 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.6</storyId>
+    <title>Redemption Module</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-6-redemption-module.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>a redemption facility with finite reserves, a spread, per-step capacity and a queue</iWant>
+    <soThat>the price promise and its capacity limit are explicit state</soThat>
+    <tasks>
+      - Module and queue (AC: 1, 2, 5, 9, 10)
+      - Processing (AC: 3, 4, 6, 7, 8)
+      - Kernel integration (AC: 11, 12)
+      - Tests, lint, close out (AC: 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. The settlement-rule block in Dev Notes is normative; the AC 11 worked example is the reference arithmetic.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-6-redemption-module.md" section="Dev Notes">Settlement rule, exhaustion semantics, settable spread rationale, AC 11 arithmetic.</doc>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Dev Notes / Interfaces">Subsystem, ActionTarget, ReservesView.</doc>
+      <doc path="docs/stories/1-4-constant-product-amm.md" section="Dev Notes">Pattern for an ActionTarget with event-based rejection.</doc>
+      <doc path="docs/stories/1-5-oracle-and-environment.md" section="Senior Developer Review">Hybrid subsystem pattern; reason strings.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/interfaces.py" symbol="ReservesView, ActionTarget, Subsystem" reason="Implement against; do not modify."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="RedemptionConfig" reason="from_config input."/>
+      <existing path="src/depeg_sim/kernel/termination.py" symbol="check" reason="AC 12 proves it reads the module's reserves_exhausted."/>
+      <existing path="src/depeg_sim/protocol/amm.py" reason="Reference implementation of execute()/snapshot()/from_config conventions."/>
+      <existing path="tests/kernel_stubs.py" symbol="SourceStub" reason="Use kind='redeem', params={'amount_stable': 30000}, target='redemption'."/>
+    </code>
+    <dependencies>
+      <python>collections.deque; numpy for the randomised invariant test. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - One new file under src/: protocol/redemption.py. Tests: tests/test_redemption.py, tests/test_redemption_integration.py.
+    - Capacity is in stable units per step; payout is in reference units. Do not mix.
+    - Paid amounts are recorded at fill time; changing spread later never alters history.
+    - reserves_exhausted requires reserves effectively zero AND a non-empty queue; latches; emits once.
+    - FIFO strictly; partial fills keep the remainder at the head.
+    - Construction raises ValueError; execute/on_phase never raise for domain reasons.
+    - Must NOT implement PegView (test isinstance False).
+    - phases == frozenset({EXECUTION, PROTOCOL_EVENTS}); on_phase does nothing in EXECUTION.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="RedemptionModule" kind="class" path="src/depeg_sim/protocol/redemption.py">
+      __init__(reserves: float, spread_bps: int, capacity_per_step: float, peg_price: float = 1.0, name: str = "redemption")
+      execute(ctx, action) -> ExecutionResult ; on_phase(ctx, phase) -> None ; process(ctx) -> None
+      reserves, queue_depth, queued_total, fulfilled_total, paid_total, spread_bps, payout_per_unit, reserves_exhausted (properties)
+      set_spread_bps(bps: int, source: str = "redemption") -> None  (validates range; emits spread_changed)
+      snapshot() -> dict ; classmethod from_config(cfg: RedemptionConfig)
+    </interface>
+    <interface name="RedemptionRequest" kind="dataclass (mutable)" path="src/depeg_sim/protocol/redemption.py">source: str; amount: float; remaining: float; step_requested: int</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; math.isclose with explicit tolerances; invariant test runs 200 steps with request sizes from numpy.random.default_rng(99) and asserts the accounting identity after each step; integration expected step computed from parameters in-test with the arithmetic as comments.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="2" idea="redeem 100 → queued, redeem_requested payload queue_depth 1; redeem -1 → ok False + redeem_rejected; kind 'swap' → rejected"/>
+      <test ac="7" idea="capacity 100, requests 60/60/60 queued before step 1 processing: fills [60, 40(partial_capacity)], then [20(full), 60(full)], then nothing; reasons as listed"/>
+      <test ac="8" idea="reserves 50, spread 10bps, request 100: fill ≈ 50.05 reason partial_reserves; reserves ≈ 0; exhausted True; event once; next step no second event"/>
+      <test ac="4" idea="reserves 0 and empty queue → exhausted False"/>
+      <test ac="5" idea="set_spread_bps(50) emits spread_changed old=10 new=50; paid_total unchanged; next fill uses new ppu"/>
+      <test ac="6" idea="200 random steps: fulfilled_total + queued_total ≈ requested_total every step; paid_total equals sum of per-fill paid"/>
+      <test ac="11" idea="engine: terminated_by reserves_exhausted; steps_run == computed 21; one reserves_exhausted event; repeat identical"/>
+      <test ac="12" idea="registry.find(ReservesView) is the module; termination.check(ctx) returns 'reserves_exhausted' once flag set"/>
+      <test ac="1,9,10" idea="isinstance checks; snapshot key set; construction guards"/>
+    </ideas>
+  </tests>
+</story-context>
