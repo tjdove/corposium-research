@@ -1,0 +1,9 @@
+# Soros baseline — the first end-to-end scenario (Story 1.8).
+# Schema is defined in Story 1.2 (src/depeg_sim/kernel/config.py).
+# Values here are placeholders; calibration happens in Epic 2.
+version: 1
+name: soros-baseline
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 5000
