@@ -49,7 +49,8 @@ def test_one_swap_per_step_moves_reserves():
     )
     assert amm.k > k0
     assert amm.peg_deviation < 0
-    assert math.isclose(amm.cumulative_fees, 20 * 0.3, rel_tol=1e-9)
+    assert math.isclose(amm.cumulative_fees_stable, 20 * 0.3, rel_tol=1e-9)
+    assert amm.cumulative_fees_reference == 0.0
 
 
 def test_amm_is_the_peg_view():

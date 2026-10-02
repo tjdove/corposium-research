@@ -1,6 +1,7 @@
 """Constant-product AMM: one STABLE/REF pool as a formal state machine.
 
-State:      ``reserve_stable``, ``reserve_reference``, ``fee_bps``, ``cumulative_fees``.
+State:      ``reserve_stable``, ``reserve_reference``, ``fee_bps``,
+            ``cumulative_fees_stable``, ``cumulative_fees_reference``.
 Actions:    ``swap`` with side ``"sell_stable"`` (stable in, reference out) or
             ``"buy_stable"`` (reference in, stable out).
 Execution:  Uniswap-V2 style, fee taken on input and left in the pool::
@@ -28,9 +29,9 @@ the ``PegView`` the kernel's ``peg_recovered`` termination check reads.
 
 Amounts are floats in token units (not Decimal, not integer wei). The goal is
 reproducibility, not wei-exactness; integer-exact behaviour is checked by the Anvil
-replay (Epic 3 stretch). ``cumulative_fees`` is the plain sum of ``fee_paid`` over
-executed swaps, each fee in its own input token's units (stable for ``sell_stable``,
-reference for ``buy_stable``).
+replay (Epic 3 stretch). Fees accrue in the input token of each swap, so they are
+kept per token: ``cumulative_fees_stable`` sums ``fee_paid`` over ``sell_stable``
+swaps and ``cumulative_fees_reference`` over ``buy_stable`` swaps.
 
 Invalid swaps raise ``AMMError`` from ``quote`` / ``swap``. ``execute`` catches these
 and turns them into ``ExecutionResult(ok=False)`` plus a ``swap_rejected`` event. It
@@ -101,7 +102,8 @@ class ConstantProductAMM(ActionTarget):
         self.reserve_reference = float(reserve_reference)
         self.fee_bps = int(fee_bps)
         self.peg_price = float(peg_price)
-        self.cumulative_fees = 0.0
+        self.cumulative_fees_stable = 0.0
+        self.cumulative_fees_reference = 0.0
 
     @classmethod
     def from_config(cls, cfg: AMMConfig, peg_price: float) -> ConstantProductAMM:
@@ -192,11 +194,14 @@ class ConstantProductAMM(ActionTarget):
         )
 
     def swap(self, amount_in: float, side: str) -> SwapResult:
-        """Execute a swap: updates reserves and ``cumulative_fees`` only."""
+        """Execute a swap: updates reserves and the input token's fee counter only."""
         r = self._compute(amount_in, side)
         self.reserve_stable = r.reserve_stable_after
         self.reserve_reference = r.reserve_reference_after
-        self.cumulative_fees += r.fee_paid
+        if side == SELL_STABLE:
+            self.cumulative_fees_stable += r.fee_paid
+        else:
+            self.cumulative_fees_reference += r.fee_paid
         return r
 
     # -- Subsystem / ActionTarget -----------------------------------------
@@ -254,5 +259,6 @@ class ConstantProductAMM(ActionTarget):
             "fee_bps": self.fee_bps,
             "k": self.k,
             "spot_price": self.spot_price,
-            "cumulative_fees": self.cumulative_fees,
+            "cumulative_fees_stable": self.cumulative_fees_stable,
+            "cumulative_fees_reference": self.cumulative_fees_reference,
         }

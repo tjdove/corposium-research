@@ -103,7 +103,18 @@ def test_swap_updates_reserves_and_fees():
     }
     assert amm.reserve_stable == r.reserve_stable_after
     assert amm.reserve_reference == r.reserve_reference_after
-    assert amm.cumulative_fees == r.fee_paid
+    assert amm.cumulative_fees_stable == r.fee_paid
+    assert amm.cumulative_fees_reference == 0.0
+
+
+def test_fees_accrue_in_input_token():
+    amm = pool()
+    amm.swap(1_000, "sell_stable")
+    assert math.isclose(amm.cumulative_fees_stable, 3.0, rel_tol=1e-9)
+    assert amm.cumulative_fees_reference == 0.0
+    r = amm.swap(2_000, "buy_stable")
+    assert math.isclose(amm.cumulative_fees_reference, r.fee_paid, rel_tol=1e-12)
+    assert math.isclose(amm.cumulative_fees_stable, 3.0, rel_tol=1e-9)
 
 
 def test_buy_stable_moves_spot_up():
@@ -138,7 +149,8 @@ def test_k_never_decreases_over_1000_seeded_swaps():
         amm.swap(amount, side)
         assert amm.k >= k_before
     assert amm.k > k0
-    assert amm.cumulative_fees > 0
+    assert amm.cumulative_fees_stable > 0
+    assert amm.cumulative_fees_reference > 0
 
 
 def test_zero_fee_k_constant_to_float_precision():
@@ -246,11 +258,14 @@ def test_snapshot_keys_and_values():
         "fee_bps",
         "k",
         "spot_price",
-        "cumulative_fees",
+        "cumulative_fees_stable",
+        "cumulative_fees_reference",
     }
+    assert "cumulative_fees" not in snap
     assert snap["k"] == amm.reserve_stable * amm.reserve_reference
     assert snap["spot_price"] == amm.spot_price
-    assert snap["cumulative_fees"] == 3.0
+    assert snap["cumulative_fees_stable"] == 3.0
+    assert snap["cumulative_fees_reference"] == 0.0
     assert snap["fee_bps"] == 30
 
 
