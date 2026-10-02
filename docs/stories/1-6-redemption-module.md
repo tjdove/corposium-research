@@ -184,6 +184,13 @@ TOTAL                                          764      3    99%
 cases, 4 from `test_redemption_integration.py`). CLI output is
 identical to the Story 1.5 record; the CLI does not register the module yet.
 
+CI on push of `01080bc`:
+
+```
+$ gh run list --limit 1
+completed	success	story 1.6: redemption module	ci	main	push	37017835481	33s	2026-10-02T14:08:56Z
+```
+
 ### Completion Notes List
 
 - **`set_spread_bps` takes `ctx` first: `set_spread_bps(ctx, bps, source="redemption")`.**
