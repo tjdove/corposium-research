@@ -148,7 +148,7 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 1. Muse's email address and tier
 2. Does corposium site have a Research section, or does the page need building?
 3. Historical validation case: USDC Mar-2023 (recommended) vs UST May-2022 (algorithmic; different mechanics)
-4. GitHub org/user for the public repo
+4. ~~GitHub org/user for the public repo~~ → github.com/tjdove/corposium-research
 
 ---
 

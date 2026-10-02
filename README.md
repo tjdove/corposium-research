@@ -10,7 +10,7 @@ defender's reserves exhaust before the peg recovers.
 ## Quick start
 
 ```bash
-git clone https://github.com/<org>/corposium-research.git
+git clone https://github.com/tjdove/corposium-research.git
 cd corposium-research
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
