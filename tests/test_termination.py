@@ -91,8 +91,10 @@ def test_disabled_conditions_do_not_fire_even_with_views():
     assert result.steps_run == 4
 
 
-def test_max_steps_disabled_runs_until_other_condition():
-    term = {"reserves_exhausted": True, "peg_recovered": None, "max_steps": False}
+def test_max_steps_caps_run_while_other_condition_pending():
+    # max_steps is mandatory (story 1.4): it stops the run even though
+    # reserves_exhausted is enabled and would only fire later.
+    term = {"reserves_exhausted": True, "peg_recovered": None, "max_steps": True}
     _, result = run(ReservesStub(exhaust_at_step=20), max_steps=5, term=term)
-    assert result.terminated_by == "reserves_exhausted"
-    assert result.steps_run == 21
+    assert result.terminated_by == "max_steps"
+    assert result.steps_run == 5

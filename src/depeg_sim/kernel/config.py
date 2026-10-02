@@ -70,11 +70,11 @@ class TerminationConfig(StrictModel):
     max_steps: bool = True
 
     @model_validator(mode="after")
-    def _at_least_one_enabled(self) -> TerminationConfig:
-        if not (self.reserves_exhausted or self.peg_recovered is not None or self.max_steps):
+    def _max_steps_mandatory(self) -> TerminationConfig:
+        if not self.max_steps:
             raise ValueError(
-                "termination: at least one of reserves_exhausted, peg_recovered, "
-                "max_steps must be enabled"
+                "termination.max_steps must be true: steps.max_steps is the mandatory "
+                "safety cap on every run"
             )
         return self
 

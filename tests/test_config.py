@@ -122,22 +122,29 @@ def test_interval_seconds_defaults_to_12(tmp_path, baseline_dict):
     assert load_scenario(write(tmp_path, baseline_dict)).steps.interval_seconds == 12
 
 
-def test_termination_nothing_enabled_rejected(tmp_path, baseline_dict):
+def test_termination_max_steps_false_rejected(tmp_path, baseline_dict):
     baseline_dict["termination"] = {
-        "reserves_exhausted": False,
-        "peg_recovered": None,
+        "reserves_exhausted": True,
+        "peg_recovered": {"for_steps": 10, "tolerance": 0.01},
         "max_steps": False,
     }
     with pytest.raises(ValidationError) as exc:
         load_scenario(write(tmp_path, baseline_dict))
-    assert "termination" in str(exc.value)
+    msg = str(exc.value)
+    assert "termination.max_steps" in msg
+    assert "safety cap" in msg
 
 
 def test_termination_single_condition_accepted(tmp_path, baseline_dict):
-    baseline_dict["termination"] = {"reserves_exhausted": False, "max_steps": False}
-    baseline_dict["termination"]["peg_recovered"] = {"for_steps": 10, "tolerance": 0.01}
+    baseline_dict["termination"] = {
+        "reserves_exhausted": False,
+        "peg_recovered": None,
+        "max_steps": True,
+    }
     cfg = load_scenario(write(tmp_path, baseline_dict))
-    assert cfg.termination.peg_recovered is not None
+    assert cfg.termination.max_steps is True
+    assert not cfg.termination.reserves_exhausted
+    assert cfg.termination.peg_recovered is None
 
 
 def test_config_is_frozen():
