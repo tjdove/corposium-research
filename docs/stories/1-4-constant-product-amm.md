@@ -1,6 +1,6 @@
 # Story 1.4: Constant-Product AMM Module
 
-Status: review
+Status: done
 
 ## Story
 
@@ -277,3 +277,81 @@ until 1.8).
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.3 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5): max_steps mandatory; ConstantProductAMM with unit and engine-integration tests; 139 passed; status review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+AMM implemented to the normative math with 100% module coverage. Reviewer re-ran on a
+separate machine: 139 passed, ruff clean, hand-computed `996.0069810399032` reproduced to
+full precision, fee 3.0, `peg_deviation = -0.001994` after a 1,000 stable sell (negative,
+as the convention requires), all three protocol `isinstance` checks true, zero-reserve
+construction rejected. CI run 37008882467 green.
+
+### Rulings on the four flagged items
+
+1. **Second termination test rewritten.** Correct and necessary; the old test encoded a
+   config that is now invalid by design. `test_max_steps_caps_run_while_other_condition_pending`
+   is a better test than the one it replaced. **Ratified.**
+2. **`SourceStub` gained `kind`/`params` with backward-compatible defaults.** Exactly the right
+   change; stubs are shared test infrastructure and should grow this way. **Ratified.**
+3. **Constructor rejects zero/negative reserves and `peg_price`.** The context file's "only
+   fee_bps raises" was too literal; an AMM that divides by zero in `spot_price` on step 0 is
+   a broken object, not a domain rejection. Construction-time invariants are the right place
+   for this. **Ratified.** The rule for future modules: *construction* validates invariants
+   and raises; *execution* rejects via `ExecutionResult(ok=False)` + event.
+4. **`cumulative_fees` sums stable and reference fees together.** Builder was right to flag
+   it: a single float of mixed units is a measurement wart, and attacker-PnL accounting in
+   1.7 and the metrics in 1.8 will want them separated. The spec said "a single float"; the
+   spec was wrong. **Decision:** split into `cumulative_fees_stable` and
+   `cumulative_fees_reference`; `snapshot()` exposes both; drop the combined key. Carried
+   into Story 1.5 as task 1 (small, isolated, covered by existing tests plus one assertion).
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `config.py` validator; `test_termination_max_steps_false_rejected` mentions "safety cap"; 92 → still green after task 1 (commit `dee88a0`) |
+| 2 | ✅ | `ConstantProductAMM` satisfies `Subsystem`, `ActionTarget`, `PegView` (reviewer-verified) |
+| 3 | ✅ | `quote()` pure; test asserts snapshot unchanged |
+| 4 | ✅ | `swap()` fee-adjusted; mutates reserves + fees only |
+| 5 | ✅ | 1,000-swap invariant test; k non-decreasing |
+| 6 | ✅ | `spot_price`, `peg_deviation`; sign convention in docstring and test |
+| 7 | ✅ | `execute()` → `swap_executed` with `source=action.source`; unknown kind → `ok=False` + `swap_rejected` |
+| 8 | ✅ | Zero/negative amount and drain guard reject via event; `fee_bps` range raises |
+| 9 | ✅ | `math.isclose(..., rel_tol=1e-9)` against `996.006981…`; reviewer reproduced |
+| 10 | ✅ | `snapshot()` keys exact; `phases == {EXECUTION}`; `on_phase` no-op |
+| 11 | ✅ | `from_config(AMMConfig, peg_price)` |
+| 12 | ✅ | `test_amm_integration.py` (6 tests): swap stream, reserves moved, `peg_recovered` reads AMM, no `PegStub` |
+| 13 | ✅ | `139 passed`, `All checks passed!`, CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] Mixed-unit `cumulative_fees`** → fixed in 1.5 task 1 (see ruling 4).
+- **[LOW-2] `execution_price` definition is asymmetric by design** (`out/in` for sell,
+  `in/out` for buy) so both are "reference per stable." Good; add one line to the
+  docstring saying so if it isn't there. Not blocking.
+
+### Learnings for Story 1.5
+
+- Construction validates and raises; execution rejects and emits. Oracle and environment
+  follow the same split.
+- `peg_deviation` is now owned by the AMM. The oracle publishes a *lagged* view of the
+  external reference price; it must not provide `PegView`. Agents (1.7) compare AMM spot
+  to oracle price; termination compares AMM spot to peg. Keep those two comparisons distinct.
+- The AMM has no `on_phase` behaviour. The oracle and environment are the first modules that
+  *do*: they are pure hook subsystems with no `ActionTarget`.
+
+### Action Items
+
+- [ ] [Low] Split `cumulative_fees` by token → Story 1.5 task 1
+- 2026-10-02: Senior review APPROVE; status set to done. cumulative_fees split carried to 1.5.

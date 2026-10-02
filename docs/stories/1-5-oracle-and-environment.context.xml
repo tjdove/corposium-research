@@ -1,0 +1,90 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.5</storyId>
+    <title>Oracle and Environment Modules</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-5-oracle-and-environment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>an external reference price with seeded shocks and an oracle that lags it by heartbeat and deviation rules</iWant>
+    <soThat>oracle delay is a first-class, calibratable parameter</soThat>
+    <tasks>
+      - Carry-over: split AMM cumulative fees by token (AC: 1)
+      - Reference price process (AC: 2, 3, 4, 5, 10, 12)
+      - Oracle (AC: 6, 7, 8, 9, 10)
+      - Integration (AC: 11)
+      - Tests, lint, close out (AC: 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. The price-process and oracle-rule blocks in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-5-oracle-and-environment.md" section="Dev Notes">Normative update rules, rng-draw guard, reason strings, registration order.</doc>
+      <doc path="docs/stories/1-4-constant-product-amm.md" section="Senior Developer Review">Fee-split ruling; construction-vs-execution rule; PegView ownership.</doc>
+      <doc path="docs/stories/1-3-simulation-kernel.md" section="Dev Notes / Interfaces">Subsystem contract.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="cumulative_fees, snapshot, swap" reason="Task 1 edits only these."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="EnvironmentConfig, ShockEvent, OracleConfig" reason="from_config inputs; do not modify."/>
+      <existing path="src/depeg_sim/kernel/context.py" symbol="RunContext.rng" reason="The only randomness source; numpy Generator."/>
+      <existing path="src/depeg_sim/kernel/scheduler.py" symbol="Phase.ENVIRONMENT_UPDATE, Phase.ORACLE_UPDATE" reason="Phase registration."/>
+      <existing path="tests/kernel_stubs.py" reason="Add ScriptedPriceSource here."/>
+      <existing path="tests/test_amm.py" reason="Update for the fee split."/>
+    </code>
+    <dependencies>
+      <python>numpy (installed) for standard_normal; math.exp. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - New files: src/depeg_sim/environment/price_process.py, src/depeg_sim/protocol/oracle.py, tests/test_price_process.py, tests/test_oracle.py, tests/test_oracle_integration.py. Task 1 touches amm.py and test_amm.py only.
+    - ctx.rng.standard_normal() is the only random call; exactly one per step and only when volatility_per_step > 0.
+    - Oracle holds a reference to the price source object; it does not look it up by name through the registry (keeps the dependency explicit and testable).
+    - Oracle does NOT implement PegView. isinstance(oracle, PegView) must be False (test it).
+    - Neither module is an ActionTarget. No execute().
+    - Shock pct is percent, not fraction; document in both the module docstring and the config field comment if one is added (do not change config.py).
+    - Construction raises ValueError on invalid parameters; hooks never raise for domain reasons.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="ReferencePrice" kind="class" path="src/depeg_sim/environment/price_process.py">
+      __init__(base_price: float, volatility_per_step: float, shocks: Sequence[ShockEvent] | Mapping[int, float], name: str = "environment")
+      price: float (property); prev_price: float (property)
+      on_phase(ctx, phase) -> None ; snapshot() -> dict ; classmethod from_config(cfg: EnvironmentConfig)
+    </interface>
+    <interface name="Oracle" kind="class" path="src/depeg_sim/protocol/oracle.py">
+      __init__(heartbeat_steps: int, deviation_threshold_pct: float, source: PriceSource, name: str = "oracle")
+      price: float (published; property) ; last_update_step: int | None ; staleness_steps: int (property, 0 before first publish) ; reference_price: float (property)
+      on_phase(ctx, phase) -> None ; snapshot() -> dict ; classmethod from_config(cfg: OracleConfig, source)
+    </interface>
+    <interface name="PriceSource" kind="Protocol" path="src/depeg_sim/protocol/oracle.py">price: float (property). Satisfied by ReferencePrice and by tests' ScriptedPriceSource.</interface>
+    <interface name="ScriptedPriceSource" kind="test stub" path="tests/kernel_stubs.py">ScriptedPriceSource(prices: Sequence[float]) with set_step(i) or a settable price attribute; whatever is simplest for scripting AC 9.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; numeric comparisons via math.isclose; rng-untouched test compares ctx.rng.bit_generator.state before/after; determinism tests compare full lists.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="sell_stable 1000 → cumulative_fees_stable == 3.0, cumulative_fees_reference == 0.0; snapshot has both keys and not cumulative_fees"/>
+      <test ac="3,4" idea="vol 0, no shocks, 100 steps: every price_updated.price == base; rng state unchanged"/>
+      <test ac="3" idea="shock {step: 0, pct: -5}: step-0 price == base*0.95; shock at step 10 applies at 10 only; two shocks same step sum"/>
+      <test ac="5" idea="vol 0.01 seed 1 twice → equal sequences; seed 2 → differs"/>
+      <test ac="7,9" idea="heartbeat 25 flat → oracle_updated at 0,25,50,75 with reasons initial,heartbeat,heartbeat,heartbeat"/>
+      <test ac="7,9" idea="threshold 0.5, +0.6% at step 7 → update at 7 reason deviation; next at 32 heartbeat"/>
+      <test ac="9" idea="+0.4% move → no deviation update"/>
+      <test ac="9" idea="threshold 0 → updates whenever source price changes"/>
+      <test ac="8" idea="staleness_steps sequence 0,1,2,...,24,0 for heartbeat 25; isinstance(oracle, PegView) is False"/>
+      <test ac="11" idea="engine run per AC 11; repeat gives identical events list"/>
+    </ideas>
+  </tests>
+</story-context>
