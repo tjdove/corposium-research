@@ -11,7 +11,7 @@ SAME_BYTES = ("timeseries.parquet", "summary.json", "events.jsonl", "decisions.j
 
 
 def run(path, out, seed=None):
-    return run_scenario(load_scenario(path), seed_override=seed, output_dir=out)
+    return run_scenario(load_scenario(path), seed_override=seed, output_dir=out, chart=False)
 
 
 def manifest_without_time(art):

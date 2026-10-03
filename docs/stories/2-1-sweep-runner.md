@@ -1,6 +1,6 @@
 # Story 2.1: Sweep Runner and Recovery Metrics
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -24,37 +24,37 @@ so that one command produces the data behind a sensitivity chart.
 
 ## Tasks / Subtasks
 
-- [ ] Recovery metrics and manifest round-trip (AC: 1, 2)
-  - [ ] `analysis/summary.py`: rename + add; update docstring with the ADR-0013 definitions
-  - [ ] Update `tests/test_summary.py` key list and add the sustained-recovery case (baseline: `steps_run 192 − 100 − 50 = 42`)
-  - [ ] Update any 1.8 tests referencing the old key
-  - [ ] `tests/test_run_determinism.py` or new `test_manifest.py`: round-trip hash equality
-  - [ ] Commit separately: `story 2.1: recovery metrics per ADR-0013; manifest round-trip test`
+- [x] Recovery metrics and manifest round-trip (AC: 1, 2)
+  - [x] `analysis/summary.py`: rename + add; update docstring with the ADR-0013 definitions
+  - [x] Update `tests/test_summary.py` key list and add the sustained-recovery case (baseline: `steps_run 192 − 100 − 50 = 42`)
+  - [x] Update any 1.8 tests referencing the old key
+  - [x] `tests/test_run_determinism.py` or new `test_manifest.py`: round-trip hash equality
+  - [x] Commit separately: `story 2.1: recovery metrics per ADR-0013; manifest round-trip test`
 
-- [ ] Path setter (AC: 4)
-  - [ ] `experiments/sweep.py`: `set_path`, `SweepPathError`; parse `a.b`, `a[0].b`, `a[type=x].b`
-  - [ ] Tests: each form; unknown path; frozen model returns a new object; original unchanged
+- [x] Path setter (AC: 4)
+  - [x] `experiments/sweep.py`: `set_path`, `SweepPathError`; parse `a.b`, `a[0].b`, `a[type=x].b`
+  - [x] Tests: each form; unknown path; frozen model returns a new object; original unchanged
 
-- [ ] Spec and expansion (AC: 3, 5, 6, 10)
-  - [ ] `SweepSpec` + `load_sweep`; `linked_axes` support
-  - [ ] `expand`; cell naming; ADR-0013 guard
-  - [ ] `sweeps/pool-depth-x-attacker.yaml`
-  - [ ] Tests: product order; names; overrides-before-axes; guard raise/pass; 2×2 expansion of the real sweep file
+- [x] Spec and expansion (AC: 3, 5, 6, 10)
+  - [x] `SweepSpec` + `load_sweep`; `linked_axes` support
+  - [x] `expand`; cell naming; ADR-0013 guard
+  - [x] `sweeps/pool-depth-x-attacker.yaml`
+  - [x] Tests: product order; names; overrides-before-axes; guard raise/pass; 2×2 expansion of the real sweep file
 
-- [ ] Runner and aggregation (AC: 7, 8)
-  - [ ] `run_sweep`; worker function must be a module-level picklable function taking `(cell, output_dir)`; `run_scenario(..., chart=False)` (add the flag if absent)
-  - [ ] Aggregation to parquet; sweep manifest
-  - [ ] Tests: 2×2×1 subset, `workers=1` vs `workers=2` byte equality; manifest fields; per-cell dirs exist
+- [x] Runner and aggregation (AC: 7, 8)
+  - [x] `run_sweep`; worker function must be a module-level picklable function taking `(cell, output_dir)`; `run_scenario(..., chart=False)` (add the flag if absent)
+  - [x] Aggregation to parquet; sweep manifest
+  - [x] Tests: 2×2×1 subset, `workers=1` vs `workers=2` byte equality; manifest fields; per-cell dirs exist
 
-- [ ] CLI (AC: 9)
-  - [ ] `experiments/sweep.py` gains `main(argv)`; `src/depeg_sim/sweep.py` thin `__main__` shim or `[project.scripts] depeg-sweep`
-  - [ ] Tests: exit codes; two output lines
+- [x] CLI (AC: 9)
+  - [x] `experiments/sweep.py` gains `main(argv)`; `src/depeg_sim/sweep.py` thin `__main__` shim or `[project.scripts] depeg-sweep`
+  - [x] Tests: exit codes; two output lines
 
-- [ ] Tests, lint, close out (AC: 11)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Time the 16-cell sweep at `workers=4` on Seoul; record wall time in Completion Notes (feeds 2.2's budget)
-  - [ ] Dev Agent Record, Change Log, `Status: review`; propose ADRs for any semantic you had to pin
-  - [ ] Commit `story 2.1: sweep runner`, push to `main`
+- [x] Tests, lint, close out (AC: 11)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Time the 16-cell sweep at `workers=4` on Seoul; record wall time in Completion Notes (feeds 2.2's budget)
+  - [x] Dev Agent Record, Change Log, `Status: review`; propose ADRs for any semantic you had to pin
+  - [x] Commit `story 2.1: sweep runner`, push to `main`
 
 ## Dev Notes
 
@@ -159,22 +159,159 @@ first look at the threshold surface.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output with exit codes; include the 16-cell sweep timing)_
+Task 1 (`b5edb32`):
+
+```
+$ pytest            # after task 1
+330 passed in 2.04s        (the 328 existing, under the renamed keys, + 2 new)
+```
+
+Final:
+
+```
+$ pytest; echo exit=$?
+380 passed in 3.17s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+67 files already formatted
+exit=0
+
+$ python run.py scenarios/soros-baseline.yaml; echo exit=$?      # unchanged from 1.8
+depeg-sim: scenario=soros-baseline seed=42 hash=2e09f431ce74
+run: steps=192 terminated_by=peg_recovered max_depeg_bps=-573.2 reserves_exhausted=False
+wrote: output/soros-baseline-42-2e09f431
+exit=0
+
+$ time python -m depeg_sim.sweep sweeps/pool-depth-x-attacker.yaml --workers 4; echo exit=$?
+sweep: pool-depth-x-attacker cells=16 workers=4
+wrote: output/pool-depth-x-attacker/sweep.parquet
+
+real	0m0.558s
+user	0m2.733s
+sys	0m0.120s
+exit=0
+
+$ time python -m depeg_sim.sweep sweeps/pool-depth-x-attacker.yaml --workers 1 --output <scratch>/w1
+real	0m0.554s
+$ time python -m depeg_sim.sweep sweeps/pool-depth-x-attacker.yaml --workers 4 --output <scratch>/w4
+real	0m0.571s
+$ cmp w1/pool-depth-x-attacker/sweep.parquet w4/pool-depth-x-attacker/sweep.parquet
+sweep.parquet identical (workers 1 vs 4)
+
+$ pytest --cov=depeg_sim --cov-report=term-missing   (excerpt)
+src/depeg_sim/analysis/summary.py               43      1    98%   68
+src/depeg_sim/experiments/runner.py             51      0   100%
+src/depeg_sim/experiments/sweep.py             169      0   100%
+src/depeg_sim/sweep.py                           3      3     0%   7-10
+TOTAL                                         1513     11    99%
+```
+
+(`src/depeg_sim/sweep.py` is the `-m` shim. It runs in a subprocess in
+`test_module_entry_point_with_spawn_workers`, which coverage doesn't trace.)
+
+Seoul has 12 cores (`nproc`).
+
+328 → 380 tests (+52), counted with `pytest --collect-only`: task 1 +2 (summary sustained
+recovery, manifest round-trip); `test_set_path.py` 16; `test_sweep.py` 33; `test_runner.py`
++1 (`chart` flag).
 
 ### Completion Notes List
 
-_(include the 4×4 terminated_by table)_
+- **16-cell sweep wall time: 0.56 s at `workers=4`** (0.55 s at `workers=1`). Every cell
+  ends by step 75–212, far below the 2000 cap, so a cell costs ~25 ms. The spawn pool's
+  startup (fresh interpreters importing numpy/pandas/pydantic) cancels the parallel gain
+  at this size. For 2.2's budget: per-cell cost scales with `steps_run`. A cell that runs
+  to its `max_steps` cap costs proportionally more. Workers pay off once cells take
+  longer than spawn startup (~0.3 s). This is an extrapolation, not a measurement.
+- **4×4 `terminated_by` table (first look at the threshold surface):**
+
+  | pool depth \ attacker capital | 100k | 300k | 600k | 1.2M |
+  |---|---|---|---|---|
+  | 250k | peg_recovered | peg_recovered | peg_recovered | reserves_exhausted |
+  | 500k | peg_recovered | peg_recovered | peg_recovered | reserves_exhausted |
+  | 1M   | peg_recovered | peg_recovered | peg_recovered | reserves_exhausted |
+  | 2M   | peg_recovered | peg_recovered | peg_recovered | reserves_exhausted |
+
+  `steps_run`: 195/205/212/86, 188/199/202/76, 181/192/196/75, 173/185/189/75 (rows as
+  above). `max_depeg_bps` runs from −187 (100k into 2M) to −5430 (1.2M into 250k).
+  `steps_to_sustained_recovery`: 22–62 where recovered.
+- **Surprise → proposed ADR-0016 (finding).** The flip isn't diagonal as the Dev Notes
+  expected. It's a column: termination depends on attacker capital only, at every pool
+  depth. Depth changes the trough (×4 shallower from 250k to 2M) and recovery time, not
+  the verdict. The event logs show the mechanism. The arbitrageur is the only redeemer
+  and recycles the attacker's dumped stable into redemptions. Whatever the defender's
+  400k doesn't absorb ends up against the 500k reserves, so exhaustion arrives when
+  capital ≳ budget + reserves. That is a first-generation-model result, and the ADR
+  suggests axes for 2.2/2.5 to test it.
+- **Spec conflict → proposed ADR-0015.** AC 5 (`name = "<spec>/<index:04d>"`) together
+  with `run_scenario`'s `run_id = "<name>-<seed>-<hash8>"` makes AC 7's exact
+  `<sweep>/<index:04d>/` path impossible without changing `run_scenario`. The Dev Notes
+  worker (`output_dir=out/<index>`) would nest `<sweep>/0000/<sweep>/0000-42-…/`. I call
+  `run_scenario(cell.config, output_dir=output_dir, chart=False)` instead, so each cell
+  is `<output_dir>/<spec.name>/<index:04d>-<seed>-<hash8>/`. The worker is still a
+  module-level `_run_cell((cell, output_dir))`.
+- **`set_path` validates.** The rebuild uses `model_copy(update=…)` as specified, but the
+  leaf is set through the parent's `model_validate`, and the whole config is re-validated
+  at the end. YAML ints become floats (`250000` → `250000.0`, so hashes match a
+  hand-written YAML). Invalid values raise `pydantic.ValidationError`, and model-level
+  validators (unique agent ids) still run. Unknown paths raise `SweepPathError` with the
+  path in the message. The CLI maps both to exit 3.
+- **ADR-0013 guard details.** It triggers on `amm.fee_bps` or any `agents…min_profit_bps`
+  path, in axes, linked axes or overrides. It's satisfied by
+  `termination.peg_recovered.tolerance` as an axis or override, and skipped when the base
+  scenario has no `peg_recovered` (nothing to make unreachable).
+- **Spec details beyond the AC list:** `SweepSpec.name` must match `[A-Za-z0-9_.-]+` (it's
+  a directory name), `max_steps > 0`, axis names must be unique. Seeds are written into
+  `cfg.seed` (so each cell's manifest/config carries its seed), applied after
+  `max_steps`; `name` is set last. `base` is resolved relative to the working directory,
+  like `run.py`'s scenario argument.
+- **Aggregation always reads `summary.json` from disk** (for `workers=1` too), so both
+  paths build the parquet from identical inputs. Summary columns follow `SUMMARY_KEYS`
+  order (the files are sorted-key JSON). `seed` appears once, in position 2.
+  `terminated_by` stays a string.
+- **Sweep manifest** has the AC 7 keys plus `max_steps`, needed to reproduce the cells.
+  `axes` is a list of `{name, paths, values}` in expansion order; an ordinary axis has
+  `paths == [name]`.
+- **`run_scenario(chart=True)` now draws the chart itself** (pyplot imported lazily, so
+  sweep workers never import it). `cli.py` passes `chart=not args.no_chart`. CLI output
+  is unchanged. Existing 1.8 tests that list run-dir files now pass `chart=False`. In
+  scope: the new default would otherwise add a PNG to those listings.
+- `AC 8` is tested at workers 1 vs 2 (CI has 2 cores, per the context's test
+  standards). I also checked it by hand at 1 vs 4 on the full 16-cell sweep (`cmp`
+  above).
+- `run_sweep` replaces `<output_dir>/<spec.name>/` on rerun.
+- Not done (not in scope): README section for sweeps, `depeg-sweep` console script.
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/experiments/sweep.py`
+- `src/depeg_sim/sweep.py` (`python -m` shim)
+- `sweeps/pool-depth-x-attacker.yaml`
+- `docs/adr/0015-sweep-cell-directory-layout.md` (Proposed)
+- `docs/adr/0016-outcome-set-by-capital-not-depth.md` (Proposed, finding)
+- `tests/test_set_path.py`, `tests/test_sweep.py`
+
 **Modified:**
+
+- `src/depeg_sim/analysis/summary.py` (task 1)
+- `src/depeg_sim/experiments/runner.py` (`chart` flag)
+- `src/depeg_sim/cli.py` (uses the flag)
+- `tests/test_summary.py`, `tests/test_runner.py` (task 1; `chart` flag)
+- `tests/test_charts.py`, `tests/test_run_determinism.py` (`chart=False`)
+- `docs/stories/2-1-sweep-runner.md`
 
 ## Change Log
 
 - 2026-10-03: Story drafted by dev manager from epics.md (Epic 2 expanded after Epic 1 retro)
+- 2026-10-03: Implemented by Claude Code (Opus 5.5); 380 tests pass; 16-cell sweep 0.56 s at workers=4; ADR-0015 and ADR-0016 proposed; status → review

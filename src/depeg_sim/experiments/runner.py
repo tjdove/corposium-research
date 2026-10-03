@@ -56,10 +56,16 @@ def build_world(cfg: ScenarioConfig, ctx: RunContext) -> dict[str, Subsystem]:
 
 
 def run_scenario(
-    cfg: ScenarioConfig, *, seed_override: int | None = None, output_dir: Path
+    cfg: ScenarioConfig,
+    *,
+    seed_override: int | None = None,
+    output_dir: Path,
+    chart: bool = True,
 ) -> RunArtifacts:
     """Run one scenario into ``output_dir/<run_id>/``. An existing directory for the
-    same run_id is replaced, so a rerun never mixes old and new files."""
+    same run_id is replaced, so a rerun never mixes old and new files. With ``chart``
+    the peg trajectory PNG is drawn too; sweeps pass ``False`` (pyplot is then never
+    imported)."""
     seed = cfg.seed if seed_override is None else seed_override
     run_dir = Path(output_dir) / run_id_for(cfg, seed)
     if run_dir.exists():
@@ -70,6 +76,10 @@ def run_scenario(
     df = world["metrics"].to_dataframe()
     summary = summarize(cfg, result, df, world)
     manifest = write_run(run_dir, cfg, result, df, summary)
+    if chart:
+        from depeg_sim.analysis.charts import plot_peg_trajectory
+
+        plot_peg_trajectory(run_dir)
     return RunArtifacts(
         run_dir=run_dir, result=result, summary=summary, metrics=df, manifest=manifest
     )

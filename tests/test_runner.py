@@ -51,7 +51,7 @@ def test_run_scenario_writes_all_files(tmp_path):
     data = cfg.model_dump(mode="json")
     data["metrics"]["checkpoint_every"] = 40
     cfg = ScenarioConfig.model_validate(data)
-    art = run_scenario(cfg, output_dir=tmp_path)
+    art = run_scenario(cfg, output_dir=tmp_path, chart=False)
 
     assert isinstance(art, RunArtifacts)
     run_id = f"soros-baseline-42-{cfg.content_hash()[:8]}"
@@ -104,7 +104,7 @@ def test_run_scenario_writes_all_files(tmp_path):
 
 def test_manifest_config_round_trips_to_scenario_hash(tmp_path):
     # ADR-0014: the embedded config re-validates to the exact scenario that ran.
-    art = run_scenario(load_scenario(BASELINE), output_dir=tmp_path)
+    art = run_scenario(load_scenario(BASELINE), output_dir=tmp_path, chart=False)
     m = json.loads((art.run_dir / "manifest.json").read_text())
     assert ScenarioConfig.model_validate(m["config"]).content_hash() == m["scenario_hash"]
 
@@ -112,22 +112,31 @@ def test_manifest_config_round_trips_to_scenario_hash(tmp_path):
 def test_no_decisions_file_when_not_tracing(tmp_path):
     data = cfg_with(max_steps=10).model_dump(mode="json")
     data["metrics"]["trace_decisions"] = False
-    art = run_scenario(ScenarioConfig.model_validate(data), output_dir=tmp_path)
+    art = run_scenario(ScenarioConfig.model_validate(data), output_dir=tmp_path, chart=False)
     assert not (art.run_dir / "decisions.jsonl").exists()
     assert "decisions.jsonl" not in art.manifest["files"]
 
 
 def test_rerun_replaces_run_dir(tmp_path):
     cfg = cfg_with(max_steps=10)
-    art = run_scenario(cfg, output_dir=tmp_path)
+    art = run_scenario(cfg, output_dir=tmp_path, chart=False)
     (art.run_dir / "stale.txt").write_text("old")
-    art2 = run_scenario(cfg, output_dir=tmp_path)
+    art2 = run_scenario(cfg, output_dir=tmp_path, chart=False)
     assert art2.run_dir == art.run_dir
     assert not (art.run_dir / "stale.txt").exists()
 
 
 def test_seed_override_sets_run_id(tmp_path):
     cfg = cfg_with(max_steps=10)
-    art = run_scenario(cfg, seed_override=7, output_dir=tmp_path)
+    art = run_scenario(cfg, seed_override=7, output_dir=tmp_path, chart=False)
     assert art.run_dir.name.startswith("soros-baseline-7-")
     assert art.summary["seed"] == 7 and art.manifest["seed"] == 7
+
+
+def test_chart_flag(tmp_path):
+    cfg = cfg_with(max_steps=20)
+    with_chart = run_scenario(cfg, output_dir=tmp_path / "a")
+    without = run_scenario(cfg, output_dir=tmp_path / "b", chart=False)
+    assert (with_chart.run_dir / "peg_trajectory.png").is_file()
+    assert not (without.run_dir / "peg_trajectory.png").exists()
+    assert "peg_trajectory.png" not in with_chart.manifest["files"]  # drawn after the manifest

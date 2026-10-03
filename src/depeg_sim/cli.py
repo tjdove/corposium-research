@@ -1,4 +1,4 @@
-"""Command-line entry point: ``load_scenario -> run_scenario -> plot_peg_trajectory``.
+"""Command-line entry point: ``load_scenario -> run_scenario`` (which draws the chart).
 
 Prints three lines (scenario, run outcome, run directory). Exit codes: 0 ok,
 2 scenario file missing, 3 scenario invalid.
@@ -13,7 +13,6 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from depeg_sim.analysis.charts import plot_peg_trajectory
 from depeg_sim.experiments.runner import run_scenario
 from depeg_sim.kernel.config import load_scenario
 
@@ -41,14 +40,14 @@ def main(argv: list[str] | None = None) -> int:
         return 3
     seed = cfg.seed if args.seed is None else args.seed
     print(f"depeg-sim: scenario={cfg.name} seed={seed} hash={cfg.content_hash()[:12]}")
-    run = run_scenario(cfg, seed_override=args.seed, output_dir=args.output)
+    run = run_scenario(
+        cfg, seed_override=args.seed, output_dir=args.output, chart=not args.no_chart
+    )
     s = run.summary
     depeg = "none" if s["max_depeg_bps"] is None else f"{s['max_depeg_bps']:.1f}"
     print(
         f"run: steps={s['steps_run']} terminated_by={s['terminated_by']} "
         f"max_depeg_bps={depeg} reserves_exhausted={s['reserves_exhausted']}"
     )
-    if not args.no_chart:
-        plot_peg_trajectory(run.run_dir)
     print(f"wrote: {run.run_dir}")
     return 0

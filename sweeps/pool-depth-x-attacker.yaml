@@ -1,0 +1,17 @@
+# Pool depth x attacker capital (Story 2.1): the first look at the threshold surface.
+# Base: the retuned baseline (60 bps recovery tolerance, ADR-0013). Pool depth moves both
+# AMM reserves together as one axis, so the pool always starts at peg. Neither the AMM fee
+# nor the arbitrageur's min profit varies, so the arbitrage band and the tolerance stay
+# consistent (ADR-0013 guard). max_steps 2000 (6.7 h) keeps cells short; the baseline
+# itself ends at step 192.
+version: 1
+name: pool-depth-x-attacker
+base: scenarios/soros-baseline.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference]
+    values: [250000, 500000, 1000000, 2000000]
+axes:
+  agents[type=attacker].capital: [100000, 300000, 600000, 1200000]
+seeds: [42]
+max_steps: 2000
