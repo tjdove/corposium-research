@@ -1,0 +1,86 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.1</storyId>
+    <title>Sweep Runner and Recovery Metrics</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-03</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-1-sweep-runner.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>to run a grid of scenarios varying any config path and aggregate the summaries</iWant>
+    <soThat>one command produces the data behind a sensitivity chart</soThat>
+    <tasks>
+      - Recovery metrics and manifest round-trip (AC: 1, 2)
+      - Path setter (AC: 4)
+      - Spec and expansion (AC: 3, 5, 6, 10)
+      - Runner and aggregation (AC: 7, 8)
+      - CLI (AC: 9)
+      - Tests, lint, close out (AC: 11)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–11. The linked-axes YAML form, set_path grammar, worker function and parquet schema in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-1-sweep-runner.md" section="Dev Notes">Linked axes, path grammar, worker, schema, expected 4×4 table.</doc>
+      <doc path="docs/adr/0013-recovery-tolerance-outside-arb-band.md">Metric split and the fee/arb sweep trap (AC 1, AC 6).</doc>
+      <doc path="docs/adr/0014-manifest-embeds-resolved-config.md">Round-trip property (AC 2).</doc>
+      <doc path="docs/retrospectives/epic-1-retro.md" section="Carry-overs into Epic 2">What this story closes.</doc>
+      <doc path="docs/BACKGROUND.md" section="How economists explain it">Why the sweep exists: find the first-generation exhaustion boundary.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/analysis/summary.py" symbol="summarize, time_to_recovery_steps" reason="AC 1 rename/add."/>
+      <existing path="src/depeg_sim/experiments/runner.py" symbol="run_scenario" reason="Add chart: bool = True if not present; called per cell."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="ScenarioConfig (frozen), AgentConfig union" reason="set_path targets; agents[type=…] resolves on the discriminator."/>
+      <existing path="src/depeg_sim/cli.py" reason="Pattern for exit codes and output lines."/>
+      <existing path="tests/test_summary.py, tests/test_run_determinism.py" reason="Update for the new keys; add round-trip."/>
+      <existing path="pyproject.toml" symbol="[project.scripts]" reason="Optionally add depeg-sweep."/>
+    </code>
+    <dependencies>
+      <python>multiprocessing (stdlib), pandas, pyarrow. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - New files: src/depeg_sim/experiments/sweep.py (+ optional src/depeg_sim/sweep.py shim), sweeps/pool-depth-x-attacker.yaml, tests/test_sweep.py, tests/test_set_path.py. Edits: summary.py, runner.py (chart flag), existing tests for the key rename, pyproject (optional).
+    - SweepSpec is StrictModel-style (extra="forbid"); sweeps/ YAML files carry a version: 1 field.
+    - Cells never share state; each cell gets a fresh RunContext via run_scenario.
+    - spawn context only. No fork.
+    - Aggregation reads summary.json from disk, not the in-memory return, for workers > 1 (so the parquet is built from the same files a reader would see).
+    - sweep.parquet sorted by index; byte-identical across worker counts.
+    - No chart generation inside sweeps.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="SweepSpec" kind="pydantic model" path="src/depeg_sim/experiments/sweep.py">version: Literal[1]; name: str; base: Path; linked_axes: list[LinkedAxis] = []; axes: dict[str, list[Any]] = {}; seeds: list[int]; overrides: dict[str, Any] = {}; max_steps: int | None = None</interface>
+    <interface name="LinkedAxis" kind="pydantic model" path="src/depeg_sim/experiments/sweep.py">name: str; paths: list[str] (min 1); values: list[Any]</interface>
+    <interface name="SweepCell" kind="frozen dataclass" path="src/depeg_sim/experiments/sweep.py">index: int; seed: int; axis_values: dict[str, Any]; config: ScenarioConfig</interface>
+    <interface name="set_path" kind="function" path="src/depeg_sim/experiments/sweep.py">set_path(cfg: ScenarioConfig, path: str, value: Any) -> ScenarioConfig ; raises SweepPathError</interface>
+    <interface name="expand" kind="function" path="src/depeg_sim/experiments/sweep.py">expand(spec: SweepSpec) -> list[SweepCell] ; raises SweepSpecError on the ADR-0013 guard</interface>
+    <interface name="run_sweep" kind="function" path="src/depeg_sim/experiments/sweep.py">run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path (the sweep directory)</interface>
+    <interface name="run_scenario" kind="function (existing, extended)" path="src/depeg_sim/experiments/runner.py">run_scenario(cfg, *, seed_override=None, output_dir, chart: bool = True) -> RunArtifacts</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; tmp_path for outputs; sweep tests use max_steps overrides of 100–300 to stay fast; the workers=1 vs workers=2 byte test is the only multi-process test and must pass on CI's 2-core runner.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="baseline summary: steps_to_first_band_entry == 2; steps_to_sustained_recovery == 42; max_steps-terminated run → sustained None"/>
+      <test ac="2" idea="manifest round-trip hash equality"/>
+      <test ac="4" idea="set_path amm.reserve_stable; agents[0].capital; agents[type=defender].budget; bad path raises with the path in the message; original cfg unchanged"/>
+      <test ac="5" idea="2 linked × 2 axis × 2 seeds → 8 cells in the documented order; names 0000..0007"/>
+      <test ac="6" idea="axis on amm.fee_bps without tolerance → SweepSpecError mentioning ADR-0013; with tolerance axis → ok"/>
+      <test ac="7,8" idea="2×2×1 subset: 4 cell dirs; sweep.parquet 4 rows; bytes equal for workers 1 and 2; manifest cell_count 4"/>
+      <test ac="9" idea="CLI prints two lines; exit 2 on missing file; exit 3 on invalid spec"/>
+      <test ac="10" idea="load_sweep on the real file: 16 cells; subset via a modified spec"/>
+    </ideas>
+  </tests>
+</story-context>
