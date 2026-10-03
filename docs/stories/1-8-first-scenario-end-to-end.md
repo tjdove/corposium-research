@@ -220,6 +220,18 @@ src/depeg_sim/experiments/writer.py             35      0   100%
 TOTAL                                         1339      8    99%
 ```
 
+CI on push of `9b344fe` (run 37081609248):
+
+```
+completed	success	story 1.8: first scenario end to end	ci	main	push	37081609248	38s	2026-10-03T00:19:57Z
+Run python run.py scenarios/soros-baseline.yaml --output /tmp/ci-run
+  depeg-sim: scenario=soros-baseline seed=42 hash=2e09f431ce74
+  run: steps=192 terminated_by=peg_recovered max_depeg_bps=-573.2 reserves_exhausted=False
+  wrote: /tmp/ci-run/soros-baseline-42-2e09f431
+Run actions/upload-artifact@v4
+  Artifact peg-trajectory has been successfully uploaded! Final size is 95186 bytes. Artifact ID is 11258792473
+```
+
 296 → 328 tests (+32), counted with `pytest --collect-only`: 1 decision-record (task 1),
 11 metrics (incl. 4 parametrized guards), 6 summary, 5 runner/writer, 3 chart, 5
 determinism/seed, and +1 smoke (`--no-chart`; smoke went 5 → 6, the others rewritten for
@@ -284,7 +296,7 @@ the three-line output).
   `output/.gitkeep` is still the only tracked file there.
 - `DecisionTrace.record` now wraps a list itself (ADR-0011 encoding), so
   `Agent.record` passes actions through unchanged.
-- CI artifact upload is confirmed after push (see below).
+- CI artifact upload confirmed: see the Debug Log.
 
 ### File List
 
