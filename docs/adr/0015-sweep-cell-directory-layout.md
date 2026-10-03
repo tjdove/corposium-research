@@ -1,6 +1,6 @@
 # ADR-0015: Sweep cells live at `<sweep>/<index:04d>-<seed>-<hash8>/`
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-03
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.1 AC 5 / AC 7 (spec conflict)
