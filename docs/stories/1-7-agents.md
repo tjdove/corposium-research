@@ -1,6 +1,6 @@
 # Story 1.7: Attacker, Arbitrageur and Defender Agents
 
-Status: review
+Status: done
 
 ## Story
 
@@ -335,3 +335,88 @@ same scenario at max_steps 5000: terminated_by=max_steps
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.6 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5); 296 tests pass; baseline 300-step run ends `max_steps` (finding in Completion Notes); status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+All three agents behave as specified and, more importantly, interact. Reviewer re-ran on a
+separate machine: 296 passed, ruff clean, and an independent 300-step baseline run
+reproduced the builder's finding to the digit: `terminated_by max_steps`, final spot
+0.99817 (−18.3 bps), last `defend_buy` at step 77, 90,899 reference paid from reserves,
+repeat-run identical. Rule histogram: attack_dump 250, defend_buy 16, arb_buy_amm 12,
+arb_redeem 12, arb_sell_amm 1. CI run 37029406348 green.
+
+### The finding (recorded as ADR-0010)
+
+The baseline parks 18 bps under peg in a **dead zone**: inside the arbitrageur's 50 bps band
+(30 fee + 20 profit), above the defender's −100 bps trigger, and outside the 10 bps
+`peg_recovered` tolerance. No rule fires; the run cannot terminate except by `max_steps`.
+This is a real property of the model, not a bug, and it is the first thing Epic 2
+calibration must address: either `peg_recovered.tolerance` must be at least the arb band,
+or the arbitrageur must have a tighter band, or the defender a tighter trigger. The honest
+reading is that *a peg can be permanently "slightly broken" with no actor incentivised to
+fix it*, which is itself a publishable observation. Carried to Story 1.8's baseline
+rewrite and to the Epic 2 calibration story.
+
+Also noted: before the attack (steps 0–49) the pool sits exactly at peg, so any
+`start_step >= for_steps` ends the run by `peg_recovered` before the attacker acts. 1.8's
+baseline must keep `start_step < peg_recovered.for_steps`.
+
+### Rulings on the flagged items
+
+1. **Multi-action record as `{"actions": [...]}`.** Correct given `DecisionTrace.record`'s
+   `dict()` call and the kernel-scope limit. **Ratified** and recorded (ADR-0011). Consumers
+   (1.8 metrics) check for the `actions` key.
+2. **Widen step recorded as `defend_spread_widen` even when it also buys.** Acceptable; the
+   `actions` list carries the buy. `interventions` counts buys; the one-off mismatch with
+   `defend_buy` record count is documented. **Ratified.**
+3. **Latency plan keeps first-seen step, takes latest size, drops if opportunity vanishes.**
+   This is the correct reading of "latency" for a persistent opportunity; the spec's "new
+   observation replaces an unexecuted plan" was ambiguous. **Ratified** (ADR-0012).
+4. **Queued stable stays in balance; arb redeems only un-queued stable.** Correct
+   accounting; prevents double-redeem. **Ratified.**
+5. **Reasoning comment written after observing.** Honest disclosure; the test asserts the
+   true behaviour. For 1.8 onward, predictions are not required in tests — findings go in
+   Completion Notes and ADRs.
+6. **`tests/agent_world.py` helper.** Fine; test infrastructure.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `ctx.execution_results`; engine test; `PHASE_ORDER_VERSION == 1` |
+| 2 | ✅ | `Agent` base with observe/decide/settle, MTM, PnL, trace gate |
+| 3 | ✅ | Attacker rules and pace; `attack_waiting` ×50 then `attack_dump` ×250 in baseline |
+| 4 | ✅ | Arb band uses AMM `fee_bps`; closed-form sizing; latency queue; redeem route (12 `arb_redeem` observed) |
+| 5 | ✅ | Defender band, closed-form, `max_spend`, widen/restore once |
+| 6 | ✅ | `build_agents` in config order |
+| 7 | ✅ | Settle tests with real AMM/redemption in engine |
+| 8 | ✅ | 62 agent tests incl. sizing precision at fee 0 |
+| 9 | ✅ | One record per agent per step; 900 decisions for 300 steps × 3 agents (reviewer: 900) |
+| 10 | ✅ | Baseline 300 steps; `max_steps`; repeat identical; reasoning in comment |
+| 11 | ✅ | Snapshots per type |
+| 12 | ✅ | `296 passed`, `All checks passed!`, CI green |
+
+**12 of 12 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1]** `DecisionTrace.record` should accept `list | dict | None` for `action` natively.
+  Fold into 1.8 (metrics will read traces anyway). One-line change plus test.
+
+### Learnings for Story 1.8
+
+- Everything exists. 1.8 is wiring (CLI registration in the fixed order), persistence
+  (parquet/JSON/JSONL/manifest), metrics, summary, one chart, and a baseline scenario that
+  produces a *non-trivial* termination.
+- The dead-zone finding means the baseline needs retuning before the first chart is
+  meaningful: see ADR-0010 for the options; 1.8 picks one and records which.
+- 2026-10-02: Senior review APPROVE; status set to done. Dead-zone finding recorded as ADR-0010; plan-latency and multi-action rulings as ADR-0011/0012.
