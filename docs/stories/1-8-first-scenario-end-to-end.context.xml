@@ -1,0 +1,100 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.8</storyId>
+    <title>First Scenario End to End</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-02</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/1-8-first-scenario-end-to-end.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>python run.py scenarios/soros-baseline.yaml to produce a parquet timeseries, a summary JSON and a chart</iWant>
+    <soThat>the project has its first reproducible result and first public post</soThat>
+    <tasks>
+      - Carry-over: DecisionTrace.record accepts list (AC: 1)
+      - Metrics and summary (AC: 3, 4)
+      - Runner and writer (AC: 2, 5)
+      - Chart (AC: 6)
+      - Baseline retune (AC: 8, 11)
+      - CLI (AC: 7)
+      - Determinism and seed tests (AC: 9, 10)
+      - README and CI (AC: 12, 13)
+      - Tests, lint, close out (AC: 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. Column and key lists are exact. Registration order is normative. Chart conventions are normative for every chart in the project.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/1-8-first-scenario-end-to-end.md" section="Dev Notes">Retune options in order, column sources, chart conventions, output tree, CI snippet.</doc>
+      <doc path="docs/adr/README.md">Index. Read 0004, 0010, 0011 before starting.</doc>
+      <doc path="docs/adr/0010-dead-zone-finding.md">Why the baseline must be retuned and the three levers.</doc>
+      <doc path="CLAUDE.md" section="Decisions">Propose an ADR for the retune choice if it sets a precedent beyond this scenario.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/events.py" symbol="DecisionTrace.record" reason="AC 1 type widening."/>
+      <existing path="src/depeg_sim/cli.py" symbol="main" reason="Replace the placeholder run with run_scenario + chart; keep exit codes."/>
+      <existing path="src/depeg_sim/agents/factory.py" symbol="build_agents" reason="Called by build_world."/>
+      <existing path="src/depeg_sim/environment/price_process.py" symbol="ReferencePrice.from_config"/>
+      <existing path="src/depeg_sim/protocol/oracle.py" symbol="Oracle.from_config"/>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="ConstantProductAMM.from_config"/>
+      <existing path="src/depeg_sim/protocol/redemption.py" symbol="RedemptionModule.from_config"/>
+      <existing path="src/depeg_sim/kernel/engine.py" symbol="RunResult" reason="Consumed by summarize and writer."/>
+      <existing path="scenarios/soros-baseline.yaml" reason="Retune per Dev Notes; add comment block."/>
+      <existing path=".github/workflows/ci.yml" reason="Add run + upload-artifact steps."/>
+      <existing path="README.md" reason="Quick start and output tree."/>
+      <existing path="tests/test_smoke.py" reason="New CLI output format."/>
+    </code>
+    <dependencies>
+      <python>pandas, pyarrow, matplotlib already declared in pyproject. Use matplotlib.use("Agg") before importing pyplot. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - New files under src/: experiments/runner.py, experiments/writer.py, analysis/metrics.py, analysis/summary.py, analysis/charts.py. Edits: cli.py, events.py (AC 1), README.md, ci.yml, scenarios/*.yaml.
+    - Registration order is fixed and tested: environment, oracle, amm, redemption, agents (config order), metrics.
+    - MetricsCollector is a hook-only Subsystem on METRIC_UPDATE; it never emits actions and never mutates anything.
+    - Output files are written once at the end of the run from in-memory data (events list, metrics rows), not streamed per step.
+    - summary.json and manifest.json use json.dumps(sort_keys=True, indent=2). Parquet via pandas.to_parquet(index=False, engine="pyarrow").
+    - Determinism tests compare bytes of parquet and summary; manifest compared with created_utc removed.
+    - Do not raise max_steps to make the baseline terminate; use an ADR-0010 lever and record which.
+    - Chart must render headless (Agg). No plt.show().
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="run_scenario" kind="function" path="src/depeg_sim/experiments/runner.py">
+      run_scenario(cfg: ScenarioConfig, *, seed_override: int | None = None, output_dir: Path) -> RunArtifacts
+      RunArtifacts: run_dir: Path; result: RunResult; summary: dict; metrics: pandas.DataFrame; manifest: dict
+    </interface>
+    <interface name="build_world" kind="function" path="src/depeg_sim/experiments/runner.py">build_world(cfg, ctx) -> dict[str, Subsystem] ; registers in fixed order; returns name→subsystem for summarize</interface>
+    <interface name="MetricsCollector" kind="Subsystem" path="src/depeg_sim/analysis/metrics.py">MetricsCollector(record_every: int = 1, name="metrics"); phases == {METRIC_UPDATE}; rows: list[dict]; to_dataframe() -> DataFrame; snapshot() -> {"rows": len(rows)}</interface>
+    <interface name="summarize" kind="function" path="src/depeg_sim/analysis/summary.py">summarize(cfg, result, metrics_df, world) -> dict (keys per AC 4)</interface>
+    <interface name="write_run" kind="function" path="src/depeg_sim/experiments/writer.py">write_run(run_dir: Path, cfg, result, metrics_df, summary) -> dict (the manifest)</interface>
+    <interface name="plot_peg_trajectory" kind="function" path="src/depeg_sim/analysis/charts.py">plot_peg_trajectory(run_dir: Path) -> Path (the PNG)</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; use tmp_path for output dirs; short runs (max_steps 50–200) for unit tests, full baseline only in the determinism test; byte comparisons via Path.read_bytes(). Chart test checks file existence/size/shape, not pixels.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="record(action=[a,b]) stores {'actions':[a,b]}; record(action=a) stores a; None stores None"/>
+      <test ac="2" idea="build_world: list(ctx.registry.names()) == ['environment','oracle','amm','redemption','attacker-1','arb-1','defender-1','metrics']"/>
+      <test ac="3" idea="200-step run record_every 5 → 40 rows; columns == exact list; agent columns NaN when scenario has no defender"/>
+      <test ac="4" idea="summary keys exact; max_depeg_bps negative on baseline; time_to_recovery_steps None when never within tolerance"/>
+      <test ac="5" idea="all six files present; parquet round-trip equals DataFrame; manifest.run_id format"/>
+      <test ac="6" idea="PNG exists, > 20 kB, imread shape (h, w, 3|4)"/>
+      <test ac="7" idea="cli prints three lines; --no-chart skips PNG; exit 0/2/3 preserved"/>
+      <test ac="8" idea="baseline summary.terminated_by != 'max_steps'"/>
+      <test ac="9" idea="two runs: parquet bytes equal; summary bytes equal; manifests equal minus created_utc"/>
+      <test ac="10" idea="seed 7 vs 42 on flat baseline: parquet bytes equal, run_id differs"/>
+      <test ac="11" idea="seed 7 vs 42 on soros-volatile: parquet bytes differ"/>
+    </ideas>
+  </tests>
+</story-context>

@@ -63,3 +63,13 @@ python run.py scenarios/soros-baseline.yaml
 
 Write what is blocking you in the story file under a `## Blockers` heading, set
 `Status: blocked`, and stop. Do not guess at scope or invent requirements.
+
+## Decisions
+
+`docs/adr/` holds Architecture Decision Records. Read the index before starting a story;
+several ADRs constrain how modules are built (floats, construction-vs-execution, ctx-first,
+PegView ownership). When you make a judgment call that future stories will depend on —
+an interface the spec left ambiguous, a semantic the ACs did not pin down, an observed
+model behaviour that changes what should be built next — write it up in Completion Notes
+**and** add a `Proposed` ADR file using the template in `docs/adr/README.md` (next free
+number, do not edit the index). The dev manager accepts, amends or rejects it in review.
