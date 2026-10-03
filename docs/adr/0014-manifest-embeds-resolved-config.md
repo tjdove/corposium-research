@@ -1,6 +1,6 @@
 # ADR-0014: The run manifest embeds the resolved scenario config
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-02
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 1.8 AC 5/6
