@@ -1,6 +1,6 @@
 # ADR-0013: Recovery tolerance sits just outside the arbitrage band
 
-**Status:** Proposed
+**Status:** Accepted (amended in review: see Consequences)
 **Date:** 2026-10-02
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 1.8 AC 8 (baseline retune)
@@ -36,3 +36,11 @@ must say in its header comment that it is testing permanent partial depeg.
   persists to step 5000.
 - Validating tolerance ≥ band in the config model: possible later, but it would reject
   deliberate permanent-depeg scenarios.
+
+## Review amendment (2026-10-02, dev manager)
+
+Accepted. One change for Epic 2: `time_to_recovery_steps` as "first touch of the band after
+the trough" is a misleading number (2 steps in the baseline is the overshoot, not recovery).
+Story 2.1 renames it `steps_to_first_band_entry` and adds `steps_to_sustained_recovery` =
+`steps_run − for_steps − step_of_max_depeg` when `terminated_by == "peg_recovered"`, else
+null. Both are kept; the note will quote the sustained one.

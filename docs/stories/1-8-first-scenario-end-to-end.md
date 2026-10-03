@@ -1,6 +1,6 @@
 # Story 1.8: First Scenario End to End
 
-Status: review
+Status: done
 
 ## Story
 
@@ -327,3 +327,67 @@ the three-line output).
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.7 review
 - 2026-10-02: Implemented by Claude Code (Opus 5.5); 328 tests pass; baseline retuned via ADR-0010 option 1 (ends peg_recovered at step 192); ADR-0013, ADR-0014 proposed; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-02
+**Outcome:** **APPROVE** ✅ — Epic 1 complete
+
+### Summary
+
+The project now produces its first reproducible result. Reviewer re-ran on a separate
+machine: 328 passed, ruff clean; two baseline runs produced byte-identical
+`timeseries.parquet`; summary matched the builder's to full precision
+(`peg_recovered` at 192, trough −573.2 bps at step 50, final −18.26 bps, defender spent
+200,656, redemption paid 90,899). CI run 37081677864 green with the `peg-trajectory`
+artifact uploaded. Reviewer opened the PNG: it follows every chart convention and reads
+clearly — a 10-minute flat line, a cliff at the attack marker, a saw-tooth as defender
+buys (orange ticks) and attacker sells alternate, a final overshoot to +94 bps from the
+defender's last buy, then the slow settle to −18 bps inside the shaded ±60 bps band. The
+bottom panel shows the defender spending half its budget by minute 15 and reserves losing
+91k to arbitrageur redemptions and never approaching exhaustion.
+
+### Rulings
+
+- **ADR-0013 (tolerance outside the arb band): Accepted, amended.** The rule is right and
+  the reasoning about sweeps is exactly the trap Epic 2 must avoid. Amendment: the
+  `time_to_recovery_steps` definition in AC 4 produces a misleading number (2); Story 2.1
+  splits it into `steps_to_first_band_entry` and `steps_to_sustained_recovery`.
+- **ADR-0014 (manifest embeds config): Accepted.** Self-describing run directories are
+  worth 1.5 kB. The round-trip property (`model_validate(manifest["config"]).content_hash()
+  == manifest["scenario_hash"]`) should get a test in 2.1.
+- **Rerun replaces the directory.** Correct for determinism; a stale file from a previous
+  run would be worse than a missing one.
+- **`test_agents_integration.py` pins the old tolerance** so the ADR-0010 dead zone stays
+  under test. Good instinct: findings should have regression tests.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `record` accepts list; ADR-0011 encoding kept; commit `7cd9ea4` |
+| 2 | ✅ | `build_world` fixed order (tested); `run_scenario` |
+| 3 | ✅ | Exact column list; `record_every`; NaN for absent agents |
+| 4 | ✅ | Exact key list; reviewer-verified values |
+| 5 | ✅ | Six files + manifest (ADR-0014 adds `config`) |
+| 6 | ✅ | Chart per conventions; reviewer inspected |
+| 7 | ✅ | Three CLI lines; `--no-chart`; exit codes |
+| 8 | ✅ | Option 1 retune; `peg_recovered` at 192; YAML header; ADR-0013 |
+| 9 | ✅ | Byte-identical parquet/summary (reviewer reproduced) |
+| 10 | ✅ | Flat baseline seed-invariant |
+| 11 | ✅ | `soros-volatile` seed-variant |
+| 12 | ✅ | README updated; `output/.gitkeep` only |
+| 13 | ✅ | `328 passed`; CI green; artifact uploaded |
+
+**13 of 13 ACs met. Epic 1: 8 of 8 stories done.**
+
+### Learnings for Epic 2
+
+- `run_scenario` is the single-run primitive the sweep runner wraps. It is deterministic,
+  self-describing, and replaces its directory; sweeps can parallelise it safely with
+  distinct `run_id`s.
+- The chart conventions are now code; new chart types copy `plot_peg_trajectory`'s
+  figure setup rather than inventing their own.
+- Every lever in ADR-0010 options 2–3 (bigger attack, smaller pool) is an Epic 2 sweep axis.
+- 2026-10-02: Senior review APPROVE; status set to done. ADR-0013 accepted with amendment; ADR-0014 accepted. Epic 1 complete.
