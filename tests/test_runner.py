@@ -102,6 +102,13 @@ def test_run_scenario_writes_all_files(tmp_path):
     assert ScenarioConfig.model_validate(m["config"]) == cfg
 
 
+def test_manifest_config_round_trips_to_scenario_hash(tmp_path):
+    # ADR-0014: the embedded config re-validates to the exact scenario that ran.
+    art = run_scenario(load_scenario(BASELINE), output_dir=tmp_path)
+    m = json.loads((art.run_dir / "manifest.json").read_text())
+    assert ScenarioConfig.model_validate(m["config"]).content_hash() == m["scenario_hash"]
+
+
 def test_no_decisions_file_when_not_tracing(tmp_path):
     data = cfg_with(max_steps=10).model_dump(mode="json")
     data["metrics"]["trace_decisions"] = False

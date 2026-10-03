@@ -2,10 +2,18 @@
 
 Depeg figures are in basis points of ``peg_deviation`` (negative = below peg).
 ``max_depeg_bps`` is the most negative recorded deviation; ``step_of_max_depeg`` is the
-first step where it occurs. ``time_to_recovery_steps`` is the number of steps from
-``step_of_max_depeg`` to the first later recorded step with
-``abs(peg_deviation) <= termination.peg_recovered.tolerance``; ``None`` if that never
-happens or the scenario has no ``peg_recovered`` condition.
+first step where it occurs.
+
+Recovery, per ADR-0013 (``tol = termination.peg_recovered.tolerance``):
+
+- ``steps_to_first_band_entry``: steps from ``step_of_max_depeg`` to the first later
+  recorded step with ``abs(peg_deviation) <= tol``. This is the first *touch* of the band,
+  which can be a brief overshoot (2 steps in the baseline). ``None`` if the band is never
+  re-entered or the scenario has no ``peg_recovered`` condition.
+- ``steps_to_sustained_recovery``: ``steps_run - peg_recovered.for_steps -
+  step_of_max_depeg`` when ``terminated_by == "peg_recovered"``; else ``None``. The run
+  ended after holding the band for ``for_steps`` steps, so this counts steps from the trough
+  to the start of that final in-band stretch. This is the number the research note quotes.
 
 Values are plain Python types (no numpy scalars, no NaN) so the summary serialises to
 strict JSON. Missing agents give ``None``.
@@ -33,7 +41,8 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "max_depeg_bps",
     "step_of_max_depeg",
     "final_depeg_bps",
-    "time_to_recovery_steps",
+    "steps_to_first_band_entry",
+    "steps_to_sustained_recovery",
     "reserves_exhausted",
     "redemption_paid_total",
     "defender_spent",
@@ -71,7 +80,7 @@ def summarize(
 ) -> dict:
     dev = metrics_df["peg_deviation"]
     steps = metrics_df["step"]
-    max_depeg = step_of_max = final = recovery = None
+    max_depeg = step_of_max = final = first_entry = sustained = None
     if dev.notna().any():
         i = int(dev.idxmin())
         max_depeg = float(dev.loc[i]) * BPS
@@ -81,7 +90,9 @@ def summarize(
         if rec is not None:
             after = metrics_df.loc[(steps > step_of_max) & (dev.abs() <= rec.tolerance), "step"]
             if not after.empty:
-                recovery = int(after.iloc[0]) - step_of_max
+                first_entry = int(after.iloc[0]) - step_of_max
+            if result.terminated_by == "peg_recovered":
+                sustained = result.steps_run - rec.for_steps - step_of_max
 
     red = world.get("redemption")
     atk, arb, dfn = (_first(world, t) for t in ("attacker", "arbitrageur", "defender"))
@@ -94,7 +105,8 @@ def summarize(
         "max_depeg_bps": max_depeg,
         "step_of_max_depeg": step_of_max,
         "final_depeg_bps": final,
-        "time_to_recovery_steps": recovery,
+        "steps_to_first_band_entry": first_entry,
+        "steps_to_sustained_recovery": sustained,
         "reserves_exhausted": bool(red is not None and red.reserves_exhausted),
         "redemption_paid_total": None if red is None else _float(red.paid_total),
         "defender_spent": None if dfn is None else _float(dfn.spent),
