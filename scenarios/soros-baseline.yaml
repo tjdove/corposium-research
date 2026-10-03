@@ -1,6 +1,17 @@
 # Soros baseline — the first end-to-end scenario (Story 1.8).
 # Schema is defined in Story 1.2 (src/depeg_sim/kernel/config.py).
 # Values here are placeholders; calibration happens in Epic 2.
+#
+# Retune (Story 1.8, ADR-0010 option 1: tolerance >= arbitrage band).
+# The original 10 bps peg_recovered tolerance sat inside the arbitrageur's no-trade band
+# (AMM fee 30 bps + min profit 20 bps = 50 bps), so after the attack the pool parked at
+# about -18 bps with no rule left to close the gap, and the run could only end by
+# max_steps. tolerance is now 0.006 (60 bps), just outside the 50 bps band: "recovered"
+# means "back within the band where no rational actor trades". Only this one value
+# changed; the attack, defense, pool and max_steps are unchanged. Options 2 (stronger
+# attack) and 3 (smaller pool) were not needed; they are left for Epic 2's sweeps.
+# start_step (50) stays below peg_recovered.for_steps (100), so the attack happens
+# before the pre-attack calm can count as a recovery.
 version: 1
 name: soros-baseline
 seed: 42
@@ -32,7 +43,7 @@ agents:
   - { type: defender, id: defender-1, budget: 400_000, threshold_pct: 1.0, spend_pace: 0.2 }
 termination:
   reserves_exhausted: true
-  peg_recovered: { for_steps: 100, tolerance: 0.001 }
+  peg_recovered: { for_steps: 100, tolerance: 0.006 }
   max_steps: true
 metrics:
   record_every: 1

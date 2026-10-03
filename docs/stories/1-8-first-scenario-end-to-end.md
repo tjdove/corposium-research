@@ -1,6 +1,6 @@
 # Story 1.8: First Scenario End to End
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,39 +26,39 @@ so that the project has its first reproducible result and first public post.
 
 ## Tasks / Subtasks
 
-- [ ] Carry-over (AC: 1)
-  - [ ] Widen `DecisionTrace.record` type; test list → `{"actions": [...]}`; commit separately `story 1.8: decision record accepts action list`
+- [x] Carry-over (AC: 1)
+  - [x] Widen `DecisionTrace.record` type; test list → `{"actions": [...]}`; commit separately `story 1.8: decision record accepts action list`
 
-- [ ] Metrics and summary (AC: 3, 4)
-  - [ ] `analysis/metrics.py` `MetricsCollector`; `analysis/summary.py` `summarize`
-  - [ ] Tests with a short engine run: column set exact; `record_every 5` yields the right row count; summary keys exact; `time_to_recovery_steps` null when never recovered
+- [x] Metrics and summary (AC: 3, 4)
+  - [x] `analysis/metrics.py` `MetricsCollector`; `analysis/summary.py` `summarize`
+  - [x] Tests with a short engine run: column set exact; `record_every 5` yields the right row count; summary keys exact; `time_to_recovery_steps` null when never recovered
 
-- [ ] Runner and writer (AC: 2, 5)
-  - [ ] `experiments/runner.py` `build_world`, `run_scenario`, `RunArtifacts` dataclass
-  - [ ] `experiments/writer.py` `write_run`
-  - [ ] Tests: registration order (assert `registry` names in order); all files present; parquet round-trips; manifest fields
+- [x] Runner and writer (AC: 2, 5)
+  - [x] `experiments/runner.py` `build_world`, `run_scenario`, `RunArtifacts` dataclass
+  - [x] `experiments/writer.py` `write_run`
+  - [x] Tests: registration order (assert `registry` names in order); all files present; parquet round-trips; manifest fields
 
-- [ ] Chart (AC: 6)
-  - [ ] `analysis/charts.py` `plot_peg_trajectory`; `matplotlib.use("Agg")` at module top
-  - [ ] Test: PNG exists, non-trivial size (> 20 kB), and `plt.imread` shape has 3–4 channels; no display backend needed
+- [x] Chart (AC: 6)
+  - [x] `analysis/charts.py` `plot_peg_trajectory`; `matplotlib.use("Agg")` at module top
+  - [x] Test: PNG exists, non-trivial size (> 20 kB), and `plt.imread` shape has 3–4 channels; no display backend needed
 
-- [ ] Baseline retune (AC: 8, 11)
-  - [ ] Choose an ADR-0010 lever (Dev Notes); edit `scenarios/soros-baseline.yaml` with a comment block; add `scenarios/soros-volatile.yaml`
-  - [ ] Run it; record `terminated_by`, `max_depeg_bps`, `steps_run` in Completion Notes; if `max_steps` still fires, try the next lever, do not widen `max_steps`
+- [x] Baseline retune (AC: 8, 11)
+  - [x] Choose an ADR-0010 lever (Dev Notes); edit `scenarios/soros-baseline.yaml` with a comment block; add `scenarios/soros-volatile.yaml`
+  - [x] Run it; record `terminated_by`, `max_depeg_bps`, `steps_run` in Completion Notes; if `max_steps` still fires, try the next lever, do not widen `max_steps`
 
-- [ ] CLI (AC: 7)
-  - [ ] Wire; `--no-chart`; update `tests/test_smoke.py` to the new three-line output
+- [x] CLI (AC: 7)
+  - [x] Wire; `--no-chart`; update `tests/test_smoke.py` to the new three-line output
 
-- [ ] Determinism and seed tests (AC: 9, 10)
-  - [ ] `tests/test_run_determinism.py`: byte equality; seed-invariance on flat baseline; seed-variance on volatile
+- [x] Determinism and seed tests (AC: 9, 10)
+  - [x] `tests/test_run_determinism.py`: byte equality; seed-invariance on flat baseline; seed-variance on volatile
 
-- [ ] README and CI (AC: 12, 13)
-  - [ ] README quick start + output tree; `.github/workflows/ci.yml` adds the run step and `actions/upload-artifact@v4` for the PNG
+- [x] README and CI (AC: 12, 13)
+  - [x] README quick start + output tree; `.github/workflows/ci.yml` adds the run step and `actions/upload-artifact@v4` for the PNG
 
-- [ ] Tests, lint, close out (AC: 13)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`; paste the three CLI output lines
-  - [ ] Dev Agent Record, Change Log, `Status: review`; **attach or describe the chart** in Completion Notes
-  - [ ] Commit `story 1.8: first scenario end to end`, push to `main`
+- [x] Tests, lint, close out (AC: 13)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`; paste the three CLI output lines
+  - [x] Dev Agent Record, Change Log, `Status: review`; **attach or describe the chart** in Completion Notes
+  - [x] Commit `story 1.8: first scenario end to end`, push to `main`
 
 ## Dev Notes
 
@@ -168,22 +168,150 @@ output/soros-baseline-42-7c4f870b/
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output with exit codes, including the three CLI lines)_
+Task 1 (`7cd9ea4`):
+
+```
+$ pytest            # after task 1
+297 passed in 0.59s        (296 existing + 1 new)
+```
+
+Retune trial (ADR-0010 option 1 only; scratch script, same world as `build_world`):
+
+```
+tolerance 0.006 -> peg_recovered 192 max_depeg_bps -573.2 at 50 final -18.26 reserves 409101
+```
+
+Final:
+
+```
+$ pytest; echo exit=$?
+328 passed in 1.86s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+63 files already formatted
+exit=0
+
+$ python run.py scenarios/soros-baseline.yaml; echo exit=$?
+depeg-sim: scenario=soros-baseline seed=42 hash=2e09f431ce74
+run: steps=192 terminated_by=peg_recovered max_depeg_bps=-573.2 reserves_exhausted=False
+wrote: output/soros-baseline-42-2e09f431
+exit=0
+
+$ python run.py scenarios/soros-volatile.yaml --output <scratch>
+depeg-sim: scenario=soros-volatile seed=42 hash=84ad0b810807
+run: steps=426 terminated_by=peg_recovered max_depeg_bps=-573.2 reserves_exhausted=False
+
+$ pytest --cov=depeg_sim --cov-report=term-missing   (excerpt)
+src/depeg_sim/analysis/charts.py                66      0   100%
+src/depeg_sim/analysis/metrics.py               44      0   100%
+src/depeg_sim/analysis/summary.py               41      1    98%   59
+src/depeg_sim/cli.py                            36      0   100%
+src/depeg_sim/experiments/runner.py             48      0   100%
+src/depeg_sim/experiments/writer.py             35      0   100%
+TOTAL                                         1339      8    99%
+```
+
+296 → 328 tests (+32), counted with `pytest --collect-only`: 1 decision-record (task 1),
+11 metrics (incl. 4 parametrized guards), 6 summary, 5 runner/writer, 3 chart, 5
+determinism/seed, and +1 smoke (`--no-chart`; smoke went 5 → 6, the others rewritten for
+the three-line output).
 
 ### Completion Notes List
 
-_(include: which ADR-0010 lever, resulting terminated_by / max_depeg_bps / steps_run, and a description of what the chart shows)_
+- **Retune: ADR-0010 option 1, tolerance ≥ arb band.** `peg_recovered.tolerance`
+  0.001 → 0.006 (60 bps, just outside the 50 bps fee + min-profit band). Nothing else in
+  the scenario changed; `max_steps` stays 5000. Result: `terminated_by=peg_recovered`,
+  `steps_run=192`, `max_depeg_bps=-573.2` (step 50). Options 2 and 3 were not tried
+  because option 1 met the stop condition. The YAML has a header comment block. Because
+  this sets a rule for every future scenario, I proposed **ADR-0013** (tolerance sits
+  just outside the arbitrage band).
+- **Chart (`output/soros-baseline-42-2e09f431/peg_trajectory.png`).** Top panel: flat at
+  0 bps for the first 10 minutes. At the attack marker (10.0 min, step 50) it plunges to
+  the trough of −573 bps. Then a sawtooth: the attacker's decaying sells push it down
+  and the defender plus arbitrageur buy it back. The 16 defender buys appear as orange
+  ticks along the top from 10.2 to 15.4 min (steps 51–77). The last buy overshoots to
+  +94 bps at 15.4 min. The swings narrow and the line last leaves the ±60 bps grey band
+  at 18.2 min (step 91). After that it relaxes towards −18 bps and stays inside the
+  band. The run ends by `peg_recovered` at 38.2 min (step 192, 100 in-band steps).
+  Bottom panel: the defender budget (orange) falls from 400k to ~199k in a staircase
+  over 10–15.4 min, then is flat. Redemption reserves (blue) step down from 500k to
+  ~409k between ~10.8 and ~23 min as the arbitrageur redeems, and never come close to
+  exhaustion. Footer: `scenario=soros-baseline seed=42 hash=2e09f431ce74`. I viewed
+  the rendered PNG to check this.
+- **The run's ending still contains the ADR-0010 dead zone.** The price recovers *into
+  the band* and parks at −18.3 bps. With the 60 bps tolerance that now counts as
+  recovered. The chart shows both facts.
+- **`time_to_recovery_steps` is 2 on the baseline.** That's per the AC definition: the
+  first recorded step after the trough with |dev| ≤ tolerance. Step 52 overshoots into
+  the band before the price falls out again. It measures first touch, not sustained
+  recovery. I implemented it as a duration (recovery step − `step_of_max_depeg`), which
+  is what the name suggests. The AC wording ("first step after max_depeg at which…")
+  could also be read as a step index. Recorded in ADR-0013's consequences. A "sustained"
+  variant would be an Epic 2 metric.
+- **`manifest.json` has one key beyond the AC 5 list: `config`** (the resolved
+  scenario). `plot_peg_trajectory(run_dir)` needs the tolerance band, the step interval
+  and the attacker/defender ids, and no other artifact holds them. Proposed
+  **ADR-0014**. `files` lists everything in the run dir when the manifest is written
+  (checkpoints included). The chart is drawn afterwards, so it isn't listed.
+- **Run dir replacement.** `run_scenario` deletes an existing `output_dir/<run_id>/`
+  before running, so stale checkpoints or a stale PNG never mix with a new run.
+- **Determinism.** Two baseline runs give byte-identical parquet, summary, events,
+  decisions and checkpoints. Manifests match without `created_utc`. **Seed 42 vs 7 on
+  the flat baseline: identical `timeseries.parquet`**, different `run_id`/`seed`
+  (asserted). On `soros-volatile` the parquet differs. The volatile run itself ends
+  `peg_recovered` at step 426.
+- **CLI.** `max_depeg_bps` is printed to one decimal. `reserves_exhausted` prints
+  Python `True`/`False`. Exit codes 0/2/3 are unchanged, and 2 and 3 create no output
+  directory (tested).
+- **Summary JSON is strict.** NaN becomes `null`, numpy scalars become Python types.
+  `attacker_pnl` / `arbitrageur_pnl` are the agents' `pnl_last`, settled at the last
+  step's `METRIC_UPDATE`.
+- **Tests outside the new files that the retune affected (in scope):**
+  `tests/test_agents_integration.py` asserted the 1.7 dead-zone outcome (`max_steps`).
+  It is now pinned to the pre-retune tolerance 0.001 via a new `tolerance=` argument on
+  `tests/agent_world.config`, so it still documents ADR-0010. `tests/test_smoke.py` is
+  updated to the three-line output and now writes to `tmp_path`. The old smoke test
+  had written into the repo's `output/`; I removed the two directories it created.
+  `output/.gitkeep` is still the only tracked file there.
+- `DecisionTrace.record` now wraps a list itself (ADR-0011 encoding), so
+  `Agent.record` passes actions through unchanged.
+- CI artifact upload is confirmed after push (see below).
 
 ### File List
 
 **Created:**
 
+- `src/depeg_sim/analysis/metrics.py`
+- `src/depeg_sim/analysis/summary.py`
+- `src/depeg_sim/analysis/charts.py`
+- `src/depeg_sim/experiments/runner.py`
+- `src/depeg_sim/experiments/writer.py`
+- `scenarios/soros-volatile.yaml`
+- `docs/adr/0013-recovery-tolerance-outside-arb-band.md` (Proposed)
+- `docs/adr/0014-manifest-embeds-resolved-config.md` (Proposed)
+- `tests/test_metrics.py`, `tests/test_summary.py`, `tests/test_runner.py`,
+  `tests/test_charts.py`, `tests/test_run_determinism.py`
+
 **Modified:**
+
+- `src/depeg_sim/kernel/events.py` (task 1), `src/depeg_sim/agents/base.py` (task 1)
+- `src/depeg_sim/cli.py`
+- `scenarios/soros-baseline.yaml`
+- `README.md`, `.github/workflows/ci.yml`
+- `tests/test_events.py` (task 1), `tests/test_smoke.py`, `tests/agent_world.py`,
+  `tests/test_agents_integration.py`
+- `docs/stories/1-8-first-scenario-end-to-end.md`
 
 ## Change Log
 
 - 2026-10-02: Story drafted by dev manager from epics.md after Story 1.7 review
+- 2026-10-02: Implemented by Claude Code (Opus 5.5); 328 tests pass; baseline retuned via ADR-0010 option 1 (ends peg_recovered at step 192); ADR-0013, ADR-0014 proposed; status → review

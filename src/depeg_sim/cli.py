@@ -1,8 +1,7 @@
-"""Command-line entry point.
+"""Command-line entry point: ``load_scenario -> run_scenario -> plot_peg_trajectory``.
 
-Loads and validates the scenario (Story 1.2) and runs the kernel (Story 1.3) with
-no subsystems registered, so only ``max_steps`` can fire. Story 1.8 registers the
-protocol modules and agents and writes run output.
+Prints three lines (scenario, run outcome, run directory). Exit codes: 0 ok,
+2 scenario file missing, 3 scenario invalid.
 """
 
 from __future__ import annotations
@@ -14,16 +13,19 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
+from depeg_sim.analysis.charts import plot_peg_trajectory
+from depeg_sim.experiments.runner import run_scenario
 from depeg_sim.kernel.config import load_scenario
-from depeg_sim.kernel.context import RunContext
-from depeg_sim.kernel.engine import Engine
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="depeg", description="Run a depeg simulation scenario.")
     p.add_argument("scenario", type=Path, help="Path to a scenario YAML file")
-    p.add_argument("--output", type=Path, default=Path("output"), help="Output directory")
+    p.add_argument(
+        "--output", type=Path, default=Path("output"), help="Parent directory for run output"
+    )
     p.add_argument("--seed", type=int, default=None, help="Override scenario seed")
+    p.add_argument("--no-chart", action="store_true", help="Skip peg_trajectory.png")
     return p
 
 
@@ -37,8 +39,16 @@ def main(argv: list[str] | None = None) -> int:
     except (ValidationError, yaml.YAMLError) as exc:
         print(f"error: invalid scenario {args.scenario}:\n{exc}", file=sys.stderr)
         return 3
-    ctx = RunContext.from_config(cfg, seed_override=args.seed)
-    print(f"depeg-sim: scenario={cfg.name} seed={ctx.seed} hash={cfg.content_hash()[:12]}")
-    result = Engine(ctx).run()
-    print(f"run: steps={result.steps_run} terminated_by={result.terminated_by}")
+    seed = cfg.seed if args.seed is None else args.seed
+    print(f"depeg-sim: scenario={cfg.name} seed={seed} hash={cfg.content_hash()[:12]}")
+    run = run_scenario(cfg, seed_override=args.seed, output_dir=args.output)
+    s = run.summary
+    depeg = "none" if s["max_depeg_bps"] is None else f"{s['max_depeg_bps']:.1f}"
+    print(
+        f"run: steps={s['steps_run']} terminated_by={s['terminated_by']} "
+        f"max_depeg_bps={depeg} reserves_exhausted={s['reserves_exhausted']}"
+    )
+    if not args.no_chart:
+        plot_peg_trajectory(run.run_dir)
+    print(f"wrote: {run.run_dir}")
     return 0

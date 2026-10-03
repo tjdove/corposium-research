@@ -20,8 +20,12 @@ from depeg_sim.protocol.oracle import Oracle
 from depeg_sim.protocol.redemption import RedemptionModule
 
 
-def config(*, trace: bool = True, max_steps: int = 100) -> ScenarioConfig:
+def config(
+    *, trace: bool = True, max_steps: int = 100, tolerance: float | None = None
+) -> ScenarioConfig:
     data = load_scenario(BASELINE).model_dump(mode="json")
+    if tolerance is not None:
+        data["termination"]["peg_recovered"]["tolerance"] = tolerance
     data["steps"]["max_steps"] = max_steps
     data["metrics"]["trace_decisions"] = trace
     data["metrics"]["checkpoint_every"] = None

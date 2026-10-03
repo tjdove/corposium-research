@@ -1,5 +1,9 @@
 """AC 10: the baseline scenario's modules and three agents in a real Engine, 300 steps.
 
+Pinned to the pre-retune ``peg_recovered.tolerance`` of 0.001 (10 bps). Story 1.8
+retuned the baseline YAML to 0.006 (ADR-0010 option 1); this test keeps the original
+setting so it continues to document the ADR-0010 dead zone.
+
 Registration order (the order Story 1.8 will use): environment, oracle, amm,
 redemption, then agents in config order.
 """
@@ -18,10 +22,11 @@ from depeg_sim.protocol.oracle import Oracle
 from depeg_sim.protocol.redemption import RedemptionModule
 
 STEPS = 300
+PRE_RETUNE_TOLERANCE = 0.001  # ADR-0010: inside the 50 bps arbitrage band
 
 
 def build():
-    cfg = config(max_steps=STEPS)
+    cfg = config(max_steps=STEPS, tolerance=PRE_RETUNE_TOLERANCE)
     assert cfg.termination.reserves_exhausted and cfg.termination.peg_recovered is not None
     ctx = RunContext.from_config(cfg)
     env = ReferencePrice.from_config(cfg.environment)
