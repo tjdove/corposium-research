@@ -215,6 +215,12 @@ src/depeg_sim/sweep.py                           3      3     0%   7-10
 TOTAL                                         1513     11    99%
 ```
 
+CI on push of `933eb06`:
+
+```
+completed	success	story 2.1: sweep runner	ci	main	push	37159786414	40s	2026-10-03T22:50:30Z
+```
+
 (`src/depeg_sim/sweep.py` is the `-m` shim. It runs in a subprocess in
 `test_module_entry_point_with_spawn_workers`, which coverage doesn't trace.)
 
