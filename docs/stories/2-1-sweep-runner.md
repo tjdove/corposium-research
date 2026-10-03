@@ -1,6 +1,6 @@
 # Story 2.1: Sweep Runner and Recovery Metrics
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
