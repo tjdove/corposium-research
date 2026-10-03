@@ -1,6 +1,6 @@
 # Story 1.8: First Scenario End to End
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
