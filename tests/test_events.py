@@ -59,3 +59,16 @@ def test_at_step_returns_only_that_step_in_order():
     assert [e.kind for e in sink.at_step(0)] == ["a"]
     assert sink.at_step(3) == []
     assert EventSink().at_step(0) == []
+
+
+def test_decision_record_accepts_action_list():
+    trace = DecisionTrace()
+    a, b = {"kind": "x"}, {"kind": "y"}
+    d1 = trace.record(0, "ag", "r", {}, [a, b])
+    d2 = trace.record(1, "ag", "r", {}, a)
+    d3 = trace.record(2, "ag", "r", {}, None)
+    assert d1.action == {"actions": [a, b]}
+    assert d2.action == a
+    assert d3.action is None
+    a["kind"] = "changed"  # stored copies
+    assert d1.action["actions"][0] == {"kind": "x"}

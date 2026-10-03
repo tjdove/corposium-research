@@ -68,8 +68,12 @@ class DecisionTrace:
         agent_id: str,
         rule: str,
         observed: Mapping[str, Any],
-        action: Mapping[str, Any] | None,
+        action: Mapping[str, Any] | list[Mapping[str, Any]] | None,
     ) -> Decision:
+        """A list of actions (a multi-action step) is stored as ``{"actions": [...]}``
+        (ADR-0011)."""
+        if isinstance(action, list):
+            action = {"actions": [dict(a) for a in action]}
         decision = Decision(
             step=step,
             agent_id=agent_id,

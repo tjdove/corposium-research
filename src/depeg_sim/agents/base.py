@@ -161,12 +161,10 @@ class Agent(ActionSource):
         action: dict | list[dict] | None,
     ) -> None:
         """Append one ``Decision`` when ``metrics.trace_decisions`` is on. Several
-        actions in one step are passed as a list and stored as ``{"actions": [...]}``,
-        because ``Decision.action`` is a mapping."""
+        actions in one step are passed as a list; the trace stores them as
+        ``{"actions": [...]}`` (ADR-0011)."""
         if not ctx.config.metrics.trace_decisions:
             return
-        if isinstance(action, list):
-            action = {"actions": action}
         ctx.decisions.record(
             step=ctx.clock.step_index,
             agent_id=self.agent_id,
