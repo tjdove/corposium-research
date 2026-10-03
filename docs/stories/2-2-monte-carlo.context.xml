@@ -1,0 +1,78 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.2</storyId>
+    <title>Monte Carlo over Seeds</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-03</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-2-monte-carlo.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>each sweep cell run across many seeds with volatility on</iWant>
+    <soThat>every threshold claim carries a confidence band and the ADR-0016 prediction is tested</soThat>
+    <tasks>
+      - Seeds spec form (AC: 1)
+      - Stats helper (AC: 3)
+      - Aggregation (AC: 2, 4)
+      - CLI (AC: 5)
+      - Sweep specs and full runs (AC: 6, 7, 8, 9)
+      - Tests, lint, close out (AC: 10)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–10. The mc.parquet column order, Wilson formula and ratio-table method in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-2-monte-carlo.md" section="Dev Notes">Grid rationale, Wilson, column order, ratio table.</doc>
+      <doc path="docs/adr/0016-outcome-set-by-capital-not-depth.md">The prediction this story tests; read the review amendment.</doc>
+      <doc path="docs/adr/0015-sweep-cell-directory-layout.md">Where cells live.</doc>
+      <doc path="docs/stories/2-1-sweep-runner.md" section="Senior Developer Review">Timing expectations; axis discovery via manifest.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/experiments/sweep.py" symbol="SweepSpec.seeds, expand, run_sweep, main" reason="Seeds form; --mc flag."/>
+      <existing path="scenarios/soros-volatile.yaml" reason="Base for both MC sweeps."/>
+      <existing path="sweeps/pool-depth-x-attacker.yaml" reason="Template for the -mc variant."/>
+      <existing path="src/depeg_sim/analysis/summary.py" symbol="summary keys" reason="The metric list in AC 2 must match these names exactly."/>
+    </code>
+    <dependencies>
+      <python>numpy, pandas, pyarrow. No new dependencies; no scipy (Wilson is 4 lines).</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - New files: src/depeg_sim/experiments/mc.py, src/depeg_sim/analysis/stats.py, src/depeg_sim/mc.py (entry), sweeps/capital-vs-resources-mc.yaml, sweeps/pool-depth-x-attacker-mc.yaml, tests/test_mc.py, tests/test_stats.py. Edits: sweep.py (seeds form, --mc).
+    - Axis columns come from the sweep manifest's resolved spec, never inferred from DataFrame columns.
+    - Group only by axis columns; seed and index are never group keys.
+    - NaN-aware statistics; nullable metrics get a _n companion column.
+    - mc.parquet deterministic and sorted; fixed column order.
+    - CI tests use tiny specs only (AC 10). The full 2016-run and 512-run sweeps are run on Seoul and reported, not tested in CI.
+    - No charts in this story.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="aggregate_mc" kind="function" path="src/depeg_sim/experiments/mc.py">aggregate_mc(sweep_dir: Path) -> Path (mc.parquet)</interface>
+    <interface name="wilson" kind="function" path="src/depeg_sim/analysis/stats.py">wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]</interface>
+    <interface name="SeedRange" kind="pydantic model" path="src/depeg_sim/experiments/sweep.py">count: int (gt 0); start: int (ge 0)</interface>
+    <interface name="SweepSpec.seeds" kind="field" path="src/depeg_sim/experiments/sweep.py">list[int] | SeedRange</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; synthetic sweep.parquet built in-test with known values for aggregation tests; one tiny end-to-end MC (2×2 grid, 3 seeds, max_steps 200) through the CLI; Wilson against the three known points to 3 dp.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="seeds {count: 3, start: 10} → [10, 11, 12]; manifest records the list"/>
+      <test ac="3" idea="wilson(0,10), (5,10), (10,10), (0,0)"/>
+      <test ac="2" idea="synthetic 2 grid points × 4 seeds: known mean/p50; p_* columns sum to 1; _n for nullable metric equals count of non-null"/>
+      <test ac="4" idea="aggregate twice → bytes equal; row order matches spec axis order"/>
+      <test ac="5" idea="--mc end-to-end on tiny spec produces mc.parquet; python -m depeg_sim.mc on the dir prints two lines"/>
+      <test ac="10" idea="every test spec has grid ≤ 8 points, seeds ≤ 3, max_steps ≤ 300"/>
+    </ideas>
+  </tests>
+</story-context>

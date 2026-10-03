@@ -20,6 +20,8 @@ are ADRs too: they constrain what we build next.
 | [0012](0012-arbitrageur-latency-plan.md) | Latency plans keep first-seen step and latest size | Accepted | 2026-10-02 |
 | [0013](0013-recovery-tolerance-outside-arb-band.md) | Recovery tolerance sits just outside the arbitrage band | Accepted (amended) | 2026-10-02 |
 | [0014](0014-manifest-embeds-resolved-config.md) | The run manifest embeds the resolved scenario config | Accepted | 2026-10-02 |
+| [0015](0015-sweep-cell-directory-layout.md) | Sweep cells live at `<sweep>/<index>-<seed>-<hash8>/` | Accepted | 2026-10-03 |
+| [0016](0016-outcome-set-by-capital-not-depth.md) | Outcome boundary is set by capital vs defense resources, not pool depth | Accepted (finding, amended) | 2026-10-03 |
 
 ## Template
 

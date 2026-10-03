@@ -1,6 +1,6 @@
 # ADR-0016: The outcome boundary is set by attacker capital vs defense resources, not pool depth
 
-**Status:** Proposed (finding)
+**Status:** Accepted (finding; amended in review)
 **Date:** 2026-10-03
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.1, first run of `sweeps/pool-depth-x-attacker.yaml`
@@ -68,3 +68,24 @@ Treat this as a model property to test, not a defect:
 - Reading the flip as diagonal and widening the grid until one appears: the data show a
   column boundary at every depth; widening the depth range won't create a diagonal
   unless another mechanism enters.
+
+## Review amendment (2026-10-03, dev manager)
+
+Accepted. Reviewer reproduced the 4×4 on a separate machine. Two sharpenings:
+
+1. **State the conservation law explicitly.** In this model the attacker's stable has
+   exactly two sinks: the defender's AMM buys and (via the arbitrageur) redemption. Pool
+   depth is not a sink; it is a price. So `terminated_by` is decided by
+   `attacker_capital ≷ defender_budget + redemption_reserves` (adjusted for the prices
+   paid), and depth cannot enter unless a third sink exists. Candidate third sinks, each a
+   future axis: an LP that absorbs stable by staying in the pool (Epic 3 stretch), a
+   redemption gate/queue that strands stable (`capacity_per_step` small), or an
+   arbitrageur too small to recycle. This reframes 2.6's "threshold surface": the headline
+   chart's primary axis is `capital / (budget + reserves)`; depth is the secondary axis
+   that governs trough and recovery time, not outcome.
+2. **The 1.2M/2M anomaly is a timing artefact, not a second mechanism.** The two-dump
+   trough at step 51 is the attacker's pace (0.1) interacting with a pool large enough
+   that the first dump doesn't trigger the defender. Note it; don't chase it.
+
+Headline candidate for the note, alongside ADR-0010: *"Liquidity depth determines how
+far the peg falls; defense resources determine whether it comes back."*

@@ -1,6 +1,6 @@
 # Story 2.1: Sweep Runner and Recovery Metrics
 
-Status: review
+Status: done
 
 ## Story
 
@@ -321,3 +321,68 @@ recovery, manifest round-trip); `test_set_path.py` 16; `test_sweep.py` 33; `test
 
 - 2026-10-03: Story drafted by dev manager from epics.md (Epic 2 expanded after Epic 1 retro)
 - 2026-10-03: Implemented by Claude Code (Opus 5.5); 380 tests pass; 16-cell sweep 0.56 s at workers=4; ADR-0015 and ADR-0016 proposed; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-03
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+The engine is now an instrument. Reviewer re-ran on a separate machine: 380 passed, ruff
+clean; the 16-cell sweep at `workers=2` reproduced the builder's `terminated_by` grid and
+trough table to the bps. CI run 37159833757 green. Both proposed ADRs accepted; 0016 is
+the best piece of analysis in the project so far.
+
+### Rulings
+
+- **ADR-0015 (cell directory layout): Accepted.** My AC 7 and Dev Notes contradicted AC 5
+  and the 1.8 `run_id` convention. The builder found the one layout that satisfies the
+  intent without adding a second naming path. Spec defect; mine.
+- **ADR-0016 (capital, not depth, decides): Accepted as a finding, amended.** The
+  amendment states the conservation law (two sinks for attacker stable; depth is a price,
+  not a sink) and re-aims 2.6's primary axis at `capital / (budget + reserves)`. Candidate
+  headline: *depth decides how far the peg falls; resources decide whether it comes back.*
+- **`set_path` re-validates the whole config.** Correct; catches duplicate ids and
+  coerces types. Ratified.
+- **Sweep manifest carries the resolved spec.** Consistent with ADR-0014. Ratified.
+- **`run_scenario` draws the chart itself behind `chart=`.** Fine; CLI unchanged.
+- **`/usr/bin/time` absent on Seoul; bash `time` used.** Correct adaptation; no install needed.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `steps_to_first_band_entry` 2, `steps_to_sustained_recovery` 42 on baseline; commit `b5edb32` at 330 |
+| 2 | ✅ | Round-trip hash test |
+| 3 | ✅ | `SweepSpec`, `load_sweep`, `linked_axes` |
+| 4 | ✅ | `set_path` three forms; 16 tests; unknown path names the path |
+| 5 | ✅ | `expand` order and naming |
+| 6 | ✅ | ADR-0013 guard raise/pass tests |
+| 7 | ✅ | `run_sweep`, spawn pool, disk aggregation; layout per ADR-0015 |
+| 8 | ✅ | Byte-identical across worker counts (reviewer: 2 vs builder's 1 and 4 all match) |
+| 9 | ✅ | CLI two lines; exit codes |
+| 10 | ✅ | 16-cell sweep file; 2×2 subset test |
+| 11 | ✅ | `380 passed`, `All checks passed!`, CI green |
+
+**11 of 11 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] Sweep is CPU-trivial (0.56 s / 16 cells).** 2.2's 512-run Monte Carlo will
+  take ~20 s, not 10 min. The budget in 2.2 AC 5 is generous by 30×; keep it as a ceiling.
+- **[LOW-2] Spawn overhead dominates at this scale.** Not worth optimising; sweeps will
+  grow.
+
+### Learnings for Story 2.2
+
+- `sweep.parquet` has one row per cell with `terminated_by` as a string; 2.2 groups by
+  axis columns and turns it into proportions.
+- ADR-0016 changes 2.2's grid: add `agents[type=defender].budget` and
+  `redemption.reserves` as axes, and refine capital between 600k and 1.2M.
+- Every cell finished by step 212; `max_steps: 2000` is plenty for the MC sweep.
+- 2026-10-03: Senior review APPROVE; status set to done. ADR-0015 accepted; ADR-0016 accepted with amendment (conservation law; 2.6 primary axis).
