@@ -821,6 +821,9 @@ PHASE_ORDER_VERSION = 1
 scenario hashes: diff against the e793656 list above -> hashes-identical-to-e793656
 ```
 
+**CI** on the final commit 16c7880: GitHub Actions run 37242967495, conclusion
+`success` (`gh run view 37242967495 --json conclusion -q .conclusion`).
+
 ### Completion Notes List
 
 **Headline sentence (AC 9), drafted from the calm surface:**
