@@ -182,6 +182,12 @@ src/depeg_sim/sweep.py                           3      3     0%   7-10
 TOTAL                                         1620     14    99%
 ```
 
+CI on push of `5b24f7c`:
+
+```
+completed	success	story 2.2: monte carlo over seeds	ci	main	push	37164336778	48s	2026-10-04T00:14:34Z
+```
+
 (The two `-m` shims run in subprocess tests, which coverage doesn't trace.)
 
 380 → 405 tests (+25): `test_stats.py` 7, `test_mc.py` 18.
