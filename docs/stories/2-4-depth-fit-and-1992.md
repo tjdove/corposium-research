@@ -1,6 +1,6 @@
 # Story 2.4: Aggregate Depth Fit and the 1992 Analogue Scenario
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
