@@ -205,6 +205,14 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
 - **L-12 — Refresh the project mirrors at every review.** The chat-side project docs are
   what survives a context reset on the dev-manager side. Charter, epics, findings and this
   file are mirrored; a mirror older than the last review is stale.
+- **L-13 — Never scale a behavioural threshold to the agent's own size.** Story 2.6's
+  redeem rule (`capacity ≥ 0.1 × stable`) made a large holder unable to redeem at all and
+  turned a config flag into dead code. Thresholds on an agent's willingness to act should
+  be in market units (capacity, price, time), never in multiples of its own balance. When
+  drafting a rule, evaluate it once at the size the fit is expected to produce.
+- **L-14 — Push before Tim is told "ready to merge".** PROCESS.md was pushed to the PR #17
+  branch after Tim had already merged it, and missed main. Anything added to a PR after the
+  "merge when ready" message needs its own PR or an explicit "one more commit, hold".
 
 ---
 
