@@ -19,7 +19,7 @@ from depeg_sim.experiments.sweep import (
     main,
     run_sweep,
 )
-from depeg_sim.kernel.config import load_scenario
+from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 
 BASE = "scenarios/soros-baseline.yaml"
 REAL = "sweeps/pool-depth-x-attacker.yaml"
@@ -198,6 +198,9 @@ def test_run_sweep_small_subset(tmp_path):
     m = json.loads((sweep_dir / "manifest.json").read_text())
     assert m["sweep_name"] == "small"
     assert m["base_scenario_hash"] == load_scenario(BASE).content_hash()
+    # Story 2.7: the resolved base config, so charts need only parquet + manifest
+    base_cfg = ScenarioConfig.model_validate(m["base_config"])
+    assert base_cfg.content_hash() == m["base_scenario_hash"]
     assert m["axes"] == [
         {
             "name": "pool_depth",
@@ -371,3 +374,18 @@ def test_default_scales_leave_existing_sweep_identical():
     explicit["linked_axes"][0]["scales"] = [1.0, 1.0]
     again = expand(SweepSpec.model_validate(explicit))
     assert [c.config.content_hash() for c in again] == [c.config.content_hash() for c in cells]
+
+
+def test_threshold_surface_spec_expands():
+    # Story 2.7 AC 3: 5 depths x 8 capitals x 16 seeds; holder at 0.55 x depth
+    cells = expand(load_sweep("sweeps/threshold-surface-mc.yaml"))
+    assert len(cells) == 640
+    total = 41_346_974 + 138_107_417
+    for c in cells[:: 16 * 8]:  # first capital of each depth
+        holder = next(a for a in c.config.agents if a.type == "holder")
+        assert holder.capital == pytest.approx(0.55 * c.axis_values["pool_depth"])
+        assert c.config.amm.reserve_stable == c.config.amm.reserve_reference
+    caps = sorted({c.axis_values[ATK] for c in cells})
+    ratios = [0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5]
+    assert caps == [round(r * total) for r in ratios]
+    assert {c.config.steps.max_steps for c in cells} == {18_000}

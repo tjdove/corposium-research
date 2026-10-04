@@ -31,7 +31,7 @@ also an axis or an override.
 Output (``run_sweep``)::
 
     <output_dir>/<spec.name>/
-      manifest.json
+      manifest.json                      spec, seeds and the resolved base config (ADR-0014)
       sweep.parquet                      one row per cell, sorted by index
       <index:04d>-<seed>-<hash8>/        a normal run directory per cell (no chart)
 
@@ -297,6 +297,7 @@ def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
     manifest = {
         "sweep_name": spec.name,
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
+        "base_config": load_scenario(spec.base).model_dump(mode="json"),
         "axes": [a.model_dump(mode="json", exclude_none=True) for a in spec.axis_list()],
         "seeds": spec.seed_list(),
         "overrides": spec.overrides,

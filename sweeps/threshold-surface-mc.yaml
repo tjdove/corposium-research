@@ -1,0 +1,32 @@
+# Threshold surface at calibrated scale, Monte Carlo (Story 2.7 AC 3).
+# Base: scenarios/calibrated-stress.yaml (stress-window volatility 0.0007561/step,
+# SOURCES.md#environment), holder present. Numbers and their origins:
+#   D* = 16,666,667 model units per side: calibrated pool depth, fitted by
+#        scripts/fit_depth.py (ADR-0019 amendment, Story 2.5); s = 1e6 / 234.6e6 model
+#        units per $, so D* ~ $3.91B per side.
+#   pool_depth = D* x {0.25, 0.5, 1, 2, 4}, rounded to whole units: moves both AMM
+#        reserves (scale 1) and the holder's capital (scale C*/D* = 9,166,667 / 16,666,667
+#        = 0.55, ADR-0021: the holder sits at the replay's capital-to-depth ratio in every
+#        cell). At the D* row the holder gets 9,166,666.85 (base file: 9,166,667).
+#   attacker capital = ratio x (defender budget + redemption reserves)
+#        = ratio x (41,346,974 + 138,107,417) = ratio x 179,454,391 (scripts/probe_boundary.py
+#        `resources`), ratio in {0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5}, rounded.
+#        The base file's attacker (11,540,596, the episode net burn) is ratio 0.064.
+#   seeds 1000..1015 (16 per grid point); max_steps 18,000 = the ~60 h horizon (base value).
+# Metric: p_stays_broken = 1 - p_peg_recovered. reserves_exhausted is unreachable inside the
+# horizon: capacity 605.79/step x 18,000 = 10.9M of 138.1M reserves (F-06).
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 5 x 8 = 40 grid points x 16 seeds = 640 runs.
+version: 1
+name: threshold-surface-mc
+base: scenarios/calibrated-stress.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference, "agents[type=holder].capital"]
+    values: [4166667, 8333334, 16666667, 33333334, 66666668]
+    scales: [1, 1, 0.55]
+axes:
+  agents[type=attacker].capital:
+    [53836317, 71781756, 89727196, 107672635, 143563513, 179454391, 215345269, 269181586]
+seeds: { count: 16, start: 1000 }
+max_steps: 18000
