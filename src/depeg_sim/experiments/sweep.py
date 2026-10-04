@@ -9,6 +9,7 @@ A sweep spec (``sweeps/<name>.yaml``) names a base scenario and the config paths
       - name: pool_depth
         paths: [amm.reserve_stable, amm.reserve_reference]
         values: [250000, 500000, 1000000, 2000000]
+        scales: [1, 1]                         # optional: path i gets value x scales[i]
     axes:                                      # one path per axis; column name = path
       agents[type=attacker].capital: [100000, 300000, 600000, 1200000]
     seeds: [42]                                # or {count: 16, start: 1000} -> 1000..1015
@@ -135,9 +136,22 @@ class _Strict(BaseModel):
 
 
 class LinkedAxis(_Strict):
+    """Several paths moving as one axis. ``scales`` (optional, one per path, all > 0)
+    sets path ``i`` to ``value * scales[i]``; omitted means every path gets ``value``
+    unchanged. A scale of exactly 1 leaves the value untouched (no int -> float).
+    ``expand`` checks the length and sign (``SweepSpecError``)."""
+
     name: str
     paths: list[str] = Field(min_length=1)
     values: list[Any] = Field(min_length=1)
+    scales: list[float] | None = None
+
+    def path_values(self, value: Any) -> list[tuple[str, Any]]:
+        """``(path, value to set)`` for one axis value."""
+        scales = self.scales or [1.0] * len(self.paths)
+        return [
+            (p, value if sc == 1 else value * sc) for p, sc in zip(self.paths, scales, strict=True)
+        ]
 
 
 class SeedRange(_Strict):
@@ -212,6 +226,13 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
     names = [a.name for a in axes]
     if len(set(names)) != len(names):
         raise SweepSpecError(f"duplicate axis names in sweep {spec.name!r}: {names}")
+    for a in axes:
+        if a.scales is not None and len(a.scales) != len(a.paths):
+            raise SweepSpecError(
+                f"linked axis {a.name!r}: {len(a.scales)} scales for {len(a.paths)} paths"
+            )
+        if a.scales is not None and not all(sc > 0 for sc in a.scales):
+            raise SweepSpecError(f"linked axis {a.name!r}: scales must be > 0, got {a.scales}")
     for path, value in spec.overrides.items():
         base = set_path(base, path, value)
     cells = []
@@ -219,8 +240,8 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
     for index, (*values, seed) in enumerate(combos):
         cfg = base
         for axis, value in zip(axes, values, strict=True):
-            for path in axis.paths:
-                cfg = set_path(cfg, path, value)
+            for path, v in axis.path_values(value):
+                cfg = set_path(cfg, path, v)
         if spec.max_steps is not None:
             cfg = set_path(cfg, "steps.max_steps", spec.max_steps)
         cfg = set_path(cfg, "seed", seed)
@@ -276,7 +297,7 @@ def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
     manifest = {
         "sweep_name": spec.name,
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
-        "axes": [a.model_dump(mode="json") for a in spec.axis_list()],
+        "axes": [a.model_dump(mode="json", exclude_none=True) for a in spec.axis_list()],
         "seeds": spec.seed_list(),
         "overrides": spec.overrides,
         "max_steps": spec.max_steps,

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import platform
 import subprocess
@@ -306,3 +307,67 @@ def test_module_entry_point_with_spawn_workers(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert proc.stdout.splitlines()[0] == "sweep: small cells=4 workers=2"
     assert len(pd.read_parquet(out / "small" / "sweep.parquet")) == 4
+
+
+# Story 2.7 AC 2: linked-axis scales ----------------------------------------------------
+
+HOLDER_SPEC = {
+    "version": 1,
+    "name": "scaled",
+    "base": "scenarios/calibrated-baseline.yaml",
+    "seeds": [1],
+    "linked_axes": [
+        {
+            "name": "pool_depth",
+            "paths": [
+                "amm.reserve_stable",
+                "amm.reserve_reference",
+                "agents[type=holder].capital",
+            ],
+            "values": [1_000_000, 4_000_000],
+            "scales": [1, 1, 0.55],
+        }
+    ],
+}
+
+
+def test_scales_multiply_each_path():
+    cells = expand(SweepSpec.model_validate(HOLDER_SPEC))
+    for cell, v in zip(cells, [1_000_000, 4_000_000], strict=True):
+        cfg = cell.config
+        assert cfg.amm.reserve_stable == cfg.amm.reserve_reference == v
+        holder = next(a for a in cfg.agents if a.type == "holder")
+        assert holder.capital == pytest.approx(0.55 * v, rel=1e-15)
+        assert cell.axis_values == {"pool_depth": v}
+
+
+@pytest.mark.parametrize("scales", [[1, 0.55], [1, 1, 1, 1], [1, 0, 0.55], [1, 1, -1]])
+def test_scales_length_and_sign_are_checked(scales):
+    bad = json.loads(json.dumps(HOLDER_SPEC))
+    bad["linked_axes"][0]["scales"] = scales
+    with pytest.raises(SweepSpecError, match="scales"):
+        expand(SweepSpec.model_validate(bad))
+
+
+def test_default_scales_leave_existing_sweep_identical():
+    # Pinned before LinkedAxis.scales existed (commit bca5025): same index, same per-cell
+    # content_hash for every cell of the 16-cell real sweep.
+    cells = expand(load_sweep(REAL))
+    assert [c.index for c in cells] == list(range(16))
+    assert (cells[0].index, cells[0].config.content_hash()) == (
+        0,
+        "e79a8ca8f7cdba6877ebec2be9bd1b24bb23b47c417a0ed56b13fc8306d14b5b",
+    )
+    assert (cells[-1].index, cells[-1].config.content_hash()) == (
+        15,
+        "007df1b7d4247b2b9a95943916c9919a33942d5999d235683edaa7263522acae",
+    )
+    joined = "".join(c.config.content_hash() for c in cells).encode()
+    assert (
+        hashlib.sha256(joined).hexdigest()
+        == "0713dd709978a528053013db6cd4145edcea7ac21f477c97ceb88436e33ab30c"
+    )
+    explicit = load_sweep(REAL).model_dump(mode="json")
+    explicit["linked_axes"][0]["scales"] = [1.0, 1.0]
+    again = expand(SweepSpec.model_validate(explicit))
+    assert [c.config.content_hash() for c in again] == [c.config.content_hash() for c in cells]
