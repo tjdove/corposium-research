@@ -1,6 +1,6 @@
 # ADR-0022: Threshold surface: `p_stays_broken`, the absorbed ratio, linked-axis scales; oracle lag does not matter; at calibrated depth "stays broken" is mostly the clock
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-04: §5 collapse is a conservation check, the nominal per-depth crossings are the result; §6 → F-10; §7 → F-11 with the budget-vs-depth mechanism; stress result → F-04 refinement; AC 9 sentence not quoted; Story 2.8 inserted)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.7 AC 10

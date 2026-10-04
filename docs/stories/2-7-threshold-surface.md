@@ -1,6 +1,6 @@
 # Story 2.7: Threshold Surface and Oracle-Lag Sensitivity
 
-Status: review
+Status: done
 
 ## Story
 
@@ -971,6 +971,94 @@ rows. Tables are in Debug Log Part 1.
 - `tests/test_summary.py`, `tests/test_mc.py`, `tests/test_sweep.py`, `tests/test_stats.py`, `tests/test_charts.py`
 - `docs/stories/2-7-threshold-surface.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅ — both charts delivered as specified, and ADR-0022 §7 is the
+most important result of the story: the headline the AC asked for is not the headline.
+
+### Summary
+
+Independent reproduction on the review box (Python 3.13.15, fresh install): `pytest` →
+`518 passed in 32.72s`; `ruff check .` → `All checks passed!`; `ruff format --check .` →
+`83 files already formatted`. **Full threshold-surface sweep re-run** (640 runs, 2 workers,
+real 16m59s): every one of the 40 `p_stays_broken` cells matches the builder's table
+(D\* row 0.375 at 0.5 / 0.562 at 0.6; 2× 0.50 at 0.5; 4× 0.50 at 0.6; 0.5× plateau
+0.56/0.56/0.50 at 1.0–1.5). Chart regenerated from the parquet and inspected. **Oracle
+slice** (heartbeat {300, 6900} × threshold {0, 0.25, 1.0}, 8 seeds, 48 runs, 1m19s):
+troughs −1,239.5 / −1,240.8 / −1,253.2 (std 0.0 at 1%), identical across heartbeats —
+matches the builder's full sweep.
+
+**Mechanism check from the sweep output** (not in the builder's report; `sweep.parquet`
+at ratio 1.5, per-depth medians): defender spends its entire 41.3M budget in every row;
+final deviation −9.5 bps at ≤ 1× D\* but −3,486 at 2× and −4,062 at 4×. Same budget,
+same attack; the difference is what the budget *buys*. At or below D\* the dump crashes
+the price so far that 41.3M reference buys back the entire attack (the builder's
+3.7–5.5× face value). Above D\* the attacker is paid more per unit and the same budget
+cannot. That is F-03's mechanism at its limit and it is the finding the note should
+carry from this story (F-11).
+
+### Rulings
+
+1. **ADR-0022 → Accepted (finding, amended).** §5's "collapse to ±0.04" is amended: the
+   absorbed ratio's 0.5 crossing at ≈ 1.0 is what conservation implies (the peg is broken
+   when the attacker's stable has not been absorbed), so it is a consistency check, not a
+   second finding; the informative content is the nominal crossings per depth
+   (1.74, 1.20, 0.56, 0.50, 0.60) and the saturation above D\*. §6 → F-10. §7 → F-11 with
+   the mechanism above. The stress-base result → F-04 refinement.
+2. **The AC 9 sentence is not quoted in the note.** It is true and it measures the clock.
+   The reference-relative sentence is closer but needs its own criterion run through the
+   full sweep, not a post-hoc filter. Hence Story 2.8 (new): `peg_recovered.reference:
+   par | oracle` as a termination option (default `par`, every hash unchanged), the
+   surface re-run with `oracle`, and a budget × depth probe to test the F-11 mechanism
+   directly. Committed figures move to 2.9. This is the second time (after 2.6) a story's
+   result has inserted a story; both were the model saying what to build next.
+3. **Charts as delivered are kept** and both go into the record; the surface figure the
+   note uses will be the 2.8 one, with the 2.7 par-criterion surface as the F-04/F-11
+   illustration if there is room.
+4. **Floor-probe attacker capital 10 units short → accepted**, immaterial at 11.5M; noted.
+5. **`USD_PER_UNIT` as a chart constant → accepted**; SOURCES.md is its source.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | three summary fields; mc columns present (verified in parquet); hashes unchanged |
+| 2 | ✅ | `scales`; equivalence test pins cells |
+| 3 | ✅ | spec as amended; header complete; extension rule not triggered (13 cells ≥ 0.9) |
+| 4 | ✅ | heatmap + contour + Wilson annotations; collapse panel; regenerated here |
+| 5 | ✅ | oracle spec as amended; F-04 floor noted in header |
+| 6 | ✅ | two panels, floor drawn, calibrated cell marked |
+| 7 | ✅ | parquet + manifest only; `base_config` in manifest |
+| 8 | ✅ | both sweeps run; tables and wall times in Debug Log; reproduced |
+| 9 | ✅ | sentence drafted in the AC form, with the qualification that supersedes it |
+| 10 | ✅ | ADR-0022 |
+| 11 | ✅ | 518 passed; ruff clean; CI green |
+
+**11 of 11 ACs met.**
+
+### Key Findings
+
+- **F-10:** oracle lag does not matter under deviation-triggered updates at Chainlink's
+  settings (trough within 0.5 bps of zero-lag; only 1% threshold moves it, by 10 bps).
+- **F-11:** at calibrated depth the defender wins the price and "stays broken" against
+  par is the clock. Mechanism: a fixed budget buys the whole dump back when the pool is
+  shallow enough for the dump to crash the price; above D\* it cannot. Hypothesis for 2.8:
+  the price-defense boundary is set by budget against pool depth, nearly independent of
+  attacker size once the attacker exceeds the pool.
+- **F-04 refinement:** the reference random walk has no anchor; over 6,900 steps its own
+  spread (≈ 26 bps) is the band width, so a par criterion fails late recoveries even at
+  calm volatility; under stress the median final deviation is +215 bps *above* par.
+
+### Learnings for Story 2.8
+
+- The criterion decides the chart. Write the recovery criterion's reference into the
+  story explicitly and run every sweep through it, not through a post-hoc filter.
+- Conservation-shaped "collapses" are checks, not results.
+- Builder's per-depth medians from `sweep.parquet` are cheap and decisive; ask for the
+  budget-spent and final-deviation medians in every surface story.
+
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.6 review
@@ -982,3 +1070,4 @@ rows. Tables are in Debug Log Part 1.
   oracle sweep on `calibrated-stress` (1m55.2s), both charts, F-04 floor probe, collapse
   and "stays broken" diagnostics, ADR-0022 (Proposed). 518 tests pass, ruff clean.
   Status: review.
+- 2026-10-04: Senior review APPROVE; ADR-0022 accepted (finding, amended); F-10, F-11, F-04 refinement added; Story 2.8 (reference-relative recovery) inserted; Status done

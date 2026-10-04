@@ -170,3 +170,4 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-02 | Process = BMAD-style epics/stories; Claude writes them, Claude Code builds | Tim + Claude |
 | 2026-10-02 | New repo `corposium-research`, MIT license | Tim |
 | 2026-10-04 | Epic 2 gains Story 2.6 (par-expecting buyer) after the USDC replay failed validation (F-08); Epic 2 ends Oct 15; freeze stays Oct 21 | Tim (confirmed 2026-10-04: "Let the date slip. We need to address this issue.") |
+| 2026-10-04 | Epic 2 gains Story 2.8 (reference-relative recovery criterion + budget × depth probe) after the 2.7 surface measured recovery speed against a wandering reference, not the attack (F-11); figures move to 2.9; Epic 2 end Oct 15 and freeze Oct 21 unchanged | Claude; Tim to confirm at merge |

@@ -1,0 +1,76 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.8</storyId>
+    <title>Reference-Relative Recovery and the Budget × Depth Boundary</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-8-reference-recovery.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>the recovery criterion to be able to measure the venue against the market price rather than par</iWant>
+    <soThat>the surface shows where the attack beats the defense, and the budget-vs-depth hypothesis (F-11) is tested</soThat>
+    <tasks>
+      - Criterion option (AC: 1, 2, 3)
+      - Reference-criterion surface (AC: 4)
+      - Budget × depth (AC: 5)
+      - Headline, ADR, close out (AC: 6, 7, 8, 9)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–9. The Protocol-view design in AC 1 and Dev Notes is normative unless it conflicts with ADR-0007, in which case propose the amendment.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-8-reference-recovery.md" section="Dev Notes">Design, predictions, cost.</doc>
+      <doc path="docs/FINDINGS.md" section="F-11, F-04 refinement">Why the criterion changes and what to test.</doc>
+      <doc path="docs/adr/0007-peg-view-owner-and-sign.md">PegView ownership to extend, not break.</doc>
+      <doc path="docs/stories/2-7-threshold-surface.md" section="Completion Notes">The 2.7 crossings to put beside the new ones.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/interfaces.py" symbol="PegView" reason="Add spot_price; add ReferenceView."/>
+      <existing path="src/depeg_sim/kernel/termination.py" symbol="check" reason="Branch on reference."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="PegRecoveredConfig" reason="Add reference field with default par."/>
+      <existing path="src/depeg_sim/protocol/oracle.py" symbol="Oracle.price" reason="Satisfy ReferenceView."/>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="spot_price" reason="Already exists; expose via PegView."/>
+      <existing path="src/depeg_sim/analysis/summary.py" symbol="steps_to_first_band_entry, steps_to_sustained_recovery" reason="Follow the criterion."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_threshold_surface" reason="Heading from manifest criterion; add plot_budget_depth."/>
+      <existing path="sweeps/threshold-surface-mc.yaml" reason="Copy + override."/>
+    </code>
+    <dependencies>
+      <python>No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Kernel imports no protocol/ module; views only. PHASE_ORDER_VERSION stays 1.
+    - Default reference = par; every scenario hash unchanged; run-vs-rerun fixtures untouched.
+    - usdc-2023.yaml unchanged (hash 2c3aeaa9825d).
+    - Charts read mc.parquet + manifest only.
+    - No hand-tuned axes; predictions in Dev Notes are checked, not enforced.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="PegRecoveredConfig.reference" kind="field" path="src/depeg_sim/kernel/config.py">Literal["par", "oracle"] = "par"</interface>
+    <interface name="PegView.spot_price" kind="property" path="src/depeg_sim/kernel/interfaces.py">float (reference per unit stable)</interface>
+    <interface name="ReferenceView" kind="Protocol" path="src/depeg_sim/kernel/interfaces.py">reference_price: float | None</interface>
+    <interface name="plot_budget_depth" kind="function" path="src/depeg_sim/analysis/charts.py">plot_budget_depth(sweep_dir: Path) -> Path (budget_depth.png)</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; termination tests with a stub PegView/ReferenceView registered in a RunContext (manual phases per 1.3); synthetic mc.parquet for plot_budget_depth; hash test over scenarios/.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="reference=oracle, oracle unpublished → consecutive_in_band stays 0"/>
+      <test ac="1" idea="spot 1.005, oracle 1.005, par criterion → out of band at tolerance 0.001; oracle criterion → in band"/>
+      <test ac="3" idea="soros-baseline summary.json bytes identical before/after the change"/>
+      <test ac="5" idea="synthetic parquet 3 depths × 3 budgets with a monotone crossing: right panel has 3 points"/>
+    </ideas>
+  </tests>
+</story-context>
