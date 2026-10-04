@@ -1,6 +1,6 @@
 # Story 2.5: USDC March-2023 Validation
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
