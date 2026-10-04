@@ -300,6 +300,8 @@ wrote: output/usdc-2023-42-73db527c
 exit=0
 ```
 
+CI on the implementation commit 486822f: `gh run list` → `completed success story 2.5: usdc march-2023 validation ci main push 37226427715 48s 2026-10-04T18:57:46Z`.
+
 The 1992 re-scan script (scratch, not committed; it builds a `SweepSpec` and calls `run_sweep`):
 
 ```python
