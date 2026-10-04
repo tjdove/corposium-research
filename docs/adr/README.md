@@ -2,7 +2,8 @@
 
 One file per decision, numbered, never edited after acceptance except to change `Status`
 (e.g. to `Superseded by ADR-00NN`). Decisions that are *research findings* about the model
-are ADRs too: they constrain what we build next.
+are ADRs too: they constrain what we build next. Accepted findings are also narrated, in
+order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's spine.
 
 | # | Title | Status | Date |
 |---|---|---|---|
