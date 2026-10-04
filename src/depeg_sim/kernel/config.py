@@ -173,8 +173,22 @@ class DefenderConfig(StrictModel):
     max_spend: float | None = None
 
 
+class HolderConfig(StrictModel):
+    """Par-expecting buyer (Story 2.6): buys below ``1 - entry_discount_pct/100``, redeems
+    once the redemption channel can pay it out. ``redeem_fraction_min`` is a constructor
+    default on the agent, not a config field."""
+
+    type: Literal["holder"]
+    id: str
+    capital: float = Field(gt=0)
+    entry_discount_pct: float = Field(ge=0)
+    pace: float = Field(gt=0, le=1)
+    redeem_when_capacity: bool = True
+
+
 AgentConfig = Annotated[
-    AttackerConfig | ArbitrageurConfig | DefenderConfig, Field(discriminator="type")
+    AttackerConfig | ArbitrageurConfig | DefenderConfig | HolderConfig,
+    Field(discriminator="type"),
 ]
 
 

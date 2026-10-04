@@ -1,6 +1,6 @@
 # Story 2.6: Par-Expecting Buyer Agent
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
