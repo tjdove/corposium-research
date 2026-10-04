@@ -31,11 +31,11 @@ so that the note can show one fitted parameter against one observation, and the 
 
 ## Tasks / Subtasks
 
-- [ ] Depth fit (AC: 1, 2, 3)
-  - [ ] `scripts/fit_depth.py` (argparse; `--dry-run`; uses `SweepSpec` built in code, `run_sweep`, pandas)
-  - [ ] Run; refine; record `D*` and trough
-  - [ ] Update both calibrated YAMLs and SOURCES.md; re-run both and record new outcomes
-  - [ ] Commit separately: `story 2.4: fit aggregate depth D* to observed trough`
+- [x] Depth fit (AC: 1, 2, 3)
+  - [x] `scripts/fit_depth.py` (argparse; `--dry-run`; uses `SweepSpec` built in code, `run_sweep`, pandas)
+  - [x] Run; refine; record `D*` and trough
+  - [x] Update both calibrated YAMLs and SOURCES.md; re-run both and record new outcomes
+  - [x] Commit separately: `story 2.4: fit aggregate depth D* to observed trough`
 
 - [ ] Boundary probe (AC: 4)
   - [ ] `scripts/probe_boundary.py`; run; table in Completion Notes

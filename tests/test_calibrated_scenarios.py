@@ -50,7 +50,7 @@ def test_loads_and_follows_adr_0013(path):
 def test_content_hashes_are_pinned():
     # A calibration change must be deliberate: update these with SOURCES.md.
     hashes = [load_scenario(Path(p)).content_hash()[:12] for p in SCENARIOS]
-    assert hashes == ["e3252a1ffa5b", "546d28330e87"]
+    assert hashes == ["fae4d315a5a6", "2d8b5013683f"]
 
 
 def test_stress_differs_only_in_name_and_volatility():
@@ -139,3 +139,22 @@ def test_data_files_small_and_documented():
         assert f.stat().st_size < 1_000_000
         assert f"`{f.name}`" in readme
         assert hashlib.sha256(f.read_bytes()).hexdigest() in readme
+
+
+D_STAR = 1_833_333_333  # Story 2.4: scripts/fit_depth.py, trough -1327.8 bps vs -1300 observed
+
+
+@pytest.mark.parametrize("path", SCENARIOS)
+def test_pool_is_fitted_aggregate_depth(path):
+    cfg = load_scenario(Path(path))
+    assert cfg.amm.reserve_stable == cfg.amm.reserve_reference == D_STAR
+    header = Path(path).read_text(encoding="utf-8").split("version:")[0]
+    assert "market_depth_multiple = D* / 1,000,000" in header and "F-05" in header
+
+
+def test_sources_has_market_depth_multiple_row():
+    rows = {cells[0]: cells for cells in table_rows(SOURCES.read_text(encoding="utf-8"))}
+    row = rows["`market_depth_multiple`"]
+    assert row[1] == f"{D_STAR / 1_000_000:.2f}"
+    assert row[-1] == "assumption"
+    assert "fitted to observed trough, this story" in row[2]

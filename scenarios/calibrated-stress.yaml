@@ -1,17 +1,22 @@
 # Calibrated stress — calibrated-baseline with the stress-window volatility (Story 2.3).
 # Identical to scenarios/calibrated-baseline.yaml except `name` and
 # environment.volatility_per_step (SOURCES.md#environment: realised USDC/USD vol over
-# 10-13 March 2023, 0.0007561 per 12 s step, 24.5x the calm week). Under this noise the
-# 31 bps / 6,900-step recovery criterion is reached in only ~5 of 32 seeds (Story 2.3
-# Completion Notes); seed 42 is one of them.
+# 10-13 March 2023, 0.0007561 per 12 s step, 24.5x the calm week). At single-venue depth
+# the 31 bps / 6,900-step recovery criterion was reached in only ~5 of 32 seeds (Story 2.3,
+# F-04). At the fitted depth D* (Story 2.4) seed 42 ends max_steps, as the baseline does.
 # Every value is sourced in docs/calibration/SOURCES.md; judgment calls are in ADR-0018.
-# The model is scale-free: the calibrated quantities are ratios. Anchor: pool depth
-# 1,000,000 per side = the USDC leg of Curve 3pool on 2023-03-10 ($510M x 46% = $234.6M);
-# every balance below is dollars x 1e6 / 234.6e6.
+# The model is scale-free: the calibrated quantities are ratios. Unit anchor: 1,000,000
+# model units = the USDC leg of Curve 3pool on 2023-03-10 ($510M x 46% = $234.6M); every
+# balance below is dollars x 1e6 / 234.6e6 (= s).
+# Aggregate depth (F-05, Story 2.4): the pool is one constant-product venue standing for
+# aggregate USDC market depth, not one Curve pool. market_depth_multiple = D* / 1,000,000
+# = 1,833,333,333 / 1,000,000 = 1833.33 (status assumption), fitted by scripts/fit_depth.py
+# so that max_depeg_bps reproduces the observed March-2023 trough ($0.87, -1300 bps):
+# achieved -1327.8 bps. In dollars D* is ~$430B per side; see SOURCES.md#pool.
 #
 #   time         SOURCES.md#time         12 s slots; 18,000 steps = the ~60 h episode
-#   pool         SOURCES.md#pool         raw USDC-leg TVL as constant-product depth (troughs
-#                                        are upper bounds); fee 1 bp read on-chain (March 2023)
+#   pool         SOURCES.md#pool         D* = market_depth_multiple x 1,000,000, fitted to the
+#                                        observed trough; fee 1 bp read on-chain (March 2023)
 #   oracle       SOURCES.md#oracle       Chainlink USDC/USD: 0.25% deviation, 82,800 s heartbeat
 #   redemption   SOURCES.md#redemption   1:1, no fee (2023); capacity = observed net burn
 #                                        11-14 Mar 2023; reserves = Circle's T-bill share
@@ -33,8 +38,8 @@ assets:
   - { symbol: STABLE, decimals: 18 }
   - { symbol: REF, decimals: 18 }
 amm:
-  reserve_stable: 1_000_000
-  reserve_reference: 1_000_000
+  reserve_stable: 1_833_333_333
+  reserve_reference: 1_833_333_333
   fee_bps: 1
 oracle:
   heartbeat_steps: 6900
