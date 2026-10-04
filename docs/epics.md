@@ -351,16 +351,14 @@ So that the replay can reproduce the observed trough and the note can say what d
 ### Story 2.7: Threshold Surface and Oracle-Lag Sensitivity
 
 As a **researcher**,
-I want the two headline charts,
-So that the note can state at what combination of depth, capital and oracle lag the defense fails.
+I want the two headline charts at calibrated scale with the buyer present,
+So that the note can state at what attacker size, relative to what the peg's defenders can absorb, the peg stays broken — and whether oracle lag changes that.
 
-**Acceptance Criteria:**
-1. `plot_threshold_surface(mc.parquet)`: heatmap of `p_reserves_exhausted` over pool depth × attacker capital with contour at 0.5; Wilson half-width shown as cell annotation or a second panel
-2. `sweeps/oracle-lag-mc.yaml`: heartbeat {1, 5, 25, 75, 300} steps × deviation threshold {0, 0.25, 0.5, 1.0}% at calibrated baseline, 32 seeds; `plot_oracle_sensitivity(mc.parquet)`: `max_depeg_bps` mean with p05–p95 band vs heartbeat, one line per threshold
-3. Both charts read only from `mc.parquet` + the sweep manifest (ADR-0014 pattern)
-4. The headline sentence of the note is drafted in Completion Notes from the actual surface: "At pool depth D, an attacker with capital ≥ C exhausts reserves with probability ≥ 0.5 when oracle heartbeat ≥ H"
-5. `pytest` passes (chart tests on a tiny synthetic mc.parquet)
-6. The primary axis uses the F-03 price adjustment (budget valued at what it absorbs), per the F-06 refinement
+**Acceptance Criteria (summary; the story file is the contract, revised 2026-10-04 after 2.6):**
+1. `summary.json` gains `defender_bought_stable`, `holder_bought_stable`, `holder_pnl`; `LinkedAxis` gains `scales` so a depth axis can carry the holder at `C*/D*`
+2. `sweeps/threshold-surface-mc.yaml`: calibrated-stress, depth `D* × {0.25…4}` × attacker capital at ratio `{0.3…1.5}` of `budget + reserves`, 16 seeds; `plot_threshold_surface`: heatmap of **`p_stays_broken = 1 − p_peg_recovered`** (reserve exhaustion is unreachable within the horizon at calibrated throughput, F-06) with 0.5 contour and Wilson annotations, plus the F-03 collapse panel against the absorbed ratio
+3. `sweeps/oracle-lag-mc.yaml`: heartbeat `{5, 25, 300, 1500, 6900}` × deviation `{0, 0.1, 0.25, 1.0}%`, 32 seeds; `plot_oracle_sensitivity`: `max_depeg_bps` band and `p_stays_broken` vs heartbeat, one line per threshold
+4. Both charts read only `mc.parquet` + manifest; the headline sentence drafted from the actual surface; Proposed ADR; tests on synthetic parquet; `pytest`, `ruff` pass
 
 **Prerequisites:** Stories 2.2, 2.3, 2.6
 
@@ -378,6 +376,7 @@ So that the README and the note can show figures without running code.
 3. CI runs `make figures-quick` and fails if any committed figure's footer hash no longer matches its scenario's `content_hash()` (stale-figure guard)
 4. README gains a "Results so far" section embedding two figures with one-sentence captions
 5. `docs/figures/README.md` lists each figure, its scenario/sweep, and the command that regenerates it
+6. The validation overlay's y-limits include both trough annotations (the 2.6 overlay clipped the observed-trough label; review ruling 4)
 
 **Prerequisites:** Stories 2.4, 2.5, 2.6, 2.7
 
