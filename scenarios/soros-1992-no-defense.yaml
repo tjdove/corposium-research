@@ -1,0 +1,105 @@
+# Soros 1992, no defense — the counterfactual to scenarios/soros-1992.yaml (Story 2.4 AC 11).
+# Identical except `name`, defender.budget -> 1 and defender.spread_adjust_bps -> 0: the Bank
+# of England does not buy sterling and does not raise rates; only the ERM reserve
+# (redemption) stands behind the floor. max_spend is left at its soros-1992 value and is
+# moot (the defender holds 1 unit).
+#
+# soros-1992 header, as built:
+# Built from docs/BACKGROUND.md "Mapping 1992 to the simulator"; magnitudes from §4-§5.
+# The ratios are the claim; the absolutes are presentation.
+#
+#   capital : budget : reserves : depth = 1.270 : 0.500 : 0.500 : 9.103 in soros-1992; here budget ~ 0
+#
+# Units. Pool depth is D* = 1,833,333,333, the fitted aggregate depth of Story 2.4 Part A
+# and the only parameter shared with the USDC scenarios. 1992 balances use the same
+# model-unit scale as the calibrated scenarios, s = 1e6 / 234.6e6 per US dollar
+# (SOURCES.md), with GBP -> USD at 1.75. No figure exists for effective 1992 sterling
+# market depth, so this sets it equal, in dollars, to the fitted USDC aggregate depth.
+# Status vocabulary as SOURCES.md: verified / secondary / assumption.
+#
+# Time: one step is 12 s; one simulated "trading day" = 7,200 steps; the attack runs over
+# one such day starting 2 h in; max_steps is two days.
+#
+# Run (seed 42, Story 2.4): terminated_by reserves_exhausted at steps_run 7944 (1,988 steps
+# earlier than soros-1992); max_depeg_bps -1269.5 at step 5697 (soros-1992: -619.1);
+# redemption_paid_total 100,703,325. The price reaches -200 bps 1,723 steps and -500 bps
+# 2,589 steps sooner than in soros-1992.
+#
+# One line per parameter: path  value  status  source / reasoning
+# - seed  42  assumption  project convention (SOURCES.md#time)
+# - steps.interval_seconds  12  verified  SOURCES.md#time (Ethereum slot); kept so time matches the USDC scenarios
+# - steps.max_steps  14400  assumption  two trading days of 7,200 steps (story AC 6); BACKGROUND §3 is a one-day event
+# - amm.reserve_stable  1833333333  assumption  D* from Story 2.4 Part A (SOURCES.md#pool); BACKGROUND Mapping: "Market depth for sterling -> AMM pool depth"
+# - amm.reserve_reference  1833333333  assumption  equal to reserve_stable so the pool starts at peg
+# - amm.fee_bps  1  verified  as calibrated-baseline (SOURCES.md#pool)
+# - oracle.heartbeat_steps  6900  verified  as calibrated-baseline (SOURCES.md#oracle); BACKGROUND Mapping: "Delay before official prices catch up"
+# - oracle.deviation_threshold_pct  0.25  verified  as calibrated-baseline (SOURCES.md#oracle)
+# - redemption.peg_price  1.0  assumption  the ERM floor (BACKGROUND §1, DM 2.78) normalised to 1.0; BACKGROUND Mapping: "ERM central rate and floor -> peg price"
+# - redemption.spread_bps  0  verified  as calibrated-baseline (SOURCES.md#redemption)
+# - redemption.reserves  100703325  secondary + assumption  half of gross intervention £27bn (BACKGROUND §5, status secondary: "verify against the primary release") = £13.5bn x 1.75 x s; the 50:50 split is an assumption: the BoE both bought sterling in the market (budget) and honoured ERM intervention obligations at the floor (reserves), and no source splits the £27bn between the two
+# - redemption.capacity_per_step  13986.57  assumption  reserves / 7,200: the whole reserve can be paid within the attack day; 1992 FX settlement had no weekend-bank constraint (unlike SOURCES.md#redemption for 2023)
+# - environment.base_price  1.0  verified  definition (SOURCES.md#environment)
+# - environment.volatility_per_step  3.086e-05  verified  calm volatility as calibrated-baseline (SOURCES.md#environment); stress vol excluded (F-04)
+# - environment.shocks  step 0, -1.0%  assumption  the Schlesinger remarks of 15 September (BACKGROUND §3), at start_step - 600; size -1.0% is the story's choice, unsourced
+# - agents[type=attacker].capital  255754476  secondary + assumption  Quantum's ~$10bn short (BACKGROUND §4, status secondary: Mallaby, primary to check) = 42,625,746 x multiple 6; the multiple is an assumption: the BoE's gross purchases (£27bn ≈ 4.7x Quantum's ~£5.7bn) were themselves sterling the rest of the market sold (BACKGROUND §4: "not the only one") and the defense still failed, so total selling exceeded 4.7x Quantum, and 6 is the smallest whole multiple that puts capital / (budget + reserves) in the story's 1.2-1.5 window (1.270)
+# - agents[type=attacker].start_step  600  assumption  2 h into the day (story AC 6); BACKGROUND §3: selling "intensified" on the morning of 16 September
+# - agents[type=attacker].pace  0.00031975  assumption  1 - 0.1^(1/7200): ~90% of capital sold within the 7,200-step day (story AC 6)
+# - agents[type=arbitrageur].capital  200000  assumption  as calibrated-baseline (SOURCES.md#arbitrageur); BACKGROUND Mapping: "Banks and funds selling -> arbitrageurs"
+# - agents[type=arbitrageur].min_profit_bps  20  assumption  as calibrated-baseline (SOURCES.md#arbitrageur)
+# - agents[type=arbitrageur].latency_steps  1  assumption  as calibrated-baseline (SOURCES.md#arbitrageur)
+# - agents[type=defender].budget  1  assumption  counterfactual: no market intervention (the schema requires budget > 0); soros-1992 uses half of the £27bn (BACKGROUND §5, secondary)
+# - agents[type=defender].threshold_pct  1.0  assumption  defend below -1% (story AC 8); BACKGROUND Mapping: "floor -> defender trigger"
+# - agents[type=defender].spend_pace  0.2  assumption  as calibrated-baseline (story AC 8); BACKGROUND §3 reports buying "at times reportedly around £2 billion an hour" (unsourced, not used)
+# - agents[type=defender].spread_adjust_bps  0  assumption  counterfactual: no rate rises (soros-1992: 200, standing for 10 -> 12 -> 15%, BACKGROUND §3)
+# - agents[type=defender].max_spend  100703325  assumption  = budget (story AC 8)
+# - termination.reserves_exhausted  true  assumption  the first-generation outcome this scenario tests (BACKGROUND "How economists explain it")
+# - termination.peg_recovered.for_steps  6900  verified  as calibrated-baseline (SOURCES.md#termination)
+# - termination.peg_recovered.tolerance  0.0031  verified  as calibrated-baseline, ADR-0013 (SOURCES.md#termination)
+# - termination.max_steps  true  verified  ADR-0006
+# - metrics.record_every  1  assumption  run setting (SOURCES.md, run settings)
+# - metrics.trace_decisions  false  assumption  run setting
+# - metrics.checkpoint_every  7200  assumption  run setting: one checkpoint per trading day
+version: 1
+name: soros-1992-no-defense
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 14400
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 1_833_333_333
+  reserve_reference: 1_833_333_333
+  fee_bps: 1
+oracle:
+  heartbeat_steps: 6900
+  deviation_threshold_pct: 0.25
+redemption:
+  reserves: 100_703_325
+  spread_bps: 0
+  capacity_per_step: 13986.57
+  peg_price: 1.0
+environment:
+  base_price: 1.0
+  volatility_per_step: 3.086e-05
+  shocks:
+    - { step: 0, pct: -1.0 }
+agents:
+  - { type: attacker, id: attacker-1, capital: 255_754_476, start_step: 600, pace: 0.00031975 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - type: defender
+    id: defender-1
+    budget: 1
+    threshold_pct: 1.0
+    spend_pace: 0.2
+    spread_adjust_bps: 0
+    max_spend: 100_703_325
+termination:
+  reserves_exhausted: true
+  peg_recovered: { for_steps: 6900, tolerance: 0.0031 }
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: false
+  checkpoint_every: 7200

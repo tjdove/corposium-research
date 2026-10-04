@@ -25,7 +25,14 @@ def test_fit_depth_dry_run_lists_grid():
     assert "extension if no grid depth reaches the target" in text
 
 
-@pytest.mark.parametrize("script", ["fit_depth.py"])
+def test_probe_boundary_dry_run_lists_cells():
+    text = dry_run("probe_boundary.py")
+    assert "ratios=6 seeds=8" in text and "cells=48" in text
+    ratios = [line.split(":")[0] for line in text.splitlines() if line.startswith("ratio ")]
+    assert ratios == [f"ratio {r}" for r in ("0.5", "0.75", "1", "1.25", "1.5", "2")]
+
+
+@pytest.mark.parametrize("script", ["fit_depth.py", "probe_boundary.py"])
 def test_dry_run_writes_nothing(script, tmp_path):
     dry_run(script, "--output", str(tmp_path))
     assert list(tmp_path.iterdir()) == []
