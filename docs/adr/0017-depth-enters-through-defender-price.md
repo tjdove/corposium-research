@@ -1,6 +1,6 @@
 # ADR-0017: Depth enters the verdict through the price the defender pays
 
-**Status:** Proposed (finding; refines ADR-0016)
+**Status:** Accepted (finding; refines ADR-0016; amended in review)
 **Date:** 2026-10-03
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.2 AC 9, `sweeps/capital-vs-resources-mc.yaml`
@@ -148,3 +148,32 @@ at every depth. Its capital steps are too coarse to see the shift above.
 - A third sink (pool residue): measured pool stable excess at the end is ~3.5k (500k)
   and ~16k (2M) at the flipped point, too small to explain a 100k+ difference in
   redeemed stable. The defender's purchase price explains it.
+
+## Review amendment (2026-10-03, dev manager)
+
+Accepted. Reviewer reproduced the critical cell independently (48-run slice at ratio
+1.111: 500k depth p=0, 2M depth p=1). This refines, not overturns, ADR-0016: the
+conservation law stands; the "prices paid" term was the whole story, and depth sets it.
+
+**Reframing for the note.** The intuitive claim "deeper pools are safer" is wrong in this
+model, and the reason is clean enough to be the headline: *a shallow pool makes the attack
+look worse (deeper trough) but makes the defense cheaper (each unit of budget buys more
+stable at the crashed price). A deep pool keeps the price up, so the defender pays nearly
+par and its budget absorbs less.* Depth trades trough severity against defense efficiency.
+Updated headline candidate:
+
+> *"Shallow liquidity makes a depeg deeper but a defense cheaper. The attack succeeds
+> when speculative capital exceeds the stable the defense can absorb, and a deep pool
+> raises the price of absorbing it."*
+
+**Consequences for Epic 2:**
+- 2.6's primary axis stays `capital / (budget + reserves)`; the chart gets two panels or
+  two lines (500k, 2M) to show the shift, with the band width noted.
+- The price-adjusted ratio is a *diagnostic*, not a predictor (builder's caveat is right).
+  A parameter-only predictor would need the expected trough, which is itself a function
+  of capital/depth. Possible closed form for the note's appendix; not a story.
+- The 600k/250k irregularity (reserves run dry before the defender finishes) is the
+  redemption-capacity channel; it becomes an axis in 2.6 only if time allows.
+- 5 bps per-step noise barely moves outcomes; 6–25% of recovering runs hit `max_steps`
+  instead. 2.3 must set volatility from a real stablecoin stress series and revisit
+  `peg_recovered.for_steps` under noise.
