@@ -68,6 +68,9 @@ output/         run artifacts (gitignored)
 
 ## Documentation
 
+- `docs/FINDINGS.md` — what the model has shown so far, in the order we learned it
+- `docs/BACKGROUND.md` — the 1992 ERM crisis and how it maps to the simulator
+- `docs/adr/` — architecture and research decision records
 - `docs/CHARTER.md` — mission, scope, roles, timeline
 - `docs/epics.md` — build plan broken into stories
 - `docs/stories/` — one file per story with acceptance criteria and dev record

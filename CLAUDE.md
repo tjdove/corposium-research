@@ -73,3 +73,9 @@ an interface the spec left ambiguous, a semantic the ACs did not pin down, an ob
 model behaviour that changes what should be built next — write it up in Completion Notes
 **and** add a `Proposed` ADR file using the template in `docs/adr/README.md` (next free
 number, do not edit the index). The dev manager accepts, amends or rejects it in review.
+
+**Findings** (an observed model behaviour, as opposed to a design choice) are ADRs too,
+and when accepted the dev manager also adds an entry to `docs/FINDINGS.md` — the running
+narrative the research note is written from. Read `docs/FINDINGS.md` before any story in
+Epic 2 or later: it tells you what the model has already shown and what the open
+questions are, so you recognise a new finding when you see one.
