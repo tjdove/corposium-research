@@ -55,9 +55,9 @@ date and are cited as such (story 2.3 References); the builder did not re-open t
 
 | parameter | value used | source (URL, accessed) | raw figure | conversion | status |
 |---|---|---|---|---|---|
-| `amm.reserve_stable` | 1833333333 | unit anchor: CoinDesk, 2023-03-10, https://www.coindesk.com/business/2023/03/10/defi-protocol-curves-500m-stablecoin-pool-hammered-as-traders-flee-usdc (pre-verified by dev manager 2026-10-03); depth: `market_depth_multiple` (next row) | 3pool TVL "more than $510 million"; USDC "more than 46%" (17:51 EST, 10 Mar 2023) | USDC leg = 510,000,000 × 0.46 = $234,600,000 ↔ 1,000,000 model units (defines `s`, secondary); pool depth D* = 1,000,000 × 1833.33 = 1,833,333,333 | assumption |
-| `amm.reserve_reference` | 1833333333 | same | same | equal to `reserve_stable` so the pool starts at peg (spot 1.0) | assumption |
-| `market_depth_multiple` | 1833.33 | fitted to observed trough, this story (Story 2.4, `scripts/fit_depth.py`); observed trough: Chainalysis, https://www.chainalysis.com/blog/crypto-market-usdc-silicon-valley-bank/ (pre-verified by dev manager 2026-10-03) | USDC low $0.87 → −1300 bps | smallest depth on the grid 1M…500M, extended one decade (1B, 2B, 5B), with `max_depeg_bps ≥ −1300` is 2B (−1229.3); refined between 1B and 2B, closest is 1,833,333,333 (−1327.8 bps); multiple = 1,833,333,333 / 1,000,000 = 1833.33 (≈ $430.1B per side at `s`) | assumption |
+| `amm.reserve_stable` | 16666667 | unit anchor: CoinDesk, 2023-03-10, https://www.coindesk.com/business/2023/03/10/defi-protocol-curves-500m-stablecoin-pool-hammered-as-traders-flee-usdc (pre-verified by dev manager 2026-10-03); depth: `market_depth_multiple` (next row) | 3pool TVL "more than $510 million"; USDC "more than 46%" (17:51 EST, 10 Mar 2023) | USDC leg = 510,000,000 × 0.46 = $234,600,000 ↔ 1,000,000 model units (defines `s`, secondary); pool depth D* = 1,000,000 × 16.67 = 16,666,667 | assumption |
+| `amm.reserve_reference` | 16666667 | same | same | equal to `reserve_stable` so the pool starts at peg (spot 1.0) | assumption |
+| `market_depth_multiple` | 16.67 | fitted to observed trough, this story (Story 2.4, `scripts/fit_depth.py`); re-fit after attacker re-anchor (ADR-0019 amendment), Story 2.5; observed trough: Chainalysis, https://www.chainalysis.com/blog/crypto-market-usdc-silicon-valley-bank/ (pre-verified by dev manager 2026-10-03) | USDC low $0.87 → −1300 bps | smallest depth on the original grid 1M…500M with `max_depeg_bps ≥ −1300` is 20M (−1061.3); 10M misses (−1962.2); refined between 10M and 20M, closest is 16,666,667 (−1253.2 bps); multiple = 16,666,667 / 1,000,000 = 16.67 (≈ $3.91B per side at `s`, 16.7× the $234.6M Curve USDC leg). Story 2.4's value (1833.33, ≈ $430B) was fitted against the superseded ratio-1.0 attacker | assumption |
 | `amm.fee_bps` | 1 | Curve 3pool contract `0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7`, `fee()` via JSON-RPC `eth_call` at https://eth.drpc.org and https://1rpc.io/eth (accessed 2026-10-04); denominator from https://raw.githubusercontent.com/curvefi/curve-contract/master/contracts/pools/3pool/StableSwap3Pool.vy | `fee()` = 1000000 at blocks 16,793,344 (2023-03-09T21:34:47Z), 16,800,000 (2023-03-10T20:08:47Z) and 16,820,000 (2023-03-13T15:36:47Z); `FEE_DENOMINATOR: constant(uint256) = 10 ** 10` | 1,000,000 / 10,000,000,000 = 0.0001 = 1 bp | verified |
 
 **Not 4 bps.** The story expected 4 bps, which is 3pool's launch fee. On-chain history read
@@ -78,14 +78,13 @@ conservative upper bounds on depeg depth.** The model is a **single constant-pro
 pool's depth is fitted (`market_depth_multiple`) so the model's trough matches the observed
 one rather than read from any venue.
 
-**What D* absorbs (Story 2.4).** The fitted depth is ≈ $430B per side, about 10× USDC's
-total supply, so it is not a physical liquidity figure. With the attacker selling at any
-price and the other sinks throughput-bound (defender budget 41.3M, redemption ≈ 10.9M over
-the episode), almost all of the 179.5M attack ends up in the pool, and the trough is set
-by that residual against depth, not by the first dump (a 10% first dump into D* alone moves
-the price only −193 bps). The fit therefore also absorbs the ratio-1.0 attacker size
-(≈ $42B of selling, against ≈ $4B net burn observed). It is one parameter fitted to one
-observation; recovery timing, defender spend and redemption volume remain out-of-sample.
+**What D* means (Story 2.5).** Re-fitted against the episode-sized attacker (net burn,
+Attacker below), D\* ≈ $3.91B per side: 16.7× the single Curve USDC leg and ≈ 9% of USDC's
+$43.2B supply on 10 March 2023. That is a plausible aggregate effective depth for USDC near
+peg across DEXs, CEX books and OTC. Story 2.4's first fit (≈ $430B per side) was the model
+absorbing a ratio-1.0 attacker ten times the episode flow (F-05 correction). It is one
+parameter fitted to one observation; recovery timing, defender spend and redemption volume
+remain out-of-sample (Story 2.5, `docs/calibration/VALIDATION.md`).
 
 ## Oracle
 
@@ -144,18 +143,20 @@ for 2023 data; Coinbase has no USDC-USD book; Kraken serves only its last 720 ca
 
 | parameter | value used | source (URL, accessed) | raw figure | conversion | status |
 |---|---|---|---|---|---|
-| `agents[type=attacker].capital` | 179454391 | design ratio (ADR-0017, ADR-0018), anchored to: Chainalysis, https://www.chainalysis.com/blog/crypto-market-usdc-silicon-valley-bank/ (pre-verified by dev manager 2026-10-03); BACKGROUND.md §5 for 1992 | March 2023: CEX USDC outflows peaked at $1.2B/hour; $3.3B at SVB = 8% of reserves. 1992: Quantum short ≈ $10B vs ≈ £27B gross reserves spent (BACKGROUND.md, verification pending) | capital = 1.0 × (budget + reserves) = 1.0 × (41,346,974 + 138,107,417) = 179,454,391 | secondary |
+| `agents[type=attacker].capital` | 11540596 | episode flow (ADR-0019 amendment, Story 2.5): DefiLlama stablecoins API, committed as `data/usdc_supply_defillama_2023-03-01_2023-03-20.csv` (see Redemption); cross-check only: Chainalysis, https://www.chainalysis.com/blog/crypto-market-usdc-silicon-valley-bank/ (pre-verified by dev manager 2026-10-03) | total USDC supply 43,176,044,700 on 2023-03-10 and 40,468,620,896 on 2023-03-13 (00:00 UTC). Cross-check: CEX USDC outflows peaked at $1.2B/hour (Chainalysis), so the episode's net burn is ≈ 2.3 peak hours of CEX outflow | net burn 10→13 Mar = 43,176,044,700 − 40,468,620,896 = 2,707,423,804 $; × s = 2,707,423,804 × 0.0042625746 = 11,540,595.9 → 11,540,596 (capital / (budget + reserves) = 0.064) | secondary |
 | `agents[type=attacker].start_step` | 50 | unchanged from `soros-baseline` | none | 50 steps = 10 min of calm before the attack, < `for_steps` so the pre-attack calm can't count as recovery (ADR-0010) | assumption |
 | `agents[type=attacker].pace` | 0.1 | unchanged from `soros-baseline` | none | 10% of remaining stable per step (12 s) | assumption |
 | `agents[type=attacker].stop_below_price` | null | unchanged from `soros-baseline` | none | the attacker never stops selling | assumption |
 
-**The ratio 1.0 is a design choice, not a measurement.** It puts the attacker exactly at
-`budget + reserves`, where ADR-0017 found the outcome boundary for capital/depth ≤ 2.4.
-Neither historical anchor is a measurement of that ratio. In 1992 Quantum alone was
-≈ $10B against ≈ £27B of gross intervention (with many other sellers). In March 2023 the
-peak hourly CEX outflow ($1.2B) was ≈ 2.9% of Circle's $42.1B reserves, and the stranded
-$3.3B was 8%. **Against the single Curve leg the ratio put the attacker at 179× pool
-depth** (Story 2.3, F-05); against the fitted aggregate depth D* it is 0.098× (Story 2.4).
+**The attacker is the episode's net flow, not a design ratio (Story 2.5).** Stories 2.3–2.4
+set `capital = 1.0 × (budget + reserves)` (179,454,391, ≈ $42B), a design choice that put
+the attacker at ADR-0017's boundary. That row is **removed** (ADR-0019 amendment): it was ten
+times the observed flow and forced D\* to ≈ $430B per side (F-05 correction). The capital is
+now the net USDC supply change over the window the calibrated scenario covers,
+10 → 13 March 2023 (00:00 UTC snapshots), ≈ $2.71B. The ADR-0019 amendment quotes
+≈ $4.0B, which is the 11 → 15 March change used for redemption capacity (it includes
+Monday's and Tuesday's post-backstop redemptions); the AC's 10 → 13 window is the
+pre-backstop flow. The 1992 Quantum anchor stays as narrative only.
 
 ## Defender
 
@@ -171,7 +172,7 @@ depth** (Story 2.3, F-05); against the fitted aggregate depth D* it is 0.098× (
 
 | parameter | value used | source (URL, accessed) | raw figure | conversion | status |
 |---|---|---|---|---|---|
-| `agents[type=arbitrageur].capital` | 200000 | no public source | none | unchanged from `soros-baseline`: 0.2 × the 1,000,000 unit anchor (≈ $46.9M at `s`; 0.00011 × D*) | assumption |
+| `agents[type=arbitrageur].capital` | 200000 | no public source | none | unchanged from `soros-baseline`: 0.2 × the 1,000,000 unit anchor (≈ $46.9M at `s`; 0.012 × D*) | assumption |
 | `agents[type=arbitrageur].min_profit_bps` | 20 | no public source | none | unchanged from `soros-baseline` | assumption |
 | `agents[type=arbitrageur].latency_steps` | 1 | no public source | none | one slot (12 s) reaction time | assumption |
 
@@ -198,12 +199,12 @@ depth** (Story 2.3, F-05); against the fitted aggregate depth D* it is 0.098× (
 
 | ratio | value | from |
 |---|---|---|
-| pool depth / unit anchor (`market_depth_multiple`) | 1833.33 | fitted to −1300 bps trough (Story 2.4) |
-| redemption reserves / pool depth | 0.0753 | 138.1M / 1,833.3M (was 138.1 against the Curve leg) |
-| defender budget / pool depth | 0.0226 | 41.3M / 1,833.3M (was 41.3) |
+| pool depth / unit anchor (`market_depth_multiple`) | 16.67 | fitted to −1300 bps trough (re-fit, Story 2.5; was 1833.33 in 2.4) |
+| redemption reserves / pool depth | 8.29 | 138.1M / 16.67M |
+| defender budget / pool depth | 2.48 | 41.3M / 16.67M |
 | budget : reserves | 23.0 : 77.0 | 21Shares |
-| attacker / (budget + reserves) | 1.0 | design (ADR-0017) |
-| attacker / pool depth | 0.0979 | consequence of the above (was 179.5) |
-| redemption capacity per step / pool depth | 3.3e-07 | 605.79 / 1,833.3M (was 0.000606) |
+| attacker / (budget + reserves) | 0.064 | episode net burn (Story 2.5; the ratio-1.0 design row is removed) |
+| attacker / pool depth | 0.692 | 11.54M / 16.67M |
+| redemption capacity per step / pool depth | 3.6e-05 | 605.79 / 16.67M |
 | redemption capacity × max_steps / reserves | 0.079 | 10.9M / 138.1M |
-| arbitrageur / pool depth | 0.00011 | 200,000 / 1,833.3M, assumption (was 0.2) |
+| arbitrageur / pool depth | 0.012 | 200,000 / 16.67M, assumption |

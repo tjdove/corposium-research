@@ -31,11 +31,11 @@ so that the note's claims rest on more than internal consistency.
 
 ## Tasks / Subtasks
 
-- [ ] Part A (AC: 1–5)
-  - [ ] Compute net burn from the committed CSV; SOURCES.md attacker row; remove ratio-1.0 row
-  - [ ] Re-fit `D*`; update YAMLs and SOURCES.md; report three units
-  - [ ] Re-probe boundary; re-run and re-scan 1992
-  - [ ] Commit Part A
+- [x] Part A (AC: 1–5)
+  - [x] Compute net burn from the committed CSV; SOURCES.md attacker row; remove ratio-1.0 row
+  - [x] Re-fit `D*`; update YAMLs and SOURCES.md; report three units
+  - [x] Re-probe boundary; re-run and re-scan 1992
+  - [x] Commit Part A
 
 - [ ] Schema and environment (AC: 6, 7)
   - [ ] `EnvironmentConfig.price_series_path`; validator; hash inclusion

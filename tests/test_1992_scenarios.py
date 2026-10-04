@@ -63,8 +63,8 @@ def test_no_defense_differs_only_in_budget_and_spread():
 
 def test_content_hashes_are_pinned():
     assert [load_scenario(Path(p)).content_hash()[:12] for p in SCENARIOS] == [
-        "4d1e7c611e08",
-        "1e70ca4f11b2",
+        "329eda7c2118",
+        "1badaed6cf4a",
     ]
 
 

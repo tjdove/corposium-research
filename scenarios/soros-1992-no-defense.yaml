@@ -8,9 +8,9 @@
 # Built from docs/BACKGROUND.md "Mapping 1992 to the simulator"; magnitudes from §4-§5.
 # The ratios are the claim; the absolutes are presentation.
 #
-#   capital : budget : reserves : depth = 1.270 : 0.500 : 0.500 : 9.103 in soros-1992; here budget ~ 0
+#   capital : budget : reserves : depth = 1.270 : 0.500 : 0.500 : 0.083 in soros-1992; here budget ~ 0
 #
-# Units. Pool depth is D* = 1,833,333,333, the fitted aggregate depth of Story 2.4 Part A
+# Units. Pool depth is D* = 16,666,667, the aggregate depth re-fit in Story 2.5 Part A
 # and the only parameter shared with the USDC scenarios. 1992 balances use the same
 # model-unit scale as the calibrated scenarios, s = 1e6 / 234.6e6 per US dollar
 # (SOURCES.md), with GBP -> USD at 1.75. No figure exists for effective 1992 sterling
@@ -20,17 +20,17 @@
 # Time: one step is 12 s; one simulated "trading day" = 7,200 steps; the attack runs over
 # one such day starting 2 h in; max_steps is two days.
 #
-# Run (seed 42, Story 2.4): terminated_by reserves_exhausted at steps_run 7944 (1,988 steps
-# earlier than soros-1992); max_depeg_bps -1269.5 at step 5697 (soros-1992: -619.1);
-# redemption_paid_total 100,703,325. The price reaches -200 bps 1,723 steps and -500 bps
-# 2,589 steps sooner than in soros-1992.
+# Run (seed 42, Story 2.5 depth): terminated_by reserves_exhausted at steps_run 7806 (1,745
+# steps earlier than soros-1992); max_depeg_bps -7800.9 at step 1391 (soros-1992: -6332.2 at
+# 3054); redemption_paid_total 100,703,325. The price reaches -1000 bps at step 614 vs 2225
+# in soros-1992 (1,611 steps sooner).
 #
 # One line per parameter: path  value  status  source / reasoning
 # - seed  42  assumption  project convention (SOURCES.md#time)
 # - steps.interval_seconds  12  verified  SOURCES.md#time (Ethereum slot); kept so time matches the USDC scenarios
 # - steps.max_steps  14400  assumption  two trading days of 7,200 steps (story AC 6); BACKGROUND §3 is a one-day event
-# - amm.reserve_stable  1833333333  assumption  D* from Story 2.4 Part A (SOURCES.md#pool); BACKGROUND Mapping: "Market depth for sterling -> AMM pool depth"
-# - amm.reserve_reference  1833333333  assumption  equal to reserve_stable so the pool starts at peg
+# - amm.reserve_stable  16666667  assumption  D* re-fit in Story 2.5 Part A (SOURCES.md#pool); BACKGROUND Mapping: "Market depth for sterling -> AMM pool depth"
+# - amm.reserve_reference  16666667  assumption  equal to reserve_stable so the pool starts at peg
 # - amm.fee_bps  1  verified  as calibrated-baseline (SOURCES.md#pool)
 # - oracle.heartbeat_steps  6900  verified  as calibrated-baseline (SOURCES.md#oracle); BACKGROUND Mapping: "Delay before official prices catch up"
 # - oracle.deviation_threshold_pct  0.25  verified  as calibrated-baseline (SOURCES.md#oracle)
@@ -69,8 +69,8 @@ assets:
   - { symbol: STABLE, decimals: 18 }
   - { symbol: REF, decimals: 18 }
 amm:
-  reserve_stable: 1_833_333_333
-  reserve_reference: 1_833_333_333
+  reserve_stable: 16_666_667
+  reserve_reference: 16_666_667
   fee_bps: 1
 oracle:
   heartbeat_steps: 6900

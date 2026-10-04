@@ -43,14 +43,14 @@ def test_loads_and_follows_adr_0013(path):
     assert cfg.termination.peg_recovered.for_steps >= cfg.oracle.heartbeat_steps
     assert cfg.agents[0].start_step < cfg.termination.peg_recovered.for_steps  # ADR-0010
     assert cfg.steps.max_steps == 18_000
-    # attacker sits at capital / (budget + reserves) = 1.0 (ADR-0018)
-    assert cfg.agents[0].capital == cfg.agents[2].budget + cfg.redemption.reserves
+    # attacker = net USDC burn 10-13 Mar 2023 x s (ADR-0019 amendment), not ratio 1.0
+    assert cfg.agents[0].capital == round((43_176_044_700 - 40_468_620_896) * 1e6 / 234.6e6)
 
 
 def test_content_hashes_are_pinned():
     # A calibration change must be deliberate: update these with SOURCES.md.
     hashes = [load_scenario(Path(p)).content_hash()[:12] for p in SCENARIOS]
-    assert hashes == ["fae4d315a5a6", "2d8b5013683f"]
+    assert hashes == ["0ef967d36e34", "d7fe2f1626b8"]
 
 
 def test_stress_differs_only_in_name_and_volatility():
@@ -141,7 +141,7 @@ def test_data_files_small_and_documented():
         assert hashlib.sha256(f.read_bytes()).hexdigest() in readme
 
 
-D_STAR = 1_833_333_333  # Story 2.4: scripts/fit_depth.py, trough -1327.8 bps vs -1300 observed
+D_STAR = 16_666_667  # Story 2.5 re-fit: scripts/fit_depth.py, trough -1253.2 bps vs -1300 observed
 
 
 @pytest.mark.parametrize("path", SCENARIOS)

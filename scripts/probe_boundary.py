@@ -5,6 +5,10 @@ reserves)``, with every other parameter fixed, over a range of seeds; runs it wi
 ``run_sweep``, aggregates with ``aggregate_mc`` and prints the outcome shares per ratio
 from ``mc.parquet`` (plus the median trough and mean defender spend for context).
 
+Alongside, F-06's deliverable reserves ``min(reserves, capacity_per_step x max_steps)``,
+the flip ratio F-06 predicts, ``(budget + deliverable) / (budget + reserves)``, and each
+row's ``ratio_deliverable = capital / (budget + deliverable)`` (F-06 predicts the flip at 1).
+
 ``--dry-run`` prints the cells and exits without running.
 """
 
@@ -23,6 +27,7 @@ CAPITAL_PATH = "agents[type=attacker].capital"
 SEED_START = 1000
 COLUMNS = [
     "ratio",
+    "ratio_deliverable",
     "n",
     "p_reserves_exhausted",
     "p_peg_recovered",
@@ -37,6 +42,15 @@ def resources(scenario: Path) -> float:
     cfg = load_scenario(scenario)
     defender = next(a for a in cfg.agents if a.type == "defender")
     return defender.budget + cfg.redemption.reserves
+
+
+def deliverable(scenario: Path) -> tuple[float, float]:
+    """``(defender budget, deliverable reserves)``: what the redemption channel can pay
+    within ``max_steps`` at ``capacity_per_step`` (F-06)."""
+    cfg = load_scenario(scenario)
+    defender = next(a for a in cfg.agents if a.type == "defender")
+    red = cfg.redemption
+    return defender.budget, min(red.reserves, red.capacity_per_step * cfg.steps.max_steps)
 
 
 def spec_for(scenario: Path, ratios: list[float], seeds: int) -> SweepSpec:
@@ -75,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         f"ratios={len(ratios)} seeds={len(seeds)} ({seeds[0]}..{seeds[-1]}) "
         f"cells={len(ratios) * len(seeds)}"
     )
+    budget, deliv = deliverable(args.scenario)
+    print(
+        f"deliverable reserves = {deliv:,.0f}; F-06 predicted flip ratio = "
+        f"(budget + deliverable) / (budget + reserves) = {(budget + deliv) / total:.3f}"
+    )
     if args.dry_run:
         for r, c in zip(ratios, spec.linked_axes[0].values, strict=True):
             print(f"ratio {r:g}: capital {c:,.2f}")
@@ -83,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     sweep_dir = run_sweep(spec, args.output, workers=args.workers)
     mc = pd.read_parquet(aggregate_mc(sweep_dir))
     mc["ratio"] = (mc["attacker_capital"] / total).round(4)
+    mc["ratio_deliverable"] = (mc["attacker_capital"] / (budget + deliv)).round(4)
     print(mc[COLUMNS].to_string(index=False, float_format=lambda x: f"{x:,.3f}"))
     return 0
 
