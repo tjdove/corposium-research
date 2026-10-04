@@ -1,6 +1,6 @@
 # ADR-0020: Episode-flow attacker, re-fitted D*, fitted pace, inactive defender, and capacity-schedule semantics
 
-**Status:** Proposed
+**Status:** Accepted (amended in review)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.5 AC 12
@@ -74,3 +74,36 @@ Nothing else in `kernel/` changed; `PHASE_ORDER_VERSION` stays 1.
   fit one scenario. Measuring the band from the series is cleaner.
 - **Price-series hash by path:** machine-dependent hashes, so CI and local runs would
   disagree.
+
+## Review amendment (2026-10-04, dev manager)
+
+Accepted in full. The replay **does not validate the model**, and that is the result:
+observed trough −1,373 bps, simulated −5,769. The builder's diagnosis is correct and
+becomes **F-08**: the model has no agent who buys the discounted promise expecting par.
+In March 2023 that was market makers and funds buying USDC at $0.88 because they expected
+Circle to redeem at $1 once banks reopened. Neither the issuer (the defender) nor the
+fee-band arbitrageur represents them; the defender absorbed 89% of the attack in the
+calibrated fit only because it was standing in for a buyer the model lacks.
+
+**Decision (scope change to Epic 2, recorded in CHARTER.md decision log):**
+- **New Story 2.6 — Par-expecting buyer agent.** A `Holder`-class agent (the spec's
+  "holder" family, with the opposite sign: it *buys* under depeg) parameterised by capital,
+  an entry discount (buys when AMM price < `1 − entry_discount`), a pace, and a belief
+  horizon (it holds and redeems once capacity permits). Sized by **back-solving** from the
+  replay: the capital at which the simulated trough matches −1,373 bps with `D*` held at
+  the 2.5 value. One parameter fitted to one observation, same discipline as `D*`.
+- Charts move to **2.7**; committed figures and `make figures` to **2.8**. Epic 2's end
+  date moves from Oct 13 to **Oct 15**; feature freeze stays Oct 21.
+- The headline chart's x-axis takes the **F-03 price adjustment** (budget valued at what
+  it actually absorbs), per the F-06 refinement in Consequences.
+- `D*` stays at 16,666,667 for the 1992 scenarios; re-run them once 2.6 lands and record
+  whether the buyer changes the flip.
+
+**Minor rulings:**
+- Dropping `peg_recovered` from the replay: correct; measuring the band from the series is
+  cleaner than bending the criterion. Keep.
+- `threshold_pct 99.0` over `budget 1`: fine; schema parity wins.
+- 10→13 March net-burn window: the AC's window; the amendment's "$4.0B" was the wrong
+  figure for the attacker. Builder's reading stands.
+- Duplicate ADR-0019 file: dev manager's error (`cat >>` to a new name). Merged in this
+  review.

@@ -169,3 +169,4 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-02 | Engine language = Python (credibility, tooling) | Tim |
 | 2026-10-02 | Process = BMAD-style epics/stories; Claude writes them, Claude Code builds | Tim + Claude |
 | 2026-10-02 | New repo `corposium-research`, MIT license | Tim |
+| 2026-10-04 | Epic 2 gains Story 2.6 (par-expecting buyer) after the USDC replay failed validation (F-08); Epic 2 ends Oct 15; freeze stays Oct 21 | Tim (confirmed 2026-10-04: "Let the date slip. We need to address this issue.") |

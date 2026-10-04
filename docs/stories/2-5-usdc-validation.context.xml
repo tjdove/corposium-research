@@ -29,7 +29,7 @@
   <artifacts>
     <docs>
       <doc path="docs/stories/2-5-usdc-validation.md" section="Dev Notes">Why schema changes are allowed here; interpolation; timestamps; what "matches" means; defender encoding.</doc>
-      <doc path="docs/adr/0019-fitted-depth-1992-and-boundary.md" section="Review amendment">The attacker re-anchor decision and the re-fit expectation.</doc>
+      <doc path="docs/adr/0019-fitted-depth-and-1992-analogue.md" section="Review amendment">The attacker re-anchor decision and the re-fit expectation.</doc>
       <doc path="docs/FINDINGS.md" section="F-05 correction, F-06, F-07">What to re-check after the re-fit.</doc>
       <doc path="docs/calibration/SOURCES.md">Attacker row, market_depth_multiple row, capacity row to update.</doc>
       <doc path="data/README.md">Stress CSV and supply CSV provenance.</doc>

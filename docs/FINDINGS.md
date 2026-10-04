@@ -186,7 +186,7 @@ reason the choice matters.
 
 ## F-06 · When redemption is throughput-bound, the operative defense resource is what can be delivered within the horizon, and the far side of the boundary is "stays broken," not "runs dry"
 
-**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-1992-and-boundary.md) §3 · **Story:** 2.4
+**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-and-1992-analogue.md) §3 · **Story:** 2.4
 **Reproduce:** `python scripts/probe_boundary.py --ratios 0.1,0.2,0.25,0.3,0.4 --seeds 8`
 on the calibrated baseline
 
@@ -217,7 +217,7 @@ being unable to deploy them fast enough.
 
 ## F-07 · Sequential defenses leave a dead zone between them
 
-**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-1992-and-boundary.md) §4 · **Story:** 2.4
+**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-and-1992-analogue.md) §4 · **Story:** 2.4
 **Reproduce:** `python run.py scenarios/soros-1992.yaml`; look at `spread_changed` and
 `redeem_fulfilled` events against the price
 
@@ -255,7 +255,53 @@ attached to it does not.
 
 ---
 
-## Headline candidates (ranked, 2026-10-04)
+## F-08 · The replay fails validation: the model has no buyer of the discounted promise
+
+**Date:** 2026-10-04 · **ADR:** [0020](adr/0020-episode-flow-replay-and-capacity-schedule.md) · **Story:** 2.5
+**Reproduce:** `python run.py scenarios/usdc-2023.yaml` then
+`plot_validation_overlay(run_dir)`; compare with `data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv`
+
+**Expected.** With the attacker sized to the episode's net burn ($2.71B), depth fitted to
+the observed trough on the calibrated baseline (D\* ≈ $3.9B/side), pace fitted to trough
+timing, no AMM defender (Circle did not buy on AMMs), and a redemption-capacity step on
+Monday morning, the simulated price would track the observed USDC/USD path.
+
+**Observed.** Trough timing matches (31.6 h vs 31.0 h). Trough depth does not: −5,769 bps
+simulated vs −1,373 bps observed, four times too deep. The simulated price then climbs in
+a straight line at redemption speed and meets the observed path at 63 h; agreement after
+that is the oracle following the input series, not the model.
+
+**Why.** D\* was fitted on the calibrated baseline, where the AMM defender absorbed 89% of
+the attack. The replay correctly removes the defender, and nothing takes its place. The
+same fit rule on the replay would need D ≈ $31B per side, 72% of USDC's supply, which is
+not a depth. The missing counterparty is a **buyer who purchases discounted USDC
+expecting par**: market makers and funds who bought at $0.88 on the weekend because they
+expected Circle to redeem at $1.00 on Monday. The model's only discount buyers are the
+issuer (the defender, correctly absent) and a 200k fee-band arbitrageur.
+
+**What it changed.** Scope: Story 2.6 adds a par-expecting buyer agent, sized by
+back-solving from this replay with D\* held fixed. Charts move to 2.7, figures to 2.8.
+Epic 2 ends Oct 15 instead of Oct 13.
+
+**For the note.** This is the model's clearest limitation and its clearest lesson. A
+depeg's depth is set not by the attacker against the pool but by the attacker against
+*everyone who believes the promise*. In 1992 those were the convergence traders
+(BACKGROUND §4), and when their belief broke they switched sides. In 2023 they held, and
+the peg came back. The simulator cannot reproduce March 2023 without them, which is
+itself evidence for what decided March 2023.
+
+---
+
+## F-06 refinement (2026-10-04, from 2.5)
+
+At the re-fitted D\* the F-06 flip sits at nominal ratio ≈ 0.39, above the formula's 0.29.
+Cause: F-03. In a shallow pool the defender buys far below par, so its budget absorbs more
+than face value. The formula is a lower bound; the price-adjusted version (budget valued
+at what it actually bought) is the x-axis for 2.7's headline chart.
+
+---
+
+## Headline candidates (ranked, 2026-10-04, revised after 2.5)
 
 1. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
    surprise; mechanism clean; one sentence.
@@ -264,8 +310,11 @@ attached to it does not.
 3. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
    (F-01) — true, important for how "recovery" is measured, but less novel.
 
-The note probably leads with 1, states 2 as the framework, and uses 3 in the methods
-section to justify the recovery criterion.
+4. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
+   (F-08) — the validation lesson; may displace 1 if 2.6 confirms it quantitatively.
+
+The note probably leads with 1 or 4, states 2 as the framework, and uses 3 in the methods
+section to justify the recovery criterion. F-08 goes in the limitations section regardless.
 
 ---
 
@@ -278,7 +327,10 @@ section to justify the recovery criterion.
 - ~~Does the 1992-analogue scenario reproduce reserve exhaustion with the historical ratios?~~
   Yes at 5.3× Quantum, provisionally (F-07); re-run after the 2.5 depth re-fit.
 - Does D* land at a physical aggregate depth once the attacker is episode-sized? (2.5)
-- Does the model's USDC-2023 trajectory match the observed trough and recovery timing?
-  (2.5)
+- ~~Does the model's USDC-2023 trajectory match the observed trough and recovery timing?~~
+  Timing yes, depth no (F-08). Re-asked in 2.6 with the par-expecting buyer.
+- Does D* land at a physical aggregate depth once the attacker is episode-sized? Yes on the
+  calibrated baseline ($3.9B/side), but only because the defender stands in for the missing
+  buyer (F-08).
 - Is there a parameter-only predictor of the F-03 boundary (a closed form for expected
   defender absorption as a function of capital/depth)? (note appendix, not a story)
