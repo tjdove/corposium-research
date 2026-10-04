@@ -3,7 +3,7 @@
     <epicId>2</epicId>
     <storyId>2.6</storyId>
     <title>Par-Expecting Buyer Agent</title>
-    <status>ready-for-dev</status>
+    <status>in-progress</status>
     <generatedAt>2026-10-04</generatedAt>
     <generator>Claude (dev manager)</generator>
     <sourceStoryPath>docs/stories/2-6-holder-agent.md</sourceStoryPath>
@@ -54,14 +54,14 @@
     - No kernel/ or protocol/ changes. PHASE_ORDER_VERSION stays 1.
     - The holder never sells on the AMM in this story. No panic rule.
     - Holder never calls ctx.rng.
-    - C* chosen by the stated rule; no hand-picking; D* is NOT re-fitted.
+    - C* chosen by the stated rule (two refinement passes, amended 2026-10-04); no hand-picking; D* is NOT re-fitted.
     - Propagated holder capital in the four other scenarios = C* × (their depth / D*), stated in each header.
     - VALIDATION.md keeps the 2.5 table and adds the 2.6 one; do not overwrite history.
     - Python 3.12-compatible.
   </constraints>
 
   <interfaces>
-    <interface name="Holder" kind="Agent subclass" path="src/depeg_sim/agents/holder.py">Holder(agent_id, capital, entry_discount_pct, pace, redeem_when_capacity=True, redeem_fraction_min=0.1); classmethod from_config(cfg: HolderConfig)</interface>
+    <interface name="Holder" kind="Agent subclass" path="src/depeg_sim/agents/holder.py">Holder(agent_id, capital, entry_discount_pct, pace, redeem_when_capacity=True, redeem_horizon_steps=10); classmethod from_config(cfg: HolderConfig)</interface>
     <interface name="HolderConfig" kind="pydantic model" path="src/depeg_sim/kernel/config.py">type: Literal["holder"]; id: str; capital: float gt 0; entry_discount_pct: float ge 0; pace: float gt 0 le 1; redeem_when_capacity: bool = True</interface>
     <interface name="scripts/fit_holder.py" kind="script">args: --scenario (default scenarios/usdc-2023.yaml), --target-bps (default -1373), --entry-discount 2.0, --pace 0.05, --workers, --output, --dry-run. Prints the grid table then "C* = <units> (trough <bps>) ≈ $<dollars>".</interface>
   </interfaces>
@@ -71,7 +71,7 @@
     <locations>tests/</locations>
     <ideas>
       <test ac="1" idea="spot 0.99, discount 2% → hold_wait; spot 0.97 → hold_buy with pace × reference"/>
-      <test ac="1" idea="holding stable, queue non-empty → hold_wait; queue empty and capacity ≥ 10% of stable → hold_redeem for full balance"/>
+      <test ac="1" idea="holding stable, queue non-empty → hold_wait; queue empty → hold_redeem for min(stable, capacity × 10), one tranche per clear step"/>
       <test ac="1" idea="after redeem fulfilled at 0.999 on stable bought at 0.97: pnl > 0"/>
       <test ac="2" idea="all scenarios in scenarios/ hash identically before and after adding HolderConfig to the union (pin the hashes in a fixture)"/>
       <test ac="3" idea="trace on: one Decision per step with rule in the four names"/>

@@ -1,6 +1,6 @@
 # Story 2.6: Par-Expecting Buyer Agent
 
-Status: blocked
+Status: in-progress
 
 ## Story
 
@@ -10,10 +10,10 @@ so that the replay can reproduce the observed trough and the note can say what d
 
 ## Acceptance Criteria
 
-1. `src/depeg_sim/agents/holder.py`: `Holder(agent_id, capital, entry_discount_pct, pace, redeem_when_capacity)` extending `Agent`; starts `balances = {stable: 0, reference: capital}`; each step: if `amm.spot_price < 1 − entry_discount_pct/100` and `reference > 0` → `swap buy_stable` with `pace × reference_balance` (rule `hold_buy`); else if `redeem_when_capacity` and `stable > 0` and `redemption.queue_depth == 0` and `redemption.capacity_per_step >= stable × redeem_fraction_min` (see Dev Notes) → `redeem` all stable (rule `hold_redeem`); else if `stable > 0` → `hold_wait`; else `hold_done`; never sells on the AMM
+1. `src/depeg_sim/agents/holder.py`: `Holder(agent_id, capital, entry_discount_pct, pace, redeem_when_capacity)` extending `Agent`; starts `balances = {stable: 0, reference: capital}`; each step: if `amm.spot_price < 1 − entry_discount_pct/100` and `reference > 0` → `swap buy_stable` with `pace × reference_balance` (rule `hold_buy`); else if `redeem_when_capacity` and `stable > 0` and `redemption.queue_depth == 0` → `redeem` `min(stable, redemption.capacity_per_step × redeem_horizon_steps)` (rule `hold_redeem`; **amended 2026-10-04, see Rulings**); else if `stable > 0` → `hold_wait`; else `hold_done`; never sells on the AMM
 2. `HolderConfig(type: "holder", id, capital gt 0, entry_discount_pct ge 0, pace gt 0 le 1, redeem_when_capacity: bool = True)` added to `config.py` and the `AgentConfig` discriminated union; `build_agents` dispatches it; every existing scenario's `content_hash()` unchanged (test)
 3. Holder unit tests mirror 1.7's pattern (real AMM/oracle/redemption, manual phases): waits above the discount; buys below it at `pace`; redeems only when the queue is empty and capacity suffices; `hold_done` once out of both; PnL positive after a full buy-then-redeem-at-par cycle; one decision record per step when tracing
-4. `scripts/fit_holder.py`: on `scenarios/usdc-2023.yaml` with D\* fixed, adds a holder (`entry_discount_pct 2.0`, `pace 0.05`, `redeem_when_capacity true`) and sweeps `capital` over `[1M, 2M, 5M, 10M, 20M, 50M, 100M]` model units, picks the value whose `max_depeg_bps` is closest to −1,373, refines with 5 points between the neighbours, prints the table and `C* = … (trough …)` and the dollar figure at `s`; `--dry-run` supported
+4. `scripts/fit_holder.py`: on `scenarios/usdc-2023.yaml` with D\* fixed, adds a holder (`entry_discount_pct 2.0`, `pace 0.05`, `redeem_when_capacity true`) and sweeps `capital` over `[1M, 2M, 5M, 10M, 20M, 50M, 100M]` model units, picks the value whose `max_depeg_bps` is closest to −1,373, refines with 5 points between the neighbours, **then refines once more with 5 points between the new neighbours** (amended 2026-10-04), prints the table and `C* = … (trough …)` and the dollar figure at `s`; `--dry-run` supported
 5. `scenarios/usdc-2023.yaml` gains the fitted holder (`status: assumption, fitted to observed trough, this story`); replay re-run; overlay regenerated; `docs/calibration/VALIDATION.md` gains a **before/after** table (2.5 vs 2.6: trough depth, trough time, last-outside-band, recovery direction) and a paragraph on what the buyer fixed and what it didn't
 6. `SOURCES.md` gains a holder section: `capital` (assumption, fitted, with the dollar figure next to the episode net burn and the $9.7B cash figure for scale), `entry_discount_pct` and `pace` (assumption, reasoning), `redeem_when_capacity` (assumption: the weekend buyers redeemed once Circle reopened)
 7. `scenarios/calibrated-baseline.yaml`, `calibrated-stress.yaml`, `soros-1992.yaml`, `soros-1992-no-defense.yaml` each gain a holder at the **same capital-to-depth ratio** as the replay (`C* / D*`); all four re-run; outcomes before/after in Completion Notes; the 1992 flip re-scanned (4.0–7.0 by 0.1); `scripts/probe_boundary.py` re-run on the calibrated baseline
@@ -75,14 +75,19 @@ below"), and a future panic-seller is the same class with a sell rule.
 ### Redeem condition
 
 The holder should not redeem into a queue it can't clear (it would just sit behind the
-arbitrageur). Rule: redeem when `queue_depth == 0` and the facility's per-step capacity
-is at least `redeem_fraction_min` (default 0.1) of its stable balance, i.e. it can be
-paid out within ~10 steps. Expose `redeem_fraction_min` as a constructor default, not a
-config field (keeps `HolderConfig` to the four fields in AC 2).
+arbitrageur). **Rule (amended 2026-10-04, replaces the original):** when `queue_depth == 0`
+and `stable > 0`, redeem `min(stable, capacity_per_step × redeem_horizon_steps)`, with
+`redeem_horizon_steps` a constructor default of 10 (not a config field; `HolderConfig`
+keeps its four fields). The holder redeems in tranches the channel can pay within ~10
+steps, re-queuing each step the queue is clear. The original rule
+(`capacity ≥ redeem_fraction_min × stable`) scaled the condition to the holder's own
+balance, so a large holder could never redeem; that was a drafting error, see Blockers
+and Rulings. `redeem_fraction_min` is removed.
 
-Before the capacity schedule fires in the replay, capacity is 605.79/step against a
-holder that may hold millions of stable, so it will wait (`hold_wait`) all weekend and
-redeem Monday. That is the intended behaviour and it is the March-2023 story.
+Before the capacity schedule fires in the replay, capacity is 605.79/step, so over the
+weekend the holder can redeem at most ~6,058 per clear-queue step against a balance in the
+millions; the bulk is paid out after the Monday capacity change. That is the March-2023
+story. Report how much the holder redeems before and after the schedule fires.
 
 ### Expected fit
 
@@ -183,6 +188,47 @@ commit). `pytest`: 494 passed; `ruff check .` and `ruff format --check .` clean.
 **Not done (waiting on the ruling):** scenario YAML changes, replay re-run, overlay,
 VALIDATION.md / SOURCES.md, propagation, 1992 re-scan, probe, ADR.
 
+## Rulings
+
+**2026-10-04 (dev manager), on the Blockers above.**
+
+1. **Redeem rule → option 3.** The balance-scaled threshold was a drafting error: it made a
+   holder's willingness to redeem depend on its own size, and at C\* it made
+   `redeem_when_capacity` dead code. Replace with the tranche rule now in AC 1 and Dev
+   Notes: when the queue is empty, redeem `min(stable, capacity_per_step × 10)`. Rename the
+   constructor default `redeem_fraction_min` → `redeem_horizon_steps = 10`. Update
+   `tests/test_holder.py` accordingly (a large holder with an empty queue redeems one
+   tranche per step; a non-empty queue → `hold_wait`). Whatever this does to 1992 is the
+   answer to AC 7/8, not a problem to tune away: if the holder redeeming mid-attack
+   starves the arbitrageur or brings exhaustion forward, record it; that is the
+   "convergence traders switch sides" mechanism from BACKGROUND §4 appearing in the model.
+2. **Fit miss and the cliff → one more refinement pass, then accept.** AC 4 amended: after
+   the first 5-point refinement, refine again with 5 points between the new neighbours
+   (here 7.5M–12.5M). Take whatever is closest to −1,373 and stop. Do not hand-pick. The
+   cliff itself (7.5M → −2,207, 10M → −1,052, 12.5M → −216) is a model observation: a
+   buyer with a single entry price makes depth bimodal — attacker-set when the buyer is
+   exhausted, buyer-set (≈ entry discount) when it isn't — and the real trough sits
+   between the modes. Write this up in the Proposed ADR as a finding candidate ("real
+   buyers entered at a spread of prices; a single `entry_discount_pct` cannot land on
+   −1,373 exactly"). It is the natural motivation for a later multi-tranche holder; do
+   not build that here.
+3. **Trough timing 31.6 h → 34.5 h → record, do not re-fit pace.** Put both in the
+   VALIDATION.md before/after table with the ±2 h target and state that pace was fitted
+   without the holder in 2.5.
+4. **C\* < attack size → record as stated.** The Dev Notes' "above the attack size" test
+   was a crude proxy; the better statement is in the ADR: C\* in model units, dollars,
+   and as a fraction of the attacker's episode net burn, with the holder's absorbed volume
+   next to the defender's share from the calibrated baseline.
+5. **`build_agents` branch in the agent commit, not the config commit → accepted.** Right
+   call; the commit split was mine.
+
+Resume at the Fit task: re-run `fit_holder.py` under the amended AC 4 (the rule change
+should not move the trough; confirm), then continue to Propagate, ADR, close out as
+written. Set `Status: review` when done. Builder report should include the holder's
+redeemed volume before/after the capacity change in the replay, and in 1992 the holder's
+PnL, the arbitrageur's redeemed volume with and without the holder, and the step at which
+reserves exhaust.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -239,3 +285,4 @@ _(include: C* in three units, before/after overlay description, VALIDATION.md ta
 
 - 2026-10-04: Story drafted by dev manager after Story 2.5 review (F-08); inserted into Epic 2
 - 2026-10-04: Config, agent, tests and fit script implemented; C* = 10,000,000 fitted. Blocked: the normative redeem condition (`redeem_fraction_min` 0.1) never lets the holder redeem at C* in any scenario, contradicting the Dev Notes' "redeem Monday" intent (see Blockers)
+- 2026-10-04: Dev manager ruled on Blockers (option 3 tranche redeem rule; second refinement pass; record timing and cliff). AC 1, AC 4 and Dev Notes amended. Status back to in-progress.
