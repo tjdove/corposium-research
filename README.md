@@ -73,6 +73,7 @@ output/         run artifacts (gitignored)
 - `docs/adr/` — architecture and research decision records
 - `docs/CHARTER.md` — mission, scope, roles, timeline
 - `docs/epics.md` — build plan broken into stories
+- `docs/PROCESS.md` — how the dev-manager role runs the project; review checklist; process lessons
 - `docs/stories/` — one file per story with acceptance criteria and dev record
 - `CLAUDE.md` — working rules for coding agents
 

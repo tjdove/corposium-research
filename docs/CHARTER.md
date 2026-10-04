@@ -107,7 +107,7 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 - **Email is the bus.** Claude drafts briefs/status to Muse's own email address; Tim cc's Muse on project threads. Muse never receives dev credentials.
 - **Open Brain (Supabase)** = shared memory. Claude writes `[claude]`, Muse writes `[muse-ops]`, neither deletes or edits the other's entries.
 - **Seoul** = this repo and builds. **iPhone** = Muse, Corposium line, real-world interface. **Claude project "Corposium Research Lab"** = charter and plans (mirror of `docs/`).
-- **Process** = BMAD-style: `docs/epics.md` → `docs/stories/N-M-slug.md` (+ `.context.xml`) → build → senior review → retro per epic.
+- **Process** = BMAD-style: `docs/epics.md` → `docs/stories/N-M-slug.md` (+ `.context.xml`) → build → senior review → retro per epic. The operating manual, review checklist and process lessons are in `docs/PROCESS.md`.
 
 ---
 
