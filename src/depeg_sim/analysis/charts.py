@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 from pathlib import Path
 
 import matplotlib
@@ -305,6 +306,301 @@ def plot_validation_overlay(run_dir: Path) -> Path:
         color=GREY,
     )
     out = run_dir / VALIDATION_OVERLAY
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+# -- sweep charts (Story 2.7) ------------------------------------------------------------
+#
+# Both read only ``mc.parquet`` and the sweep ``manifest.json`` (axes, seeds, the resolved
+# ``base_config``; ADR-0014 pattern). Each panel is 10x6 in; footer
+# ``sweep=<name> base_hash=<12>``. Categorical series use a validated colour-blind-safe
+# order and always carry a distinct marker as well, so identity is never colour alone.
+
+THRESHOLD_SURFACE = "threshold_surface.png"
+ORACLE_SENSITIVITY = "oracle_sensitivity.png"
+USD_PER_UNIT = 234.6  # $ per model unit: 1,000,000 units = $234.6M (SOURCES.md, s)
+SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
+MARKERS = ("o", "s", "^", "D", "v")
+SEQ_BLUE = ("#f4f8fd", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b")
+DEPTH_PATH = "amm.reserve_stable"
+CAPITAL_PATH = "agents[type=attacker].capital"
+HEARTBEAT_PATH = "oracle.heartbeat_steps"
+THRESHOLD_PATH = "oracle.deviation_threshold_pct"
+DODGE = 1.06  # horizontal offset factor between threshold series on the log heartbeat axis
+
+
+def _read_sweep(sweep_dir: Path) -> tuple[pd.DataFrame, dict]:
+    from depeg_sim.experiments.mc import MC_PARQUET
+    from depeg_sim.experiments.sweep import SWEEP_MANIFEST
+
+    mc = pd.read_parquet(sweep_dir / MC_PARQUET)
+    manifest = json.loads((sweep_dir / SWEEP_MANIFEST).read_text(encoding="utf-8"))
+    return mc, manifest
+
+
+def _axis_named(manifest: dict, path: str) -> str:
+    """The column name of the axis that sets ``path``."""
+    for axis in manifest["axes"]:
+        if path in axis["paths"]:
+            return axis["name"]
+    raise ValueError(f"sweep {manifest['sweep_name']!r} has no axis setting {path!r}")
+
+
+def _p_broken(mc: pd.DataFrame) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """``p_stays_broken = 1 - p_peg_recovered`` with Wilson 95% bounds."""
+    from depeg_sim.analysis.stats import wilson
+
+    p = 1.0 - mc["p_peg_recovered"]
+    k = (p * mc["n"]).round().astype(int)
+    bounds = [wilson(int(ki), int(ni)) for ki, ni in zip(k, mc["n"], strict=True)]
+    return p, pd.Series([b[0] for b in bounds]), pd.Series([b[1] for b in bounds])
+
+
+def _usd(units: float, usd_per_unit: float) -> str:
+    v = units * usd_per_unit
+    return f"${v / 1e9:,.2f}B" if v >= 1e9 else f"${v / 1e6:,.0f}M"
+
+
+def _sweep_footer(fig, manifest: dict) -> None:
+    fig.text(
+        0.995,
+        0.002,
+        f"sweep={manifest['sweep_name']} base_hash={manifest['base_scenario_hash'][:12]}",
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        family="monospace",
+        color=GREY,
+    )
+
+
+def plot_threshold_surface(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Left: heatmap of ``p_stays_broken`` over pool depth x attacker capital with the 0.5
+    contour and each cell's Wilson half-width. Right: ``p_stays_broken`` against the
+    absorbed ratio ``capital / (defender_bought + holder_bought + redemption_paid)`` (means
+    over seeds), one marker per depth, with one binomial logistic fit through every cell."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    from depeg_sim.analysis.stats import fit_logistic
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    depth_col, cap_col = _axis_named(manifest, DEPTH_PATH), _axis_named(manifest, CAPITAL_PATH)
+    d_star = base["amm"]["reserve_stable"]
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+
+    mc = mc.sort_values([depth_col, cap_col]).reset_index(drop=True)
+    mc["p"], mc["lo"], mc["hi"] = _p_broken(mc)
+    absorbed = (
+        mc["defender_bought_stable_mean"].fillna(0)
+        + mc["holder_bought_stable_mean"].fillna(0)
+        + mc["redemption_paid_total_mean"].fillna(0)
+    )
+    mc["absorbed_ratio"] = mc[cap_col] / absorbed
+    depths = sorted(mc[depth_col].unique())
+    caps = sorted(mc[cap_col].unique())
+    grid = mc.pivot(index=depth_col, columns=cap_col, values="p").loc[depths, caps]
+    half = ((mc["hi"] - mc["lo"]) / 2).to_numpy().reshape(len(depths), len(caps))
+
+    fig, (left, right) = plt.subplots(1, 2, figsize=(20, 6), dpi=150, constrained_layout=True)
+
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
+    im = left.imshow(grid.to_numpy(), origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=1)
+    if (grid.to_numpy() >= 0.5).any() and (grid.to_numpy() < 0.5).any():
+        left.contour(grid.to_numpy(), levels=[0.5], colors=[ORANGE], linewidths=2.0)
+    for i in range(len(depths)):
+        for j in range(len(caps)):
+            v = grid.iat[i, j]
+            left.text(
+                j,
+                i,
+                f"{v:.2f}\n±{half[i, j]:.2f}",
+                ha="center",
+                va="center",
+                fontsize=7,
+                color="white" if v >= 0.55 else DARK,
+            )
+    left.set_xticks(range(len(caps)))
+    left.set_xticklabels(
+        [f"{c / resources:.2g}×\n{_usd(c, usd_per_unit)}" for c in caps], fontsize=8
+    )
+    left.set_yticks(range(len(depths)))
+    left.set_yticklabels(
+        [f"{d / d_star:.3g}× D*\n{_usd(d, usd_per_unit)}" for d in depths], fontsize=8
+    )
+    left.set_xlabel("attacker capital (× defender budget + redemption reserves; $)")
+    left.set_ylabel("pool depth per side (× D*; $)")
+    left.set_title(
+        "p(stays broken): heatmap, orange line = 0.5 contour, ± Wilson 95% half-width", fontsize=10
+    )
+    fig.colorbar(im, ax=left, label="p_stays_broken = 1 − p_peg_recovered", shrink=0.9)
+
+    k = (mc["p"] * mc["n"]).round().astype(int).tolist()
+    a, b = fit_logistic(mc["absorbed_ratio"].tolist(), k, mc["n"].astype(int).tolist())
+    x50 = -a / b
+    for idx, d in enumerate(depths):
+        g = mc[mc[depth_col] == d]
+        right.errorbar(
+            g["absorbed_ratio"],
+            g["p"],
+            yerr=[g["p"] - g["lo"], g["hi"] - g["p"]],
+            fmt=MARKERS[idx % len(MARKERS)],
+            ms=7,
+            color=SERIES[idx % len(SERIES)],
+            ecolor=BAND,
+            elinewidth=1.0,
+            mec="white",
+            mew=0.8,
+            label=f"depth {d / d_star:.3g}× D*",
+        )
+    xs = pd.Series(sorted(mc["absorbed_ratio"]))
+    span = xs.iloc[-1] - xs.iloc[0]
+    fine = [xs.iloc[0] - 0.05 * span + i * 1.1 * span / 200 for i in range(201)]
+    right.plot(
+        fine,
+        [1 / (1 + math.exp(-(a + b * x))) for x in fine],
+        color=DARK,
+        lw=1.6,
+        label=f"logistic fit, all cells: 0.5 at {x50:.3f}",
+    )
+    right.axhline(0.5, color=GREY, lw=0.8, ls="--")
+    right.axvline(1.0, color=GREY, lw=0.8, ls=":")
+    right.set_xlabel(
+        "absorbed ratio = capital / (defender bought + holder bought + redemption paid)"
+    )
+    right.set_ylabel("p_stays_broken")
+    right.set_ylim(-0.04, 1.04)
+    right.set_title("F-03 collapse test: one curve across depths?", fontsize=10)
+    right.legend(loc="upper left", fontsize=8, frameon=False)
+    right.spines[["top", "right"]].set_visible(False)
+
+    rec = base["termination"]["peg_recovered"]
+    red = base["redemption"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    hours = horizon * base["steps"]["interval_seconds"] / 3600
+    deliverable = red["capacity_per_step"] * horizon
+    fig.suptitle(
+        f"{manifest['sweep_name']}: where the peg stays broken "
+        f"(volatility {base['environment']['volatility_per_step']:g}/step, calm per F-04; "
+        f"holder present; {len(manifest['seeds'])} seeds per cell)\n"
+        f"stays broken = not back within ±{rec['tolerance'] * BPS:g} bps of par for "
+        f"{rec['for_steps']:,} steps by step {horizon:,} ({hours:.0f} h). Not reserve "
+        f"exhaustion: redemption can pay only {deliverable / 1e6:.1f}M of "
+        f"{red['reserves'] / 1e6:.1f}M reserves within the horizon (F-06).",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / THRESHOLD_SURFACE
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+def plot_oracle_sensitivity(sweep_dir: Path) -> Path:
+    """Two stacked panels on a shared log heartbeat axis, one line per deviation threshold:
+    the trough (``max_depeg_bps`` mean, p05-p95 band; the primary result) and
+    ``p_stays_broken`` with Wilson bars and the F-04 floor (the calibrated cell's value: the
+    base scenario's own attack at the calibrated oracle). The calibrated cell is ringed."""
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    hb_col = _axis_named(manifest, HEARTBEAT_PATH)
+    th_col = _axis_named(manifest, THRESHOLD_PATH)
+    mc = mc.sort_values([th_col, hb_col]).reset_index(drop=True)
+    mc["p"], mc["lo"], mc["hi"] = _p_broken(mc)
+    cal_hb = base["oracle"]["heartbeat_steps"]
+    cal_th = base["oracle"]["deviation_threshold_pct"]
+    cal = mc[(mc[hb_col] == cal_hb) & (mc[th_col] == cal_th)]
+
+    fig, (top, bottom) = plt.subplots(
+        2, 1, figsize=(10, 12), dpi=150, sharex=True, constrained_layout=True
+    )
+    thresholds = sorted(mc[th_col].unique())
+    for idx, th in enumerate(thresholds):
+        g = mc[mc[th_col] == th]
+        color, marker = SERIES[idx % len(SERIES)], MARKERS[idx % len(MARKERS)]
+        label = f"threshold {th:g}%" + (" (zero lag, ADR-0009)" if th == 0 else "")
+        # small multiplicative dodge on the log axis so coincident lines stay visible
+        x = g[hb_col] * DODGE ** (idx - (len(thresholds) - 1) / 2)
+        for q in ("p05", "p95"):
+            top.plot(x, g[f"max_depeg_bps_{q}"], color=color, lw=0.9, ls=":")
+        top.plot(x, g["max_depeg_bps_mean"], color=color, marker=marker, ms=7, lw=2, label=label)
+        bottom.errorbar(
+            x,
+            g["p"],
+            yerr=[g["p"] - g["lo"], g["hi"] - g["p"]],
+            color=color,
+            marker=marker,
+            ms=7,
+            lw=2,
+            capsize=3,
+            label=label,
+        )
+    lo_t, hi_t = mc["max_depeg_bps_mean"].min(), mc["max_depeg_bps_mean"].max()
+    top.text(
+        0.99,
+        0.98,
+        f"mean trough across all {len(mc)} cells: {lo_t:,.1f} to {hi_t:,.1f} bps "
+        f"(range {hi_t - lo_t:.1f} bps); dotted lines = p05 and p95",
+        transform=top.transAxes,
+        ha="right",
+        va="top",
+        fontsize=8,
+        color=GREY,
+    )
+    if not cal.empty:
+        c = cal.iloc[0]
+        cal_x = cal_hb * DODGE ** (thresholds.index(cal_th) - (len(thresholds) - 1) / 2)
+        for ax, y in ((top, c["max_depeg_bps_mean"]), (bottom, c["p"])):
+            ax.plot(
+                [cal_x],
+                [y],
+                marker="o",
+                ms=16,
+                mfc="none",
+                mec=DARK,
+                mew=1.5,
+                ls="none",
+                label=f"calibrated cell ({cal_hb}, {cal_th:g}%)",
+            )
+        bottom.axhline(
+            c["p"],
+            color=GREY,
+            lw=1.0,
+            ls="--",
+            label=f"F-04 floor {c['p']:.2f}: base attack at the calibrated oracle",
+        )
+    top.set_xscale("log")
+    top.set_ylabel("trough: max_depeg_bps (mean; dotted p05, p95)")
+    top.set_title("Trough against oracle heartbeat (primary result)", fontsize=10)
+    top.legend(loc="lower left", fontsize=8, frameon=False)
+    bottom.set_ylabel("p_stays_broken (Wilson 95%)")
+    bottom.set_ylim(-0.04, 1.04)
+    interval = base["steps"]["interval_seconds"]
+    bottom.set_xlabel(f"oracle heartbeat (steps of {interval} s, log scale)")
+    bottom.set_title(
+        "p_stays_broken: under stress volatility most seeds never re-enter the band "
+        "regardless of the attack (F-04)",
+        fontsize=10,
+    )
+    bottom.legend(loc="lower left", fontsize=8, frameon=False)
+    hbs = sorted(mc[hb_col].unique())
+    bottom.set_xticks(hbs)
+    bottom.set_xticklabels([f"{h:g}\n{h * interval / 60:g} min" for h in hbs], fontsize=8)
+    for ax in (top, bottom):
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.suptitle(
+        f"{manifest['sweep_name']}: does oracle lag matter? "
+        f"(volatility {base['environment']['volatility_per_step']:g}/step, "
+        f"{len(manifest['seeds'])} seeds per cell)",
+        fontsize=11,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / ORACLE_SENSITIVITY
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out

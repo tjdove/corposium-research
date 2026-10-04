@@ -1,0 +1,25 @@
+# Oracle-lag sensitivity, Monte Carlo (Story 2.7 AC 5).
+# Base: scenarios/calibrated-stress.yaml (stress-window volatility 0.0007561/step,
+# SOURCES.md#environment), holder present, attacker at the base file's episode flow
+# (11,540,596 = ratio 0.064 of budget + reserves). Stress, not calm, is the point: on a
+# calm reference the oracle has nothing to lag behind.
+# F-04 floor: under stress volatility most seeds never re-enter the +-31 bps band
+# whatever the attack, so p_stays_broken sits near 0.7 in every cell; the primary metric
+# here is max_depeg_bps (the trough), not p_stays_broken.
+# Axes:
+#   oracle.heartbeat_steps        {5, 25, 300, 1500, 6900}: 1 min, 5 min, 1 h, 5 h, and
+#                                 Chainlink USDC/USD's 82,800 s = 6,900 steps (SOURCES.md#oracle)
+#   oracle.deviation_threshold_pct {0, 0.1, 0.25, 1.0}: 0 is the zero-lag oracle (publishes
+#                                 every step, ADR-0009); 0.25 is Chainlink USDC/USD's deviation
+#                                 threshold (SOURCES.md#oracle)
+# The calibrated cell is (6900, 0.25). The arbitrageur trades the AMM against this oracle;
+# termination and the defender read the AMM's own peg deviation.
+# 5 x 4 = 20 grid points x 32 seeds = 640 runs; max_steps 18,000 = the ~60 h horizon.
+version: 1
+name: oracle-lag-mc
+base: scenarios/calibrated-stress.yaml
+axes:
+  oracle.heartbeat_steps: [5, 25, 300, 1500, 6900]
+  oracle.deviation_threshold_pct: [0, 0.1, 0.25, 1.0]
+seeds: { count: 32, start: 1000 }
+max_steps: 18000

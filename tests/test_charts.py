@@ -1,8 +1,16 @@
+import json
+
 import matplotlib
 import matplotlib.pyplot as plt
+import pandas as pd
+import pytest
 from test_metrics import cfg_with
 
-from depeg_sim.analysis.charts import plot_peg_trajectory
+from depeg_sim.analysis.charts import (
+    plot_oracle_sensitivity,
+    plot_peg_trajectory,
+    plot_threshold_surface,
+)
 from depeg_sim.experiments.runner import run_scenario
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 
@@ -29,3 +37,113 @@ def test_chart_without_attack_or_defense(tmp_path):
     data["agents"] = []
     art = run_scenario(ScenarioConfig.model_validate(data), output_dir=tmp_path, chart=False)
     assert plot_peg_trajectory(art.run_dir).is_file()
+
+
+# Story 2.7: sweep charts from a synthetic mc.parquet + manifest -------------------------
+
+ATK = "agents[type=attacker].capital"
+HB, TH = "oracle.heartbeat_steps", "oracle.deviation_threshold_pct"
+
+
+def _manifest(sweep_dir, name, base_path, axes, seeds=16):
+    base = load_scenario(base_path)
+    m = {
+        "sweep_name": name,
+        "base_scenario_hash": base.content_hash(),
+        "base_config": base.model_dump(mode="json"),
+        "axes": axes,
+        "seeds": list(range(1000, 1000 + seeds)),
+        "max_steps": 18000,
+    }
+    (sweep_dir / "manifest.json").write_text(json.dumps(m))
+
+
+def _surface_dir(tmp_path, step_at=1.0):
+    """5 depths x 3 capitals; p_peg_recovered 1.0 below absorbed ratio ``step_at``, 0 above."""
+    d = tmp_path / "surf"
+    d.mkdir()
+    depths = [4_166_667, 8_333_334, 16_666_667, 33_333_334, 66_666_668]
+    caps = [53_836_317, 89_727_196, 179_454_391]
+    rows = []
+    for i, depth in enumerate(depths):
+        for cap in caps:
+            absorbed = cap / (0.9 + 0.1 * caps.index(cap) + 0.01 * i)
+            ratio = cap / absorbed
+            rows.append(
+                {
+                    "pool_depth": depth,
+                    ATK: cap,
+                    "n": 16,
+                    "defender_bought_stable_mean": 0.8 * absorbed,
+                    "holder_bought_stable_mean": 0.15 * absorbed,
+                    "redemption_paid_total_mean": 0.05 * absorbed,
+                    "p_peg_recovered": 1.0 if ratio < step_at else 0.0,
+                }
+            )
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {
+            "name": "pool_depth",
+            "paths": ["amm.reserve_stable", "amm.reserve_reference", "agents[type=holder].capital"],
+            "values": depths,
+            "scales": [1, 1, 0.55],
+        },
+        {"name": ATK, "paths": [ATK], "values": caps},
+    ]
+    _manifest(d, "surf", "scenarios/calibrated-baseline.yaml", axes)
+    return d
+
+
+def test_threshold_surface_png(tmp_path):
+    d = _surface_dir(tmp_path)
+    png = plot_threshold_surface(d)
+    assert png == d / "threshold_surface.png"
+    assert png.stat().st_size > 20_000
+    img = plt.imread(png)
+    assert img.shape[:2] == (900, 3000)  # two 10x6 in panels at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_threshold_surface_without_any_crossing(tmp_path):
+    # every cell recovers: no 0.5 contour to draw, the chart still renders
+    d = _surface_dir(tmp_path, step_at=10.0)
+    assert plot_threshold_surface(d).is_file()
+
+
+def test_oracle_sensitivity_png(tmp_path):
+    d = tmp_path / "oracle"
+    d.mkdir()
+    rows = []
+    for th in (0.0, 0.25):
+        for hb in (5, 300, 6900):
+            rows.append(
+                {
+                    HB: hb,
+                    TH: th,
+                    "n": 32,
+                    "max_depeg_bps_mean": -1243.0 - th * hb / 1000,
+                    "max_depeg_bps_p05": -1253.0,
+                    "max_depeg_bps_p95": -1200.0,
+                    "p_peg_recovered": 0.3,
+                }
+            )
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": HB, "paths": [HB], "values": [5, 300, 6900]},
+        {"name": TH, "paths": [TH], "values": [0.0, 0.25]},
+    ]
+    _manifest(d, "oracle", "scenarios/calibrated-stress.yaml", axes, seeds=32)
+    png = plot_oracle_sensitivity(d)
+    assert png == d / "oracle_sensitivity.png"
+    assert png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (1800, 1500)  # two stacked 10x6 in panels
+    assert plt.get_fignums() == []
+
+
+def test_sweep_chart_needs_its_axis(tmp_path):
+    d = _surface_dir(tmp_path)
+    m = json.loads((d / "manifest.json").read_text())
+    m["axes"] = m["axes"][1:]
+    (d / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="amm.reserve_stable"):
+        plot_threshold_surface(d)

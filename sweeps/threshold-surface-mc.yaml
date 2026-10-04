@@ -1,6 +1,9 @@
 # Threshold surface at calibrated scale, Monte Carlo (Story 2.7 AC 3).
-# Base: scenarios/calibrated-stress.yaml (stress-window volatility 0.0007561/step,
-# SOURCES.md#environment), holder present. Numbers and their origins:
+# Base: scenarios/calibrated-baseline.yaml (calm volatility 3.086e-05/step,
+# SOURCES.md#environment), holder present. Calm, not stress, per F-04: under stress
+# volatility 11 of 16 seeds never re-enter the +-31 bps band whatever the attack, so
+# p_stays_broken has a ~0.69 floor and no 0.5 contour (Story 2.7 Blockers/Rulings).
+# Numbers and their origins:
 #   D* = 16,666,667 model units per side: calibrated pool depth, fitted by
 #        scripts/fit_depth.py (ADR-0019 amendment, Story 2.5); s = 1e6 / 234.6e6 model
 #        units per $, so D* ~ $3.91B per side.
@@ -19,7 +22,7 @@
 # 5 x 8 = 40 grid points x 16 seeds = 640 runs.
 version: 1
 name: threshold-surface-mc
-base: scenarios/calibrated-stress.yaml
+base: scenarios/calibrated-baseline.yaml
 linked_axes:
   - name: pool_depth
     paths: [amm.reserve_stable, amm.reserve_reference, "agents[type=holder].capital"]
