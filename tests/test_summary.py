@@ -1,11 +1,12 @@
 import json
 
 import pandas as pd
+import pytest
 from test_metrics import cfg_with, run
 
 from depeg_sim import __version__
 from depeg_sim.analysis.summary import SUMMARY_KEYS, summarize
-from depeg_sim.kernel.config import ScenarioConfig
+from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 from depeg_sim.kernel.scheduler import PHASE_ORDER_VERSION
 
 EXPECTED = [
@@ -25,6 +26,9 @@ EXPECTED = [
     "defender_interventions",
     "attacker_pnl",
     "arbitrageur_pnl",
+    "defender_bought_stable",
+    "holder_bought_stable",
+    "holder_pnl",
     "phase_order_version",
     "package_version",
 ]
@@ -55,6 +59,8 @@ def test_keys_exact_and_values():
     assert s["defender_interventions"] == world["defender-1"].interventions
     assert s["attacker_pnl"] == world["attacker-1"].pnl_last
     assert s["arbitrageur_pnl"] == world["arb-1"].pnl_last
+    assert s["defender_bought_stable"] == world["defender-1"].bought_stable > 0
+    assert s["holder_bought_stable"] is None and s["holder_pnl"] is None  # no holder
     assert s["phase_order_version"] == PHASE_ORDER_VERSION
     assert s["package_version"] == __version__
     json.dumps(s, allow_nan=False)  # strict JSON
@@ -93,6 +99,8 @@ def test_missing_agents_are_null():
     assert s["defender_spent"] is None
     assert s["defender_interventions"] is None
     assert s["arbitrageur_pnl"] is None
+    assert s["defender_bought_stable"] is None
+    assert s["holder_bought_stable"] is None and s["holder_pnl"] is None
     assert s["attacker_pnl"] is not None
 
 
@@ -118,3 +126,28 @@ def test_baseline_recovery_metrics():
     )
     assert s["steps_to_first_band_entry"] == 2
     assert s["steps_to_sustained_recovery"] == 42
+
+
+# Story 2.7 AC 1: the three absorbed-stable fields -------------------------------------
+
+
+def test_bought_stable_fields_on_calibrated_baseline():
+    data = load_scenario("scenarios/calibrated-baseline.yaml").model_dump(mode="json")
+    data["steps"]["max_steps"] = 300
+    cfg = ScenarioConfig.model_validate(data)
+    ctx, world, result, df = run(cfg)
+    s = summarize(cfg, result, df, world)
+    holder, defender = world["holder-1"], world["defender-1"]
+    assert s["holder_bought_stable"] == holder.bought_stable > 0
+    assert isinstance(s["holder_pnl"], float) and s["holder_pnl"] == holder.pnl_last
+    # defender_bought_stable is the amount_out of the defender's executed buys
+    outs = [
+        e.payload["amount_out"]
+        for e in result.events
+        if e.kind == "swap_executed"
+        and e.payload["source"] == "defender-1"
+        and e.payload["side"] == "buy_stable"
+    ]
+    assert outs and s["defender_bought_stable"] == pytest.approx(sum(outs), rel=1e-12)
+    assert s["defender_bought_stable"] == defender.bought_stable
+    json.dumps(s, allow_nan=False)

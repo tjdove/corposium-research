@@ -17,9 +17,10 @@ Statistics use only non-null values (a metric is null where it has no meaning, e
 ``steps_to_sustained_recovery`` on a run that never recovered). ``std`` uses
 ``ddof=1`` and is NaN with fewer than 2 values. Percentiles are
 ``numpy.percentile(method="linear")``. ``m_n`` counts the non-null values of a nullable
-metric. ``p_reserves_exhausted`` is the share of runs whose ``reserves_exhausted`` flag
-is set, with Wilson 95% bounds. The three ``terminated_by`` shares sum to 1. Rows are
-sorted by the axis columns in spec order.
+metric. A metric absent from ``sweep.parquet`` (a sweep run before Story 2.7 added the
+bought-stable and holder columns) aggregates to NaN. ``p_reserves_exhausted`` is the
+share of runs whose ``reserves_exhausted`` flag is set, with Wilson 95% bounds. The three
+``terminated_by`` shares sum to 1. Rows are sorted by the axis columns in spec order.
 """
 
 from __future__ import annotations
@@ -49,6 +50,9 @@ METRICS: tuple[str, ...] = (
     "defender_interventions",
     "attacker_pnl",
     "arbitrageur_pnl",
+    "defender_bought_stable",
+    "holder_bought_stable",
+    "holder_pnl",
 )
 NULLABLE = frozenset({"steps_to_first_band_entry", "steps_to_sustained_recovery"})
 STATS = ("mean", "std", "p05", "p50", "p95")
@@ -64,7 +68,9 @@ def axis_columns(manifest: dict) -> list[str]:
     return [axis["name"] for axis in manifest["axes"]]
 
 
-def _metric_stats(values: pd.Series) -> dict[str, float]:
+def _metric_stats(values: pd.Series | None) -> dict[str, float]:
+    if values is None:  # a sweep.parquet written before the metric existed
+        return dict.fromkeys(STATS, np.nan)
     v = pd.to_numeric(values, errors="coerce").to_numpy(dtype="float64")
     v = v[~np.isnan(v)]
     if v.size == 0:
@@ -82,7 +88,7 @@ def _metric_stats(values: pd.Series) -> dict[str, float]:
 def _grid_point(runs: pd.DataFrame) -> dict[str, float]:
     row: dict[str, float] = {"n": len(runs)}
     for m in METRICS:
-        stats = _metric_stats(runs[m])
+        stats = _metric_stats(runs.get(m))
         row |= {f"{m}_{s}": stats[s] for s in STATS}
         if m in NULLABLE:
             row[f"{m}_n"] = int(pd.to_numeric(runs[m], errors="coerce").notna().sum())

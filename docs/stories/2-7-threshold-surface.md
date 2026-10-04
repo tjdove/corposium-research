@@ -1,6 +1,6 @@
 # Story 2.7: Threshold Surface and Oracle-Lag Sensitivity
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 

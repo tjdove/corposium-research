@@ -20,7 +20,7 @@ mark real lever pulls.
 
 ``spent`` is reference actually sent to the AMM (``amount_in`` of its own executed
 swaps, applied in ``settle``), not planned spend. ``interventions`` counts those
-executed buys.
+executed buys. ``bought_stable`` is the stable those buys returned (``amount_out``).
 
 Rules: ``defend_buy``, ``defend_spread_widen`` (the step the spread is widened; its
 record's action is the list ``[spread change, buy]`` when it also buys),
@@ -78,6 +78,7 @@ class Defender(Agent):
         self.max_spend = max_spend
         self.spent = 0.0
         self.interventions = 0
+        self.bought_stable = 0.0
         self.spread_widened = False
         self.base_spread: int | None = None
 
@@ -145,6 +146,7 @@ class Defender(Agent):
     def _on_swap(self, detail: dict) -> None:
         if detail["side"] == "buy_stable":
             self.spent += detail["amount_in"]
+            self.bought_stable += detail["amount_out"]
             self.interventions += 1
 
     def _snapshot_extra(self) -> dict:

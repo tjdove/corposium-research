@@ -17,6 +17,11 @@ Recovery, per ADR-0013 (``tol = termination.peg_recovered.tolerance``):
 
 Values are plain Python types (no numpy scalars, no NaN) so the summary serialises to
 strict JSON. Missing agents give ``None``.
+
+``defender_bought_stable`` and ``holder_bought_stable`` are the stable each agent received
+from its executed AMM buys (``amount_out``), the first defender and holder in the world.
+With ``redemption_paid_total`` they are the three sinks for the attacker's stable at
+calibrated scale; Story 2.7's absorbed ratio is ``capital`` over their sum.
 """
 
 from __future__ import annotations
@@ -49,6 +54,9 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "defender_interventions",
     "attacker_pnl",
     "arbitrageur_pnl",
+    "defender_bought_stable",
+    "holder_bought_stable",
+    "holder_pnl",
     "phase_order_version",
     "package_version",
 )
@@ -95,7 +103,9 @@ def summarize(
                 sustained = result.steps_run - rec.for_steps - step_of_max
 
     red = world.get("redemption")
-    atk, arb, dfn = (_first(world, t) for t in ("attacker", "arbitrageur", "defender"))
+    atk, arb, dfn, hld = (
+        _first(world, t) for t in ("attacker", "arbitrageur", "defender", "holder")
+    )
     return {
         "scenario": cfg.name,
         "seed": _seed(result),
@@ -113,6 +123,9 @@ def summarize(
         "defender_interventions": None if dfn is None else dfn.interventions,
         "attacker_pnl": None if atk is None else _float(atk.pnl_last),
         "arbitrageur_pnl": None if arb is None else _float(arb.pnl_last),
+        "defender_bought_stable": None if dfn is None else _float(dfn.bought_stable),
+        "holder_bought_stable": None if hld is None else _float(hld.bought_stable),
+        "holder_pnl": None if hld is None else _float(hld.pnl_last),
         "phase_order_version": PHASE_ORDER_VERSION,
         "package_version": __version__,
     }

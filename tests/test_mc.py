@@ -324,3 +324,23 @@ def test_mc_cli_exit_codes(tmp_path, capsys):
     (d / "manifest.json").write_text(json.dumps({"sweep_name": "x"}))  # no axes
     assert mc_mod.main([str(d)]) == 3
     assert "error" in capsys.readouterr().err
+
+
+# Story 2.7 AC 1: the absorbed-stable columns -------------------------------------------
+
+
+def test_mc_carries_absorbed_stable_columns(tmp_path):
+    mc = pd.read_parquet(aggregate_mc(synthetic(tmp_path, rows_two_points())))
+    for m in ("defender_bought_stable", "holder_bought_stable", "holder_pnl"):
+        assert mc[f"{m}_mean"].tolist() == [1.0, 1.0]
+
+
+def test_pre_2_7_sweep_parquet_aggregates_to_nan(tmp_path):
+    rows = rows_two_points()
+    for r in rows:
+        for m in ("defender_bought_stable", "holder_bought_stable", "holder_pnl"):
+            del r[m]
+    mc = pd.read_parquet(aggregate_mc(synthetic(tmp_path, rows)))
+    assert list(mc.columns) == expected_columns(["pool_depth", ATK])
+    assert mc["holder_bought_stable_mean"].isna().all()
+    assert mc["max_depeg_bps_mean"].notna().all()
