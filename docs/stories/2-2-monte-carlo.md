@@ -1,6 +1,6 @@
 # Story 2.2: Monte Carlo over Seeds
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
