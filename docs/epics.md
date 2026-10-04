@@ -356,8 +356,8 @@ So that the note can state at what attacker size, relative to what the peg's def
 
 **Acceptance Criteria (summary; the story file is the contract, revised 2026-10-04 after 2.6):**
 1. `summary.json` gains `defender_bought_stable`, `holder_bought_stable`, `holder_pnl`; `LinkedAxis` gains `scales` so a depth axis can carry the holder at `C*/D*`
-2. `sweeps/threshold-surface-mc.yaml`: calibrated-stress, depth `D* × {0.25…4}` × attacker capital at ratio `{0.3…1.5}` of `budget + reserves`, 16 seeds; `plot_threshold_surface`: heatmap of **`p_stays_broken = 1 − p_peg_recovered`** (reserve exhaustion is unreachable within the horizon at calibrated throughput, F-06) with 0.5 contour and Wilson annotations, plus the F-03 collapse panel against the absorbed ratio
-3. `sweeps/oracle-lag-mc.yaml`: heartbeat `{5, 25, 300, 1500, 6900}` × deviation `{0, 0.1, 0.25, 1.0}%`, 32 seeds; `plot_oracle_sensitivity`: `max_depeg_bps` band and `p_stays_broken` vs heartbeat, one line per threshold
+2. `sweeps/threshold-surface-mc.yaml`: calibrated-**baseline** (calm, per F-04; revised 2026-10-04), depth `D* × {0.25…4}` × attacker capital at ratio `{0.3…1.5}` of `budget + reserves`, 16 seeds; `plot_threshold_surface`: heatmap of **`p_stays_broken = 1 − p_peg_recovered`** (reserve exhaustion is unreachable within the horizon at calibrated throughput, F-06) with 0.5 contour and Wilson annotations, plus the F-03 collapse panel against the absorbed ratio
+3. `sweeps/oracle-lag-mc.yaml` (calibrated-stress; trough is the primary metric, F-04 floor drawn on the recovery panel): heartbeat `{5, 25, 300, 1500, 6900}` × deviation `{0, 0.1, 0.25, 1.0}%`, 32 seeds; `plot_oracle_sensitivity`: `max_depeg_bps` band and `p_stays_broken` vs heartbeat, one line per threshold
 4. Both charts read only `mc.parquet` + manifest; the headline sentence drafted from the actual surface; Proposed ADR; tests on synthetic parquet; `pytest`, `ruff` pass
 
 **Prerequisites:** Stories 2.2, 2.3, 2.6

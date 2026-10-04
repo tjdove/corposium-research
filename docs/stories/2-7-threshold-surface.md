@@ -1,6 +1,6 @@
 # Story 2.7: Threshold Surface and Oracle-Lag Sensitivity
 
-Status: blocked
+Status: in-progress
 
 ## Story
 
@@ -12,13 +12,13 @@ so that the note can state at what attacker size, relative to what the peg's def
 
 1. `summarize` gains `defender_bought_stable`, `holder_bought_stable`, `holder_pnl` (floats; `None` when the agent is absent); `mc.parquet` carries them; every existing run-vs-rerun determinism test still passes; `scenario_hash` of every scenario unchanged
 2. `LinkedAxis` gains optional `scales: list[float]` (same length as `paths`, default all 1.0); each path is set to `value × scale`; existing sweep specs expand to identical cells (test on `sweeps/pool-depth-x-attacker.yaml`: same `index`, same per-cell `content_hash()` as before the change)
-3. `sweeps/threshold-surface-mc.yaml`: base `scenarios/calibrated-stress.yaml`; linked axis `pool_depth` over `D* × {0.25, 0.5, 1, 2, 4}` setting `amm.reserve_stable`, `amm.reserve_reference` (scale 1) and `agents[type=holder].capital` (scale `C*/D* = 0.55`); axis `agents[type=attacker].capital` over `ratio × (budget + reserves)` for ratio `{0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5}` (= 179,454,391 × ratio, rounded); 16 seeds from 1000; `max_steps` 18000; header comment states every number's origin; if no cell has `p_stays_broken ≥ 0.9`, extend the ratio axis upward by 0.5 steps until one does and say so in Completion Notes
+3. `sweeps/threshold-surface-mc.yaml`: base **`scenarios/calibrated-baseline.yaml`** (calm volatility, per F-04; amended 2026-10-04, see Rulings); linked axis `pool_depth` over `D* × {0.25, 0.5, 1, 2, 4}` setting `amm.reserve_stable`, `amm.reserve_reference` (scale 1) and `agents[type=holder].capital` (scale `C*/D* = 0.55`); axis `agents[type=attacker].capital` over `ratio × (budget + reserves)` for ratio `{0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5}` (= 179,454,391 × ratio, rounded); 16 seeds from 1000; `max_steps` 18000; header comment states every number's origin; if no cell has `p_stays_broken ≥ 0.9`, extend the ratio axis upward by 0.5 steps until one does and say so in Completion Notes
 4. `plot_threshold_surface(sweep_dir) -> Path` writes `threshold_surface.png`: **left panel** heatmap of `p_stays_broken = 1 − p_peg_recovered` over pool depth (rows, labelled as multiples of D\* and in $ at `s`) × attacker capital (columns, labelled as ratio to `budget + reserves` and in $), contour at 0.5, each cell annotated with its Wilson half-width; **right panel** `p_stays_broken` against the **absorbed ratio** `capital / (defender_bought_stable + holder_bought_stable + redemption_paid_total)` for every cell, one marker style per depth, with a logistic fit through all points and its 0.5 crossing printed in the legend (the F-03 collapse test at calibrated scale)
-5. `sweeps/oracle-lag-mc.yaml`: base `scenarios/calibrated-stress.yaml`; axes `oracle.heartbeat_steps {5, 25, 300, 1500, 6900}` × `oracle.deviation_threshold_pct {0, 0.1, 0.25, 1.0}`; 32 seeds from 1000; `max_steps` 18000; header states the calibrated cell is (6900, 0.25) and that 0 is zero-lag (ADR-0009)
-6. `plot_oracle_sensitivity(sweep_dir) -> Path` writes `oracle_sensitivity.png`: two panels sharing a log-x heartbeat axis — `max_depeg_bps` mean with p05–p95 band, one line per threshold; and `p_stays_broken` with Wilson bars, one line per threshold; the calibrated cell marked
+5. `sweeps/oracle-lag-mc.yaml`: base `scenarios/calibrated-stress.yaml` (stress volatility is the point: on a calm reference the oracle has nothing to lag behind; header says so and names the F-04 floor); axes `oracle.heartbeat_steps {5, 25, 300, 1500, 6900}` × `oracle.deviation_threshold_pct {0, 0.1, 0.25, 1.0}`; 32 seeds from 1000; `max_steps` 18000; header states the calibrated cell is (6900, 0.25) and that 0 is zero-lag (ADR-0009)
+6. `plot_oracle_sensitivity(sweep_dir) -> Path` writes `oracle_sensitivity.png`: two panels sharing a log-x heartbeat axis — `max_depeg_bps` mean with p05–p95 band, one line per threshold; and `p_stays_broken` with Wilson bars, one line per threshold, with the F-04 floor drawn as a horizontal reference (the `p_stays_broken` of the base scenario's own attack at ratio 0.064, from `probe_boundary.py`, stated in the caption as "under stress volatility most seeds never re-enter the band regardless of the attack"); the calibrated cell marked; **the trough panel is the primary result of this chart**
 7. Both chart functions read only `mc.parquet` and the sweep manifest (ADR-0014 pattern); chart conventions per `charts.py` (10×6 per panel, footer with sweep name and base scenario hash)
 8. Both sweeps run with `--mc`; both charts generated and looked at; `aggregate_mc` tables pasted in the Debug Log; `python -m depeg_sim.sweep sweeps/threshold-surface-mc.yaml --mc --workers N` and the oracle one each reported with wall time
-9. Completion Notes draft the note's headline sentence **from the actual surface**, in the form "At calibrated depth, an attack of ≥ X× the defenders' nominal resources leaves the peg broken through the 60-hour horizon with probability ≥ 0.5; across depths from 0.25× to 4× D\* the boundary sits at an absorbed ratio of Y ± Z", and a one-paragraph answer to "does oracle lag matter under deviation-triggered updates?"
+9. Completion Notes draft the note's headline sentence **from the actual surface**, in the form "At calibrated depth and calm volatility, an attack of ≥ X× the defenders' nominal resources leaves the peg broken through the 60-hour horizon with probability ≥ 0.5; across depths from 0.25× to 4× D\* the boundary sits at an absorbed ratio of Y ± Z", and a one-paragraph answer to "does oracle lag matter under deviation-triggered updates?"
 10. A `Proposed` ADR: the `p_stays_broken` metric choice (why not `p_reserves_exhausted` at calibrated scale), the absorbed-ratio definition, `scales` on linked axes, and any finding from the collapse or the oracle sweep
 11. `pytest` (chart tests on a tiny synthetic `mc.parquet` + manifest in `tmp_path`; summary field tests; `scales` tests) and `ruff check .` pass; CI green
 
@@ -56,6 +56,19 @@ so that the note can state at what attacker size, relative to what the peg's def
 - Scratch scripts whose numbers appear in the record go into the Debug Log in full.
 
 [Source: docs/stories/2-6-holder-agent.md#Senior-Developer-Review, docs/FINDINGS.md F-08 confirmation, F-09]
+
+### Base scenarios (amended 2026-10-04)
+
+The surface runs on the **calm** calibrated baseline. F-04 showed that under realised
+stress volatility most seeds never re-enter the ±31 bps band whatever the attack, so on
+`calibrated-stress` `p_stays_broken` has a floor near 0.69 and no 0.5 contour exists. The
+original AC 3 contradicted F-04 (dev-manager error, L-2). The note states the calm-volatility
+limitation next to the surface, and the `peg_recovered.reference` option that would lift
+it is Epic 3 work.
+
+The oracle sweep runs on **stress**, because oracle lag only matters when the reference
+moves. Its primary metric is `max_depeg_bps`; its `p_stays_broken` panel carries the F-04
+floor and says so.
 
 ### Why `p_stays_broken` and not `p_reserves_exhausted`
 
@@ -171,6 +184,31 @@ specifies, and the sweep manifest now carrying `base_config` (the resolved base 
 ADR-0014 pattern), so the charts can read `budget + reserves` from the manifest alone.
 Charts, the oracle sweep, the ADR and the close-out are not started.
 `pytest` and `ruff check .` pass at this commit (Debug Log).
+
+## Rulings
+
+**2026-10-04 (dev manager), on the Blockers above.**
+
+1. **Option (a).** Surface base → `scenarios/calibrated-baseline.yaml`. AC 3 amended. The
+   contradiction with F-04 was mine. Re-run the surface through the spec (not from the
+   scratch diagnostic) so `mc.parquet` and the manifest exist; the diagnostic tables stay
+   in the Debug Log as the record of why the base changed. The ADR and the figure caption
+   both state "calm volatility" and cite F-04.
+2. **Oracle sweep stays on stress.** AC 5 and AC 6 amended: trough panel is primary; the
+   `p_stays_broken` panel draws the F-04 floor (from the base scenario's own attack via
+   `probe_boundary.py`, one extra short run, reported) and the caption names it. If the
+   trough does not move with heartbeat at thresholds ≤ 0.25%, that is the oracle
+   paragraph.
+3. **Option (c) → Epic 3.** `peg_recovered.reference: peg | oracle` is scheduled there
+   (already in FINDINGS open questions). Not this story.
+4. **`base_config` in the sweep manifest → accepted.** Consistent with ADR-0014; mention
+   it in the ADR.
+5. **The specified-stress surface result is itself a finding refinement (F-04).** Record
+   in Completion Notes: 11 of 16 seeds never re-enter the band in any of 40 cells; median
+   final deviation +215 bps *above* peg. The dev manager will add it to FINDINGS at review.
+   Do not make a chart of it.
+
+Resume at the Threshold surface task with the amended base. Everything else as written.
 
 ## Dev Agent Record
 
@@ -406,3 +444,4 @@ $ python -m pytest 2>&1 | tail -1
 - 2026-10-04: AC 1 and AC 2 implemented (bca5025, d41c164). Threshold-surface sweep run
   as specified; blocked because the stress base's F-04 floor (p_stays_broken ≥ 0.6875 in
   every cell) contradicts F-04's calm-volatility rule for headline sweeps. Status: blocked.
+- 2026-10-04: Dev manager ruled on Blockers: surface on calm baseline (F-04), oracle on stress with trough primary; AC 3/5/6/9 and Dev Notes amended; Status back to in-progress

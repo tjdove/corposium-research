@@ -3,7 +3,7 @@
     <epicId>2</epicId>
     <storyId>2.7</storyId>
     <title>Threshold Surface and Oracle-Lag Sensitivity</title>
-    <status>ready-for-dev</status>
+    <status>in-progress</status>
     <generatedAt>2026-10-04</generatedAt>
     <generator>Claude (dev manager)</generator>
     <sourceStoryPath>docs/stories/2-7-threshold-surface.md</sourceStoryPath>
@@ -53,6 +53,7 @@
     - Charts read mc.parquet + manifest only; no scenario re-runs inside chart code.
     - Nominal ratio denominator = defender budget + redemption reserves (probe_boundary.resources); absorbed ratio denominator = defender_bought_stable + holder_bought_stable + redemption_paid_total.
     - No hand-tuning of axes to make a contour appear; the AC 3 extension rule is the only permitted change, and it is reported.
+    - Surface base is calibrated-baseline (calm, F-04); oracle base is calibrated-stress with max_depeg_bps primary and the F-04 floor drawn (amended 2026-10-04).
     - Python 3.12-compatible.
   </constraints>
 
