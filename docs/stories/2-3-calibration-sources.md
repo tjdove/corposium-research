@@ -174,6 +174,12 @@ wrote: output/calibrated-stress-42-546d2833
 exit=0
 ```
 
+CI on push of `b67fe61`:
+
+```
+completed	success	story 2.3: calibration sources	ci	main	push	37208088626	1m21s	2026-10-04T14:07:21Z
+```
+
 Verification reads (2026-10-04):
 
 ```
