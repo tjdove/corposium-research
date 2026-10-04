@@ -184,6 +184,77 @@ reason the choice matters.
 
 ---
 
+## F-06 · When redemption is throughput-bound, the operative defense resource is what can be delivered within the horizon, and the far side of the boundary is "stays broken," not "runs dry"
+
+**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-1992-and-boundary.md) §3 · **Story:** 2.4
+**Reproduce:** `python scripts/probe_boundary.py --ratios 0.1,0.2,0.25,0.3,0.4 --seeds 8`
+on the calibrated baseline
+
+**Expected.** At calibrated parameters an ADR-0017-style boundary at
+`capital / (budget + reserves) ≈ 1`, with `reserves_exhausted` beyond it.
+
+**Observed.** No boundary anywhere in 0.5–2.0: every run ends `max_steps`, none exhausts
+reserves. Probing lower, the recover/not-recover flip sits at nominal ratio 0.25–0.30.
+
+**Why.** Calibrated redemption capacity (605.79 per step, from the observed $1.02B/day net
+burn) can deliver only 10.9M of the 138M reserves within the 60-hour horizon. The
+attacker's stable can be absorbed by the defender's budget plus *deliverable* reserves,
+and nothing else. The builder's formula `(budget + capacity × horizon) / (budget +
+reserves)` = 0.291 predicts the observed flip. Beyond it the price simply stays below peg
+until the clock runs out; reserves are never touched because they can't be reached.
+
+**What it changed.** 2.6's primary axis becomes `capital / (budget + deliverable
+reserves)` with `deliverable = min(reserves, capacity × horizon)`. The three-way outcome
+(recover / stay broken / exhaust) replaces the two-way one.
+
+**For the note.** This is March 2023 exactly: Circle's reserves were never at risk; the
+redemption channel was shut by the banking weekend, so the price stayed broken until an
+outside event (the FDIC backstop) reopened it. The model reproduces that regime without
+being told to. In 1992 terms: it is the difference between running out of reserves and
+being unable to deploy them fast enough.
+
+---
+
+## F-07 · Sequential defenses leave a dead zone between them
+
+**Date:** 2026-10-04 · **ADR:** [0019](adr/0019-fitted-depth-1992-and-boundary.md) §4 · **Story:** 2.4
+**Reproduce:** `python run.py scenarios/soros-1992.yaml`; look at `spread_changed` and
+`redeem_fulfilled` events against the price
+
+**Expected.** The 1992 analogue would exhaust reserves at an attacker ratio near 1.0, as
+F-02 predicts for unconstrained redemption.
+
+**Observed.** The flip is at ratio 1.12 (5.3× Quantum). Below it the run stalls at about
+−196 bps with ~10% of reserves unpaid, forever.
+
+**Why.** The defender widens the redemption spread by 200 bps when it enters defense
+(standing for the rate rises). Redemption then only pays out below −200 bps. The defender's
+own trigger is −100 bps. Between −100 and −200 bps nobody acts: the defender has spent its
+budget, and redemption is priced out. It is F-01's dead zone again, created this time by
+the defense's own second lever.
+
+**What it changed.** The defender's spread policy needs a restore condition that isn't
+"back in band" (a `restore_threshold_pct`, Epic 3). The 1992 flip multiple is provisional
+until 2.5 re-fits depth.
+
+**For the note.** A defense with two levers can strand itself between them. The BoE's
+rate rises made holding sterling attractive but did nothing for anyone already selling;
+in the model, widening the exit price protects reserves at the cost of leaving the peg
+permanently a little broken.
+
+---
+
+## Correction to F-05 (2026-10-04)
+
+2.4's first depth fit produced D\* ≈ $430B per side, ten times USDC's supply. That is not
+an aggregate depth; it is the model absorbing an attacker sized at `ratio 1.0` (≈ $42B of
+selling) when the episode's net burn was ≈ $4B. ADR-0018's attacker ratio was the wrong
+input. 2.5 re-anchors the attacker to the observed episode flow and re-fits D\*. F-05's
+claim stands (a single-venue model needs an aggregate-depth assumption); the first number
+attached to it does not.
+
+---
+
 ## Headline candidates (ranked, 2026-10-04)
 
 1. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
@@ -204,8 +275,9 @@ section to justify the recovery criterion.
   (F-05); re-asked in 2.4 with the fitted aggregate depth.
 - ~~Under realised stress volatility, does `peg_recovered` remain reachable?~~ No (F-04);
   criterion to gain a `reference` option after 2.6.
-- Does the 1992-analogue scenario reproduce reserve exhaustion with the historical ratios?
-  (2.4)
+- ~~Does the 1992-analogue scenario reproduce reserve exhaustion with the historical ratios?~~
+  Yes at 5.3× Quantum, provisionally (F-07); re-run after the 2.5 depth re-fit.
+- Does D* land at a physical aggregate depth once the attacker is episode-sized? (2.5)
 - Does the model's USDC-2023 trajectory match the observed trough and recovery timing?
   (2.5)
 - Is there a parameter-only predictor of the F-03 boundary (a closed form for expected
