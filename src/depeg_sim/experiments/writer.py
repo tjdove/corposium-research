@@ -10,7 +10,9 @@ Everything is written once, at the end of the run, from in-memory data::
                          (checkpoints included, the chart written afterwards not)
 
 ``manifest.json`` also carries ``config``, the resolved scenario, so tools that only
-see ``run_dir`` (the chart) can read scenario parameters. Every file except the
+see ``run_dir`` (the chart) can read scenario parameters. With an observed reference
+series, ``config.environment.price_series_path`` is the resolved absolute path and
+``price_series_sha256`` the file's hash at load time. Every file except the
 manifest's ``created_utc`` is a deterministic function of scenario + seed.
 """
 
@@ -95,5 +97,8 @@ def write_run(
         "files": sorted({*files, MANIFEST}),
         "config": cfg.model_dump(mode="json"),
     }
+    if cfg.environment.price_series_path is not None:
+        # Story 2.5: the resolved path is in ``config``; the bytes it pointed at, here.
+        manifest["price_series_sha256"] = cfg.environment.price_series_sha256
     (run_dir / MANIFEST).write_text(_dump(manifest), encoding="utf-8")
     return manifest

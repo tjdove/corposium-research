@@ -413,3 +413,57 @@ def test_accounting_invariant_random_run():
     reasons = {e.payload["reason"] for e in events_of(c, "redeem_fulfilled")}
     assert reasons == {"full", "partial_capacity", "partial_reserves"}
     assert len(events_of(c, "reserves_exhausted")) == 1
+
+
+# Story 2.5: capacity schedule -------------------------------------------------------
+
+
+def test_capacity_schedule_drains_queue_after_its_step():
+    c = ctx()
+    m = RedemptionModule(
+        reserves=1e6, spread_bps=0, capacity_per_step=100.0, capacity_schedule=[(10, 1000.0)]
+    )
+    m.execute(c, redeem(5000.0))
+    queued = []
+    for _ in range(20):
+        m.on_phase(c, Phase.PROTOCOL_EVENTS)
+        queued.append(m.queued_total)
+        c.clock.tick()
+    assert queued[9] == 5000.0 - 10 * 100.0  # steps 0-9 at 100 per step
+    assert queued[13] == 0.0  # 4000 left at step 10 drains in 4 steps at 1000
+    changed = events_of(c, "capacity_changed")
+    assert [e.payload for e in changed] == [{"step": 10, "old": 100.0, "new": 1000.0}]
+    assert m.capacity_per_step == 1000.0
+
+
+def test_capacity_schedule_applies_before_process_on_its_step():
+    c = ctx()
+    m = RedemptionModule(
+        reserves=1e6, spread_bps=0, capacity_per_step=1.0, capacity_schedule=[(0, 50.0)]
+    )
+    m.execute(c, redeem(50.0))
+    m.on_phase(c, Phase.PROTOCOL_EVENTS)
+    assert m.queued_total == 0.0
+    kinds = [e.kind for e in c.events.all()]
+    assert kinds.index("capacity_changed") < kinds.index("redeem_fulfilled")
+
+
+@pytest.mark.parametrize("schedule", [[(5, 1.0), (5, 2.0)], [(5, 1.0), (3, 2.0)], [(-1, 1.0)]])
+def test_capacity_schedule_must_ascend(schedule):
+    with pytest.raises(ValueError, match="strictly ascending"):
+        RedemptionModule(
+            reserves=1.0, spread_bps=0, capacity_per_step=1.0, capacity_schedule=schedule
+        )
+
+
+def test_capacity_schedule_config_validator():
+    with pytest.raises(ValueError, match="strictly ascending"):
+        RedemptionConfig(
+            reserves=1.0,
+            spread_bps=0,
+            capacity_per_step=1.0,
+            capacity_schedule=[
+                {"step": 5, "capacity_per_step": 1.0},
+                {"step": 5, "capacity_per_step": 2.0},
+            ],
+        )

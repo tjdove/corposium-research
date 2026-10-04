@@ -43,7 +43,7 @@ class RunArtifacts:
 
 def build_world(cfg: ScenarioConfig, ctx: RunContext) -> dict[str, Subsystem]:
     """Build and register every subsystem; returns them by name, in registration order."""
-    env = ReferencePrice.from_config(cfg.environment)
+    env = ReferencePrice.from_config(cfg.environment, cfg.steps.interval_seconds)
     oracle = Oracle.from_config(cfg.oracle, source=env)
     amm = ConstantProductAMM.from_config(cfg.amm, peg_price=cfg.redemption.peg_price)
     red = RedemptionModule.from_config(cfg.redemption)

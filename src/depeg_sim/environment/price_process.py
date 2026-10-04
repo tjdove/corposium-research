@@ -24,6 +24,13 @@ half a percent. A shock at step 0 applies to the first price. Two shocks on the 
 step are summed (``-3`` and ``-2`` act as one ``-5`` shock, not ``0.97 * 0.98``). A
 step's summed shock must be > -100 so the price stays positive.
 
+Observed series (Story 2.5): ``from_series`` (or ``from_config`` with
+``price_series_path`` set) loads a CSV with ``unix`` and ``close`` columns, linearly
+interpolates ``close`` onto steps ``k`` at ``unix_0 + interval_seconds * k`` and stores
+that array once. Each step's price is then ``series[k]``, and the last value holds past
+the end of the series. No noise and no shocks apply (the config validator forbids
+them), so nothing draws from ``ctx.rng``. ``price_updated`` is emitted as before.
+
 Construction validates and raises ``ValueError``; ``on_phase`` never raises.
 """
 
@@ -31,7 +38,11 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+import numpy as np
+import pandas as pd
 
 from depeg_sim.kernel.config import EnvironmentConfig, ShockEvent
 from depeg_sim.kernel.interfaces import Subsystem
@@ -76,14 +87,48 @@ class ReferencePrice(Subsystem):
         self._price = self.base_price
         self._prev_price = self.base_price
         self.step_applied_shocks: list[tuple[int, float]] = []
+        self._series: np.ndarray | None = None
 
     @classmethod
-    def from_config(cls, cfg: EnvironmentConfig) -> ReferencePrice:
+    def from_config(cls, cfg: EnvironmentConfig, interval_seconds: int = 12) -> ReferencePrice:
+        if cfg.price_series_path is not None:
+            return cls.from_series(cfg.price_series_path, interval_seconds)
         return cls(
             base_price=cfg.base_price,
             volatility_per_step=cfg.volatility_per_step,
             shocks=cfg.shocks,
         )
+
+    @classmethod
+    def from_series(
+        cls, path: Path, interval_seconds: int, base_price: float = 1.0
+    ) -> ReferencePrice:
+        """A reference that replays an observed series, interpolated to steps (hold-last).
+
+        ``base_price`` is only the price reported before the first update when the
+        series cannot supply one; with a series it is the series' first value."""
+        df = pd.read_csv(path)
+        missing = {"unix", "close"} - set(df.columns)
+        if missing:
+            raise ValueError(f"price series {path} lacks columns {sorted(missing)}")
+        if not interval_seconds > 0:
+            raise ValueError(f"interval_seconds must be > 0, got {interval_seconds}")
+        unix = df["unix"].to_numpy(dtype="float64")
+        close = df["close"].to_numpy(dtype="float64")
+        if len(unix) < 1 or np.any(np.diff(unix) <= 0):
+            raise ValueError(f"price series {path} needs strictly ascending unix timestamps")
+        if not (np.all(np.isfinite(close)) and np.all(close > 0)):
+            raise ValueError(f"price series {path} has a non-positive or non-finite close")
+        n = int((unix[-1] - unix[0]) // interval_seconds) + 1
+        steps_unix = unix[0] + interval_seconds * np.arange(n, dtype="float64")
+        env = cls(base_price=float(close[0]) if len(close) else base_price, volatility_per_step=0.0)
+        env._series = np.interp(steps_unix, unix, close)
+        return env
+
+    @property
+    def series(self) -> np.ndarray | None:
+        """The interpolated per-step series, or ``None`` for a stochastic reference."""
+        return self._series
 
     @property
     def price(self) -> float:
@@ -98,7 +143,9 @@ class ReferencePrice(Subsystem):
         step = ctx.clock.step_index
         prev = self._price
         p = prev
-        if self.volatility_per_step > 0:
+        if self._series is not None:
+            p = float(self._series[min(step, len(self._series) - 1)])
+        elif self.volatility_per_step > 0:
             p *= math.exp(self.volatility_per_step * float(ctx.rng.standard_normal()))
         shock_pct = self._shocks_by_step.get(step, 0.0)
         if step in self._shocks_by_step:

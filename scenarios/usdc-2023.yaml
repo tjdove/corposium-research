@@ -1,0 +1,83 @@
+# USDC March-2023 replay — validation against the observed depeg (Story 2.5).
+# calibrated-baseline parameters (docs/calibration/SOURCES.md) with five changes:
+#   1. environment: the observed USDC/USD series replaces the stochastic reference
+#      (price_series_path, Bitstamp hourly closes, linearly interpolated to 12 s steps,
+#      held at the last close past the series end). volatility 0, no shocks.
+#   2. attacker start_step at Circle's disclosure, pace fitted to the trough's timing.
+#   3. defender inactive: threshold_pct 99.0 (assumption). Circle did not buy USDC on
+#      AMMs; neither 21Shares (issue 193) nor Chainalysis reports any market purchase by
+#      the issuer. A -99% trigger is never reached; the budget is kept as calibrated so
+#      the scenario schema stays the calibrated one (chosen over budget 1 for that reason).
+#   4. redemption.capacity_schedule: calibrated weekend throughput, then at the bank
+#      reopening a capacity that clears any payable queue within one day (assumption).
+#   5. steps.max_steps covers 2023-03-10 22:00 ET to 2023-03-14 12:00 ET, and
+#      termination.peg_recovered is removed so the replay always runs the whole window:
+#      with the attack at step 8100 > for_steps 6900, the pre-attack calm would count as
+#      recovery (ADR-0010). The ADR-0013 band (31 bps) is measured from the timeseries
+#      instead (docs/calibration/VALIDATION.md).
+#
+# Timestamps (the series is UTC; US daylight saving began 2023-03-12 02:00, so ET is
+# UTC-5 on 10-11 March and UTC-4 from 12 March):
+#   series start   first unix in the CSV       1678406400 = 2023-03-10 00:00 UTC   step 0
+#   attack start   2023-03-10 22:00 ET (EST) = 2023-03-11 03:00 UTC = 1678503600
+#                  (1678503600 - 1678406400) / 12 = 97200 / 12 = 8100            step 8100
+#                  Circle's disclosure of the $3.3B held at SVB (Chainalysis)
+#   obs. trough    2023-03-11 ~02:00 ET (EST) = 07:00 UTC = 1678518000 (Chainalysis, "by 2am")
+#                  (1678518000 - 1678406400) / 12 = 111600 / 12 = 9300           step 9300
+#                  the CSV's lowest close is at the same hour: 0.86267 (-1373 bps)
+#   backstop       2023-03-13 09:00 ET (EDT) = 13:00 UTC = 1678712400
+#                  (1678712400 - 1678406400) / 12 = 306000 / 12 = 25500          step 25500
+#                  banks reopen Monday and Circle's liquidity operations resume (Circle,
+#                  12/13 Mar, via Ledger Insights; SOURCES.md#redemption). The Fed/Treasury/
+#                  FDIC statement came Sunday evening (12 Mar), but redemptions could only
+#                  clear once banks opened, so the capacity change sits at Monday 09:00 ET.
+#   series end     last unix 1678748400 = 2023-03-13 23:00 UTC                   step 28500
+#                  after this the reference holds the last close (0.99553) for 17 h
+#   run end        2023-03-14 12:00 ET (EDT) = 16:00 UTC = 1678809600
+#                  (1678809600 - 1678406400) / 12 = 403200 / 12 = 33600 -> max_steps 33600
+#
+# Fitted pace: scanned over [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1] with
+# sweeps/usdc-2023-pace.yaml; the value whose step_of_max_depeg is closest to step 9300
+# is used (status assumption). Scan table and the run's outcome: Story 2.5 Completion
+# Notes and docs/calibration/VALIDATION.md.
+version: 1
+name: usdc-2023
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 33600
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 16_666_667
+  reserve_reference: 16_666_667
+  fee_bps: 1
+oracle:
+  heartbeat_steps: 6900
+  deviation_threshold_pct: 0.25
+redemption:
+  reserves: 138_107_417
+  spread_bps: 0
+  capacity_per_step: 605.79
+  peg_price: 1.0
+  capacity_schedule:
+    # 138,107,417 / 7,200 = 19,181.59: the whole reserve could be paid in one day, so any
+    # payable queue clears within a day of the reopening
+    - { step: 25500, capacity_per_step: 19181.59 }
+environment:
+  base_price: 1.0
+  volatility_per_step: 0.0
+  shocks: []
+  price_series_path: ../data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv
+agents:
+  - { type: attacker, id: attacker-1, capital: 11_540_596, start_step: 8100, pace: 0.002 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 99.0, spend_pace: 0.2 }
+termination:
+  reserves_exhausted: true
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: false
+  checkpoint_every: 6900

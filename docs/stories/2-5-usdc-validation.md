@@ -1,6 +1,6 @@
 # Story 2.5: USDC March-2023 Validation
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -37,26 +37,26 @@ so that the note's claims rest on more than internal consistency.
   - [x] Re-probe boundary; re-run and re-scan 1992
   - [x] Commit Part A
 
-- [ ] Schema and environment (AC: 6, 7)
-  - [ ] `EnvironmentConfig.price_series_path`; validator; hash inclusion
-  - [ ] `RedemptionConfig.capacity_schedule`; validator
-  - [ ] `ReferencePrice.from_config` series loading + interpolation; `RedemptionModule` schedule application in `PROTOCOL_EVENTS` (emit `capacity_changed`)
-  - [ ] Tests per AC 7 plus a capacity-schedule test (queue drains after the step)
+- [x] Schema and environment (AC: 6, 7)
+  - [x] `EnvironmentConfig.price_series_path`; validator; hash inclusion
+  - [x] `RedemptionConfig.capacity_schedule`; validator
+  - [x] `ReferencePrice.from_config` series loading + interpolation; `RedemptionModule` schedule application in `PROTOCOL_EVENTS` (emit `capacity_changed`)
+  - [x] Tests per AC 7 plus a capacity-schedule test (queue drains after the step)
 
-- [ ] Replay scenario (AC: 8)
-  - [ ] Compute `start_step`, backstop step, `max_steps` from the series timestamps; put the arithmetic in the YAML header
-  - [ ] Scan `pace`; pick; record
-  - [ ] Run; record three CLI lines
+- [x] Replay scenario (AC: 8)
+  - [x] Compute `start_step`, backstop step, `max_steps` from the series timestamps; put the arithmetic in the YAML header
+  - [x] Scan `pace`; pick; record
+  - [x] Run; record three CLI lines
 
-- [ ] Overlay and validation doc (AC: 9, 10)
-  - [ ] `analysis/charts.py::plot_validation_overlay`
-  - [ ] `docs/calibration/VALIDATION.md`; look at the PNG and describe it
+- [x] Overlay and validation doc (AC: 9, 10)
+  - [x] `analysis/charts.py::plot_validation_overlay`
+  - [x] `docs/calibration/VALIDATION.md`; look at the PNG and describe it
 
-- [ ] ADR, tests, close out (AC: 11, 12, 13)
-  - [ ] Proposed ADR; `tests/test_usdc_2023.py`
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 2.5: usdc march-2023 validation`, push to `main`
+- [x] ADR, tests, close out (AC: 11, 12, 13)
+  - [x] Proposed ADR; `tests/test_usdc_2023.py`
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 2.5: usdc march-2023 validation`, push to `main`
 
 ## Dev Notes
 
@@ -140,22 +140,344 @@ reaches (e.g. 99.0) and note it. Setting budget to 1 also works; pick one and st
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul
 
 ### Debug Log References
 
-_(real command output; fit table, probe table, pace scan, 1992 re-scan, replay CLI lines)_
+Final pass, captured after all edits (one shell block, output verbatim):
+
+```
+$ pytest; echo exit=$?
+454 passed in 5.79s
+exit=0
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+$ ruff format --check .; echo exit=$?
+79 files already formatted
+exit=0
+$ python scripts/fit_depth.py --workers 8; echo exit=$?
+grid pass (target -1300 bps):
+ pool_depth  max_depeg_bps terminated_by  defender_spent  steps_run
+    1000000       -7,844.7 peg_recovered     5,161,788.5       7030
+    2000000       -5,979.0 peg_recovered     6,770,897.2       7040
+    5000000       -3,398.8 peg_recovered     8,692,778.7       7018
+   10000000       -1,962.2 peg_recovered     9,702,523.8       7083
+   20000000       -1,061.3 peg_recovered    10,435,472.6       7017
+   50000000         -446.1 peg_recovered    10,884,406.8       7001
+  100000000         -226.9 peg_recovered    10,828,747.0       7204
+  200000000         -154.7 peg_recovered    10,960,204.7       6987
+  500000000         -116.0 peg_recovered    10,846,809.0       6982
+
+refine pass between 10,000,000 and 20,000,000:
+ pool_depth  max_depeg_bps terminated_by  defender_spent  steps_run
+   11666667       -1,719.2 peg_recovered     9,879,920.7       7086
+   13333333       -1,529.7 peg_recovered    10,056,633.2       7005
+   15000000       -1,377.7 peg_recovered    10,169,402.5       7004
+   16666667       -1,253.2 peg_recovered    10,261,333.7       7024
+   18333333       -1,149.3 peg_recovered    10,332,016.4       7043
+
+D* = 16666667 (trough -1253.2 bps)
+exit=0
+$ python scripts/probe_boundary.py --workers 8 --ratios 0.1,0.2,0.25,0.3,0.4,0.5,1.0; echo exit=$?
+probe_boundary: scenario=scenarios/calibrated-baseline.yaml budget+reserves=179,454,391 ratios=7 seeds=8 (1000..1007) cells=56
+deliverable reserves = 10,904,220; F-06 predicted flip ratio = (budget + deliverable) / (budget + reserves) = 0.291
+ ratio  ratio_deliverable  n  p_reserves_exhausted  p_peg_recovered  p_max_steps  max_depeg_bps_p50  defender_spent_mean
+ 0.100              0.343  8                 0.000            1.000        0.000         -1,849.554       15,379,811.079
+ 0.200              0.687  8                 0.000            1.000        0.000         -3,229.693       27,842,908.468
+ 0.250              0.859  8                 0.000            1.000        0.000         -3,791.857       33,251,805.611
+ 0.300              1.030  8                 0.000            1.000        0.000         -4,286.803       38,249,139.232
+ 0.400              1.374  8                 0.000            0.375        0.625         -5,114.358       41,346,974.000
+ 0.500              1.717  8                 0.000            0.000        1.000         -6,858.466       41,346,974.000
+ 1.000              3.434  8                 0.000            0.000        1.000         -9,151.481       41,346,974.000
+exit=0
+$ python scripts/probe_boundary.py --workers 8 --ratios 0.325,0.35,0.375,0.4,0.425,0.45,0.475 --output output/probe-fine; echo exit=$?
+probe_boundary: scenario=scenarios/calibrated-baseline.yaml budget+reserves=179,454,391 ratios=7 seeds=8 (1000..1007) cells=56
+deliverable reserves = 10,904,220; F-06 predicted flip ratio = (budget + deliverable) / (budget + reserves) = 0.291
+ ratio  ratio_deliverable  n  p_reserves_exhausted  p_peg_recovered  p_max_steps  max_depeg_bps_p50  defender_spent_mean
+ 0.325              1.116  8                 0.000            1.000        0.000         -4,512.369       40,530,431.239
+ 0.350              1.202  8                 0.000            0.750        0.250         -4,724.836       41,346,974.000
+ 0.375              1.288  8                 0.000            0.625        0.375         -4,925.198       41,346,974.000
+ 0.400              1.374  8                 0.000            0.375        0.625         -5,114.358       41,346,974.000
+ 0.425              1.460  8                 0.000            0.250        0.750         -5,302.277       41,346,974.000
+ 0.450              1.546  8                 0.000            0.375        0.625         -5,950.382       41,346,974.000
+ 0.475              1.631  8                 0.000            0.000        1.000         -6,454.812       41,346,974.000
+exit=0
+$ python run.py scenarios/calibrated-baseline.yaml; echo exit=$?
+depeg-sim: scenario=calibrated-baseline seed=42 hash=0ef967d36e34
+run: steps=7024 terminated_by=peg_recovered max_depeg_bps=-1253.2 reserves_exhausted=False
+wrote: output/calibrated-baseline-42-0ef967d3
+exit=0
+$ python run.py scenarios/calibrated-stress.yaml; echo exit=$?
+depeg-sim: scenario=calibrated-stress seed=42 hash=d7fe2f1626b8
+run: steps=7225 terminated_by=peg_recovered max_depeg_bps=-1231.0 reserves_exhausted=False
+wrote: output/calibrated-stress-42-d7fe2f16
+exit=0
+$ python run.py scenarios/soros-1992.yaml; echo exit=$?
+depeg-sim: scenario=soros-1992 seed=42 hash=329eda7c2118
+run: steps=9551 terminated_by=reserves_exhausted max_depeg_bps=-6332.2 reserves_exhausted=True
+wrote: output/soros-1992-42-329eda7c
+exit=0
+$ python run.py scenarios/soros-1992-no-defense.yaml; echo exit=$?
+depeg-sim: scenario=soros-1992-no-defense seed=42 hash=1badaed6cf4a
+run: steps=7806 terminated_by=reserves_exhausted max_depeg_bps=-7800.9 reserves_exhausted=True
+wrote: output/soros-1992-no-defense-42-1badaed6
+exit=0
+$ python scan1992.py  # scratch script, body below; 4.0..7.0 step 0.1 on soros-1992 via run_sweep
+ multiple  ratio      terminated_by  steps_run  max_depeg_bps  defender_spent  redemption_paid_total  final_depeg_bps
+      4.0    0.8          max_steps      14400       -2,260.2   100,703,325.0           62,876,446.0           -162.0
+      4.1    0.9          max_steps      14400       -2,622.6   100,703,325.0           65,791,866.3           -161.7
+      4.2    0.9          max_steps      14400       -2,962.3   100,703,325.0           70,786,696.0           -145.8
+      4.3    0.9          max_steps      14400       -3,279.1   100,703,325.0           72,771,832.0           -144.3
+      4.4    0.9          max_steps      14400       -3,571.9   100,703,325.0           71,312,138.9           -158.0
+      4.5    1.0          max_steps      14400       -3,845.4   100,703,325.0           79,624,783.5           -163.6
+      4.6    1.0          max_steps      14400       -4,098.5   100,703,325.0           88,097,659.2           -155.2
+      4.7    1.0          max_steps      14400       -4,334.3   100,703,325.0           78,809,330.3           -150.9
+      4.8    1.0          max_steps      14400       -4,553.5   100,703,325.0           85,261,812.9           -147.3
+      4.9    1.0          max_steps      14400       -4,759.3   100,703,325.0           91,848,124.2           -152.2
+      5.0    1.1          max_steps      14400       -4,950.8   100,703,325.0           98,470,204.0           -148.6
+      5.1    1.1 reserves_exhausted      12676       -5,129.8   100,703,325.0          100,703,325.0           -146.9
+      5.2    1.1 reserves_exhausted      13701       -5,298.4   100,703,325.0          100,703,325.0           -158.2
+      5.3    1.1          max_steps      14400       -5,456.0   100,703,325.0           85,731,537.8           -157.2
+      5.4    1.1          max_steps      14400       -5,604.4   100,703,325.0           89,879,662.0           -156.4
+      5.5    1.2          max_steps      14400       -5,743.2   100,703,325.0           94,055,424.0           -146.0
+      5.6    1.2          max_steps      14400       -5,874.8   100,703,325.0           98,209,648.9           -162.4
+      5.7    1.2 reserves_exhausted       9662       -5,999.1   100,703,325.0          100,703,325.0           -147.1
+      5.8    1.2 reserves_exhausted       9624       -6,116.6   100,703,325.0          100,703,325.0           -132.4
+      5.9    1.2 reserves_exhausted       9587       -6,227.4   100,703,325.0          100,703,325.0           -122.2
+      6.0    1.3 reserves_exhausted       9551       -6,332.2   100,703,325.0          100,703,325.0           -138.8
+      6.1    1.3 reserves_exhausted       9518       -6,432.3   100,703,325.0          100,703,325.0           -133.8
+      6.2    1.3 reserves_exhausted       9487       -6,527.7   100,703,325.0          100,703,325.0           -122.6
+      6.3    1.3 reserves_exhausted       9455       -6,617.8   100,703,325.0          100,703,325.0           -146.6
+      6.4    1.4 reserves_exhausted       9426       -6,704.5   100,703,325.0          100,703,325.0           -135.1
+      6.5    1.4 reserves_exhausted       9396       -6,786.3   100,703,325.0          100,703,325.0           -129.3
+      6.6    1.4 reserves_exhausted       9368       -6,864.7   100,703,325.0          100,703,325.0           -136.1
+      6.7    1.4 reserves_exhausted       9342       -6,939.8   100,703,325.0          100,703,325.0           -149.6
+      6.8    1.4 reserves_exhausted       9316       -7,011.3   100,703,325.0          100,703,325.0           -130.3
+      6.9    1.5 reserves_exhausted       9292       -7,080.0   100,703,325.0          100,703,325.0           -137.4
+      7.0    1.5 reserves_exhausted       9269       -7,145.8   100,703,325.0          100,703,325.0           -144.9
+exit=0
+$ python -m depeg_sim.sweep sweeps/usdc-2023-pace.yaml --workers 7; echo exit=$?
+sweep: usdc-2023-pace cells=7 workers=7
+wrote: output/usdc-2023-pace/sweep.parquet
+exit=0
+ pace  step_of_max_depeg  trough_h  gap_steps  max_depeg_bps terminated_by
+0.001              10288     34.29        988   -5308.281718     max_steps
+0.002               9488     31.63        188   -5768.512915     max_steps
+0.005               8821     29.40        479   -6116.065373     max_steps
+0.010               8525     28.42        775   -6260.451524     max_steps
+0.020               8345     27.82        955   -6343.865406     max_steps
+0.050               8213     27.38       1087   -6398.374966     max_steps
+0.100               8162     27.21       1138   -6412.135695     max_steps
+pick (min gap_steps): 0.002
+$ python scripts/fit_depth.py --scenario scenarios/usdc-2023.yaml --workers 8 --output output/fit-replay  # diagnostic only
+grid pass (target -1300 bps):
+ pool_depth  max_depeg_bps terminated_by  defender_spent  steps_run
+    1000000       -9,445.3     max_steps             0.0      33600
+    2000000       -9,163.8     max_steps             0.0      33600
+    5000000       -8,302.4     max_steps             0.0      33600
+   10000000       -7,034.1     max_steps             0.0      33600
+   20000000       -5,280.2     max_steps             0.0      33600
+   50000000       -2,962.9     max_steps             0.0      33600
+  100000000       -1,701.6     max_steps             0.0      33600
+  200000000         -965.6     max_steps             0.0      33600
+  500000000         -432.9     max_steps             0.0      33600
+
+refine pass between 100,000,000 and 200,000,000:
+ pool_depth  max_depeg_bps terminated_by  defender_spent  steps_run
+  116666667       -1,489.8     max_steps             0.0      33600
+  133333333       -1,324.7     max_steps             0.0      33600
+  150000000       -1,206.7     max_steps             0.0      33600
+  166666667       -1,110.6     max_steps             0.0      33600
+  183333333       -1,031.0     max_steps             0.0      33600
+
+D* = 133333333 (trough -1324.7 bps)
+exit=0
+$ python run.py scenarios/usdc-2023.yaml; echo exit=$?
+depeg-sim: scenario=usdc-2023 seed=42 hash=73db527c8ddf
+run: steps=33600 terminated_by=max_steps max_depeg_bps=-5768.5 reserves_exhausted=False
+wrote: output/usdc-2023-42-73db527c
+exit=0
+```
+
+The 1992 re-scan script (scratch, not committed; it builds a `SweepSpec` and calls `run_sweep`):
+
+```python
+"""Story 2.5 AC 4: re-scan the soros-1992 attacker multiple 4.0..7.0 step 0.1 at the current D*."""
+from pathlib import Path
+import pandas as pd
+from depeg_sim.experiments.sweep import SWEEP_PARQUET, LinkedAxis, SweepSpec, run_sweep
+
+Q = 42_625_746  # Quantum's $10bn x s
+R = 2 * 100_703_325  # budget + reserves
+if __name__ == "__main__":
+    ms = [round(4.0 + 0.1 * i, 1) for i in range(31)]
+    spec = SweepSpec(version=1, name="scan-1992", base=Path("scenarios/soros-1992.yaml"),
+        linked_axes=[LinkedAxis(name="capital", paths=["agents[type=attacker].capital"], values=[m * Q for m in ms])],
+        seeds=[42])
+    df = pd.read_parquet(run_sweep(spec, Path("output"), workers=8) / SWEEP_PARQUET)
+    df["multiple"] = (df["capital"] / Q).round(1)
+    df["ratio"] = (df["capital"] / R).round(3)
+    cols = ["multiple", "ratio", "terminated_by", "steps_run", "max_depeg_bps", "defender_spent", "redemption_paid_total", "final_depeg_bps"]
+    print(df[cols].to_string(index=False, float_format=lambda x: f"{x:,.1f}"))
+```
 
 ### Completion Notes List
 
-_(include: net burn figure, new D* in three units, F-06 flip location, F-07 status, fitted pace, overlay description, VALIDATION.md summary, ADR number)_
+**Net burn (AC 1).** DefiLlama CSV, total USDC supply at 00:00 UTC: 43,176,044,700
+(2023-03-10) − 40,468,620,896 (2023-03-13) = **$2,707,423,804** → × s = **11,540,596**
+model units (capital / (budget + reserves) = 0.064). The ADR-0019 amendment quoted
+≈ $4.0B. That is the 11→15 March change used for redemption capacity, and it includes
+post-backstop redemptions. I used the AC's 10→13 window and say so in SOURCES.md. The
+$1.2B/h peak CEX outflow is stated as a cross-check (episode flow ≈ 2.3 peak hours). The
+ratio-1.0 row (the attacker row's "design ratio" conversion, and "attacker / (budget +
+reserves) = 1.0" in Ratios at a glance) is removed, with the removal explained under the
+Attacker table.
+
+**New D\* (AC 2):** **16,666,667 model units**, **`market_depth_multiple` 16.67**, **≈ $3.91B
+per side** at `s`, against the Curve USDC leg's $234.6M (16.7×). That is ≈ 9% of USDC's
+$43.2B supply on 10 March. Achieved trough −1253.2 bps. Rule unchanged, original grid, no
+extension: 20M is the first at ≥ −1300 (−1061.3), 10M misses (−1962.2), and of the 5
+refined points plus the bracket the closest is 16,666,667. In the calibrated scenarios
+this looks physical. **But it is physical only because the calibrated AMM defender absorbs
+most of the flow** (it spends 10.26M against the 11.54M attack at D\*); see finding (a).
+Re-runs at D\*: calibrated-baseline `peg_recovered` (steps 7024, −1253.2);
+calibrated-stress `peg_recovered` (steps 7225, −1231.0). Both recovered at single-venue
+depth in 2.3 and both stayed broken at the 2.4 depth.
+
+**F-06 (AC 3).** At the new D\* the deliverable reserves are 10,904,220 and the F-06
+formula predicts the flip at nominal ratio **0.291**. Measured: 0.30 recovers 8/8, 0.40
+3/8, 0.50 0/8. A finer pass (extra, same script) puts the 50% crossing between 0.375
+(5/8) and 0.40 (3/8), so **≈ 0.39** (ratio_deliverable ≈ 1.33). The transition zone runs
+0.35–0.475, much wider than F-03's near-step. **The formula no longer predicts the flip;
+it is a lower bound.** Mechanism (F-03): at D\* the pool is shallow relative to the
+attacker (capital/depth ≈ 4 at ratio 0.4), so the defender buys stable far below par and
+its budget absorbs more stable than its face value. The far side is still `max_steps`
+(stays broken) and nothing exhausts, so F-06's qualitative claim holds. Its formula needs
+F-03's price adjustment at shallow depth.
+
+**1992 (AC 4).** At D\* = 16,666,667 (depth : defense now 0.083): soros-1992
+`reserves_exhausted` at step 9551, trough −6332.2 at step 3054, defender_spent 100,703,325
+(gone by step 2,335), redemption_paid_total 100,703,325. soros-1992-no-defense
+`reserves_exhausted` at 7806 (1,745 steps earlier), trough −7800.9 at 1391; it reaches
+−1000 bps at step 614 vs 2225. Scan 4.0–7.0 step 0.1: **every multiple ≥ 5.7 (ratio 1.206)
+exhausts. 5.1 and 5.2 also exhaust, but 5.3–5.6 stall at `max_steps`**, ending at −146
+to −162 bps with 86–98M of 100.7M paid. **F-07 holds, and more strongly**: the dead zone
+between the −100 bps defender trigger and the −200 bps widened spread is where every
+non-exhausting run parks. At this depth it makes exhaustion non-monotone in attacker
+size, since whether the last redemptions get through before the price settles in the dead
+zone is path-dependent. The "5.3× flip" of 2.4 becomes "a band 5.1–5.7, clean from 5.7".
+Defended runs show 1,593 `spread_changed` events (the known no-hysteresis chatter).
+
+**Part B schema (AC 6).** Two fields, both default-absent; existing hashes unchanged
+(soros-baseline still `2e09f431ce74`; the pinned calibrated and 1992 hashes and the
+determinism tests pass unedited). `price_series_path` resolves against the scenario file
+(via `load_scenario` validation context) and is stored absolute. The manifest records it
+in `config` plus `price_series_sha256`. It enters `content_hash()` as the file's sha256,
+not the path, so hashes don't depend on the machine. The sha256 is held in a pydantic
+private attribute set by the validator, which is not a third schema field.
+`PHASE_ORDER_VERSION` is 1. The only kernel/ file touched is `kernel/config.py`, which the
+context names. The Dev Notes say "nothing in kernel/ changes", which conflicts with that;
+only the data models changed.
+
+**Replay (AC 8).** Timestamps (arithmetic in the YAML header; ET is EST before and EDT
+after the 12 March DST change): attack step **8100** (22:00 ET 10 Mar), observed trough
+step **9300** (07:00 UTC 11 Mar, also the CSV minimum, 0.86267), capacity change step
+**25500** (09:00 ET 13 Mar), `max_steps` **33600** (12:00 ET 14 Mar). The series ends at
+step 28500, so the last close holds for 17 h. **Fitted pace = 0.002** (trough at step
+9488 = 31.6 h, +0.63 h vs observed; next best 0.005 at −1.33 h). Defender: `threshold_pct`
+99.0, budget kept. Capacity schedule: 605.79 → 19,181.59 (reserves / 7,200) at 25500.
+**Deviation from "calibrated-baseline parameters": `termination.peg_recovered` is
+removed.** With the attack at step 8100 > `for_steps` 6900, the first pace scan ended
+every run `peg_recovered` at step 6900 on the pre-attack calm (ADR-0010). That run is
+discarded, and the band is measured from the timeseries instead. Replay:
+`max_steps`, 33600 steps, trough −5768.5 bps, final −27.3, redemption_paid 11,516,914,
+defender idle.
+
+**Overlay (AC 9),** `output/usdc-2023-42-73db527c/validation_overlay.png`. One panel, x in
+hours from the series start. The observed hourly closes (blue, dotted markers) are flat
+until 27 h, dip to −1,373 at 31 h (annotated) and wobble between about −150 and −1,150
+through Saturday. They settle near −400 from ~55 h, step up to about −100 at 70 h and
+enter the band at 86 h. The simulated AMM price (black) falls almost vertically at the
+"attack starts" marker to −5,769 at 31.6 h (annotated), then climbs back in a straight
+line at the speed of redemption throughput. It meets the blue line at ~63 h and rides on
+it, enters the band just after the "redemption capacity changes" marker at 85 h, and
+holds −27 bps to 112 h. Band ±31 bps shaded; footer `hash=73db527c8ddf`.
+
+**VALIDATION.md (AC 10)** (`docs/calibration/VALIDATION.md`):
+
+| quantity | observed | simulated |
+|---|---|---|
+| trough depth | −1,373 bps | −5,769 bps |
+| trough time | 31.0 h | 31.6 h (fitted) |
+| at capacity change (85 h) | −36 bps | −52 bps |
+| first in band after capacity change | 86.0 h | 85.3 h |
+| last outside band | ≥ 95.0 h (censored: series ends at −45 bps) | 85.3 h |
+| recovery vs capacity change | up into band within 1 h | up into band within 0.3 h (0.96M queue clears in ≈ 50 steps) |
+
+What matches: trough timing (fitted, so not evidence); re-entry to the band within about
+an hour of the bank reopening, through the right mechanism (queue clears when capacity
+rises); the level from 63 h on (mostly the input showing through). What does not: trough
+depth (4.2× too deep), the weekend shape (linear, throughput-driven rebound vs a fast,
+news-driven one), and last-outside-band (not comparable, censored). Why: D\* was fitted with
+an AMM defender that the replay correctly lacks; the arbitrageur's oracle is the observed
+price, which pins the AMM to the input once they meet; and weekend capacity × weekend steps
+(10.54M) ≈ the attack (11.54M).
+
+**ADR:** [ADR-0020](../adr/0020-episode-flow-replay-and-capacity-schedule.md) (Proposed).
+
+**Findings (new, for the dev manager to accept or reject):**
+
+(a) *D\* is identified jointly with whatever absorbs the flow, and with the episode-sized
+attacker it is physical only while the calibrated AMM defender stands in for the absorbers.*
+Calibrated-baseline at D\* = $3.91B per side reproduces the trough. The replay, with no
+issuer buying on AMMs (historically right), bottoms at −5,769 bps. The same fit on the
+replay needs ≈ $31.3B per side (133,333,333; −1324.7 bps), ≈ 72% of USDC's supply. So the
+answer to "is D\* physical now?" is **yes in the calibrated scenario, no in the faithful
+replay**. The missing agent is a discount buyer who expects par (market makers, funds,
+traders), and the calibrated "defender" budget has been playing that role. Refines F-05.
+
+(b) *Driving the reference with the observed price of the asset itself makes the model
+partly copy its input.* The arbitrageur trades toward an oracle that follows the observed
+USDC price, so once the simulated price reaches the observed path the arbitrageur pins it
+there (−45 … +64 bps from 63.3 h on). Validation statistics after that point are not
+independent. A dollar reference (1.0) with a separate "market expectation" agent would
+separate the two.
+
+(c) *F-06's formula is a lower bound at shallow depth* (flip ≈ 0.39 vs 0.291 predicted;
+F-03's price effect), and the transition widens (0.35–0.475).
+
+(d) *F-07's dead zone makes the 1992 outcome non-monotone in attacker size at the new
+depth* (5.1–5.2 exhaust, 5.3–5.6 don't, ≥ 5.7 do).
+
+(e) *Most of the attack is redeemed during the weekend in the model.* 10.54M of 11.52M is
+paid before the backstop at the calibrated capacity, so the backstop only clears a 0.96M
+queue. In the real episode the price stayed 100–500 bps below peg all weekend. If that
+was not unabsorbed flow, it was expectations, which the model doesn't have. Alternatively
+the weekend channel was slower than the 11–15 March average used for capacity.
 
 ### File List
 
 **Created:**
+- `scenarios/usdc-2023.yaml`
+- `sweeps/usdc-2023-pace.yaml`
+- `docs/calibration/VALIDATION.md`
+- `docs/adr/0020-episode-flow-replay-and-capacity-schedule.md`
+- `tests/test_usdc_2023.py`
 
 **Modified:**
+- `src/depeg_sim/kernel/config.py` (`CapacityChange`, `capacity_schedule`, `price_series_path`, `content_hash`, `load_scenario` context)
+- `src/depeg_sim/environment/price_process.py` (`from_series`, series path in `from_config`/`on_phase`)
+- `src/depeg_sim/protocol/redemption.py` (capacity schedule, `capacity_changed`)
+- `src/depeg_sim/experiments/runner.py`, `src/depeg_sim/experiments/writer.py` (interval to the environment; `price_series_sha256` in the manifest)
+- `src/depeg_sim/analysis/charts.py` (`validation_comparison`, `plot_validation_overlay`)
+- `scripts/probe_boundary.py` (deliverable reserves and the F-06 prediction)
+- `scenarios/calibrated-baseline.yaml`, `scenarios/calibrated-stress.yaml`, `scenarios/soros-1992.yaml`, `scenarios/soros-1992-no-defense.yaml`
+- `docs/calibration/SOURCES.md`
+- `tests/test_calibrated_scenarios.py`, `tests/test_1992_scenarios.py`, `tests/test_config.py`, `tests/test_price_process.py`, `tests/test_redemption.py`
+- `docs/stories/2-5-usdc-validation.md`
 
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.4 review; Part A added per ADR-0019 amendment
+- 2026-10-04: Implemented by Claude Code (Opus 5.5). Part A committed separately (net burn $2.71B; D* = 16,666,667 ≈ $3.91B/side); schema fields, series environment, capacity schedule; usdc-2023 replay (pace 0.002); overlay and VALIDATION.md; ADR-0020 Proposed. Status → review

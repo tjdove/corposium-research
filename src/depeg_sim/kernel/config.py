@@ -13,7 +13,15 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 
 class StrictModel(BaseModel):
@@ -41,11 +49,28 @@ class OracleConfig(StrictModel):
     deviation_threshold_pct: float = Field(ge=0)
 
 
+class CapacityChange(StrictModel):
+    """From ``step`` on, redemption capacity is ``capacity_per_step`` (Story 2.5)."""
+
+    step: int = Field(ge=0)
+    capacity_per_step: float = Field(gt=0)
+
+
 class RedemptionConfig(StrictModel):
     reserves: float = Field(ge=0)
     spread_bps: int = Field(ge=0, lt=10_000)
     capacity_per_step: float = Field(gt=0)
     peg_price: float = Field(default=1.0, gt=0)
+    capacity_schedule: list[CapacityChange] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _schedule_ascending(self) -> RedemptionConfig:
+        steps = [c.step for c in self.capacity_schedule]
+        if any(b <= a for a, b in zip(steps, steps[1:], strict=False)):
+            raise ValueError(
+                f"redemption.capacity_schedule steps must be strictly ascending: {steps}"
+            )
+        return self
 
 
 class ShockEvent(StrictModel):
@@ -53,10 +78,46 @@ class ShockEvent(StrictModel):
     pct: float  # +/- percent applied to the reference price
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 class EnvironmentConfig(StrictModel):
     base_price: float = Field(default=1.0, gt=0)
     volatility_per_step: float = Field(default=0.0, ge=0)
     shocks: list[ShockEvent] = Field(default_factory=list)
+    # Observed reference series (Story 2.5): a CSV with ``unix, close`` columns. A relative
+    # path resolves against the scenario file's directory (``load_scenario`` passes it as
+    # validation context ``base_dir``; without one, the working directory). Stored resolved.
+    price_series_path: Path | None = None
+    _price_series_sha256: str | None = PrivateAttr(default=None)
+
+    @field_validator("price_series_path")
+    @classmethod
+    def _resolve(cls, v: Path | None, info: ValidationInfo) -> Path | None:
+        if v is None:
+            return None
+        base = (info.context or {}).get("base_dir", Path.cwd())
+        return v if v.is_absolute() else (Path(base) / v).resolve()
+
+    @model_validator(mode="after")
+    def _series_is_the_environment(self) -> EnvironmentConfig:
+        if self.price_series_path is None:
+            return self
+        if self.volatility_per_step != 0 or self.shocks:
+            raise ValueError(
+                "environment.price_series_path is set, so volatility_per_step must be 0 and "
+                "shocks must be empty: the observed series is the whole environment"
+            )
+        if not self.price_series_path.is_file():
+            raise ValueError(f"environment.price_series_path not found: {self.price_series_path}")
+        self._price_series_sha256 = _sha256(self.price_series_path)
+        return self
+
+    @property
+    def price_series_sha256(self) -> str | None:
+        """sha256 of the series file as read at load time; ``None`` without a series."""
+        return self._price_series_sha256
 
 
 class PegRecoveredConfig(StrictModel):
@@ -140,8 +201,19 @@ class ScenarioConfig(StrictModel):
         return self
 
     def content_hash(self) -> str:
-        """SHA-256 hex digest of the canonical JSON dump (sorted keys, compact)."""
-        payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        """SHA-256 hex digest of the canonical JSON dump (sorted keys, compact).
+
+        Story 2.5 fields enter only when used, so older scenarios keep their hash: an
+        empty ``redemption.capacity_schedule`` and an absent ``price_series_path`` are
+        dropped. A set series enters as the file's sha256 (``price_series_sha256``), not
+        its path, so the hash follows the data and does not depend on the machine."""
+        data = self.model_dump(mode="json")
+        env = data["environment"]
+        if env.pop("price_series_path") is not None:
+            env["price_series_sha256"] = self.environment.price_series_sha256
+        if not data["redemption"]["capacity_schedule"]:
+            del data["redemption"]["capacity_schedule"]
+        payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -149,8 +221,9 @@ def load_scenario(path: Path) -> ScenarioConfig:
     """Parse a scenario YAML file and validate it.
 
     Raises FileNotFoundError if the path is missing and pydantic.ValidationError
-    if the content does not match the schema.
+    if the content does not match the schema. A relative
+    ``environment.price_series_path`` resolves against the file's directory.
     """
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return ScenarioConfig.model_validate(data)
+    return ScenarioConfig.model_validate(data, context={"base_dir": Path(path).parent})

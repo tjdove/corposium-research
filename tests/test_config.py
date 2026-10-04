@@ -166,3 +166,65 @@ def test_hash_changes_when_seed_changes(tmp_path, baseline_dict):
     baseline_dict["seed"] = 43
     changed = load_scenario(write(tmp_path, baseline_dict)).content_hash()
     assert original != changed
+
+
+# Story 2.5: price_series_path and capacity_schedule -------------------------------
+
+
+def series_scenario(tmp_path, baseline_dict, closes, name="s.csv"):
+    (tmp_path / name).write_text(
+        "unix,close\n" + "".join(f"{1678406400 + 3600 * i},{c}\n" for i, c in enumerate(closes)),
+        encoding="utf-8",
+    )
+    data = copy.deepcopy(baseline_dict)
+    data["environment"] = {
+        "base_price": 1.0,
+        "volatility_per_step": 0.0,
+        "shocks": [],
+        "price_series_path": name,
+    }
+    return load_scenario(write(tmp_path, data))
+
+
+def test_series_path_resolves_against_the_scenario_file(tmp_path, baseline_dict):
+    cfg = series_scenario(tmp_path, baseline_dict, [1.0, 0.9])
+    assert cfg.environment.price_series_path == (tmp_path / "s.csv").resolve()
+    assert len(cfg.environment.price_series_sha256) == 64
+
+
+def test_series_hash_follows_the_csv_bytes(tmp_path, baseline_dict):
+    dirs = [tmp_path / d for d in "abc"]
+    for d in dirs:
+        d.mkdir()
+    a, b, c = (
+        series_scenario(d, baseline_dict, closes)
+        for d, closes in zip(dirs, ([1.0, 0.9], [1.0, 0.8], [1.0, 0.9]), strict=True)
+    )
+    assert a.model_dump(exclude={"environment"}) == b.model_dump(exclude={"environment"})
+    assert a.content_hash() != b.content_hash()
+    assert a.content_hash() == c.content_hash()  # same bytes, different directory
+
+
+@pytest.mark.parametrize(
+    "extra", [{"volatility_per_step": 0.001}, {"shocks": [{"step": 1, "pct": -1.0}]}]
+)
+def test_series_forbids_noise_and_shocks(tmp_path, baseline_dict, extra):
+    (tmp_path / "s.csv").write_text("unix,close\n0,1.0\n", encoding="utf-8")
+    data = copy.deepcopy(baseline_dict)
+    data["environment"] = {"price_series_path": "s.csv", **extra}
+    with pytest.raises(
+        ValidationError, match="volatility_per_step must be 0 and shocks must be empty"
+    ):
+        load_scenario(write(tmp_path, data))
+
+
+def test_new_fields_absent_leave_existing_hashes_unchanged():
+    pinned = {
+        "scenarios/soros-baseline.yaml": "2e09f431ce74",
+        "scenarios/soros-volatile.yaml": "84ad0b810807",
+    }
+    for path, h in pinned.items():
+        cfg = load_scenario(Path(path))
+        assert cfg.environment.price_series_path is None
+        assert cfg.redemption.capacity_schedule == []
+        assert cfg.content_hash()[:12] == h

@@ -214,3 +214,46 @@ def test_module_docstring_says_pct_is_percent():
 
     assert "**percent**, not a" in mod.__doc__
     assert "``-5.0`` means minus five percent" in mod.__doc__
+
+
+# Story 2.5: observed series -------------------------------------------------------
+
+
+def write_series(path, closes, start=1_678_406_400, spacing=3600):
+    rows = ["unix,close"] + [f"{start + i * spacing},{c}" for i, c in enumerate(closes)]
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    return path
+
+
+def test_series_interpolates_to_steps_and_holds_last(tmp_path):
+    closes = [1.0, 0.9, 0.95, 0.97, 0.99]  # hourly: 300 twelve-second steps per candle
+    env = ReferencePrice.from_series(write_series(tmp_path / "s.csv", closes), 12)
+    assert len(env.series) == 4 * 300 + 1
+    _, result = run(env, max_steps=1500)
+    p = prices(result)
+    assert p[0] == 1.0
+    assert math.isclose(p[150], 0.95)  # midpoint of 1.0 and 0.9
+    assert math.isclose(p[300], 0.9)
+    assert math.isclose(p[450], 0.925)
+    assert p[1200] == 0.99 and p[1499] == 0.99  # past the end: last close holds
+    assert [e.payload["step"] for e in updates(result)][:3] == [0, 1, 2]
+
+
+def test_series_draws_nothing_from_the_rng(tmp_path):
+    env = ReferencePrice.from_series(write_series(tmp_path / "s.csv", [1.0, 0.9]), 12)
+    ctx, _ = run(env, max_steps=50)
+    fresh = RunContext.from_config(make_config(max_steps=50, seed=42))
+    assert ctx.rng.standard_normal() == fresh.rng.standard_normal()
+
+
+def test_series_needs_unix_and_close(tmp_path):
+    bad = tmp_path / "bad.csv"
+    bad.write_text("time,price\n1,1.0\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="lacks columns"):
+        ReferencePrice.from_series(bad, 12)
+
+
+def test_from_config_uses_the_series(tmp_path):
+    path = write_series(tmp_path / "s.csv", [0.98, 0.99])
+    env = ReferencePrice.from_config(EnvironmentConfig(price_series_path=path), 12)
+    assert env.series is not None and env.price == 0.98

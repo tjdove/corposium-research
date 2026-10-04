@@ -25,6 +25,12 @@ Exhaustion: ``reserves_exhausted`` (the ``ReservesView`` the kernel's terminatio
             Empty reserves with nothing queued is a defense that spent everything and
             was not tested further, not a failure.
 
+Capacity schedule (Story 2.5): ``capacity_schedule`` is a list of ``(step,
+capacity_per_step)`` with strictly ascending steps. At the start of ``PROTOCOL_EVENTS``
+on a scheduled step, before ``process``, capacity changes to the new value and
+``capacity_changed {step, old, new}`` is emitted (once per entry). It stands for a
+redemption channel whose throughput changes on a known date, e.g. banks reopening.
+
 Units: capacity and queue amounts are stable; reserves and payouts are reference.
 Epic 2 calibrates ``capacity_per_step`` to real redemption throughput per slot.
 
@@ -41,6 +47,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -84,6 +91,7 @@ class RedemptionModule(ActionTarget):
         capacity_per_step: float,
         peg_price: float = 1.0,
         name: str = "redemption",
+        capacity_schedule: Sequence[tuple[int, float]] = (),
     ) -> None:
         if not (math.isfinite(reserves) and reserves >= 0):
             raise ValueError(f"reserves must be >= 0, got {reserves}")
@@ -92,6 +100,17 @@ class RedemptionModule(ActionTarget):
             raise ValueError(f"capacity_per_step must be > 0, got {capacity_per_step}")
         if not (math.isfinite(peg_price) and peg_price > 0):
             raise ValueError(f"peg_price must be > 0, got {peg_price}")
+        schedule = [(int(st), float(c)) for st, c in capacity_schedule]
+        steps = [st for st, _ in schedule]
+        if any(st < 0 for st in steps) or any(
+            b <= a for a, b in zip(steps, steps[1:], strict=False)
+        ):
+            raise ValueError(
+                f"capacity_schedule steps must be >= 0 and strictly ascending: {steps}"
+            )
+        if any(not (math.isfinite(c) and c > 0) for _, c in schedule):
+            raise ValueError("capacity_schedule capacities must be > 0")
+        self._schedule = dict(schedule)
         self.name = name
         self.phases = frozenset({Phase.EXECUTION, Phase.PROTOCOL_EVENTS})
         self.capacity_per_step = float(capacity_per_step)
@@ -111,6 +130,7 @@ class RedemptionModule(ActionTarget):
             spread_bps=cfg.spread_bps,
             capacity_per_step=cfg.capacity_per_step,
             peg_price=cfg.peg_price,
+            capacity_schedule=[(c.step, c.capacity_per_step) for c in cfg.capacity_schedule],
         )
 
     # -- views -------------------------------------------------------------
@@ -183,7 +203,21 @@ class RedemptionModule(ActionTarget):
         """Settlement runs on ``PROTOCOL_EVENTS``; nothing happens on ``EXECUTION``
         (requests arrive through ``execute``)."""
         if phase is Phase.PROTOCOL_EVENTS:
+            self._apply_schedule(ctx)
             self.process(ctx)
+
+    def _apply_schedule(self, ctx: RunContext) -> None:
+        step = ctx.clock.step_index
+        if step not in self._schedule:
+            return
+        old, new = self.capacity_per_step, self._schedule[step]
+        self.capacity_per_step = new
+        ctx.events.emit(
+            step=step,
+            kind="capacity_changed",
+            source=self.name,
+            payload={"step": step, "old": old, "new": new},
+        )
 
     def execute(self, ctx: RunContext, action: Action) -> ExecutionResult:
         step = ctx.clock.step_index
