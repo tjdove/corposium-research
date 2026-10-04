@@ -1,6 +1,6 @@
 # Story 2.2: Monte Carlo over Seeds
 
-Status: review
+Status: done
 
 ## Story
 
@@ -319,3 +319,68 @@ completed	success	story 2.2: monte carlo over seeds	ci	main	push	37164336778	48s
 
 - 2026-10-03: Story drafted by dev manager after Story 2.1 review; grid reshaped by ADR-0016
 - 2026-10-03: Implemented by Claude Code (Opus 5.5); 405 tests pass; MC sweeps 15.6 s (2016 runs) and 4.5 s (512 runs); ADR-0017 proposed; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-03
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+Monte Carlo layer complete and the ADR-0016 prediction tested properly. Reviewer: 405
+passed, ruff clean, CI run 37164392473 green. The full 2016-run sweep exceeded the review
+box's 10-minute budget on 2 cores (Seoul: 15.6 s on 4), so the reviewer ran a 48-run slice
+straddling ratio 1.0 at both depths and reproduced the decisive cell: at ratio 1.111,
+500k depth p=0, 2M depth p=1. ADR-0017 accepted with a reframing amendment; it refines
+ADR-0016 rather than overturning it.
+
+### Rulings
+
+- **ADR-0017: Accepted, amended.** The counterintuitive direction (deeper pool breaks at a
+  lower ratio) has a clean mechanism (defender buys more stable per budget unit when the
+  price is crashed harder). The builder's caveat that the price-adjusted ratio is an
+  outcome, not a predictor, is correct and kept. New headline candidate recorded in the ADR.
+- **Axis discovery from `manifest["spec"]`.** My Dev Notes named a key that doesn't exist;
+  the builder read the resolved spec from the actual manifest structure. Correct.
+- **Full sweeps run on Seoul, reported, not tested.** As specified.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `SeedRange`; manifest lists expanded seeds |
+| 2 | ✅ | `aggregate_mc` with fixed column order, NaN-aware stats, `_n` companions, Wilson bounds, three `p_*` proportions |
+| 3 | ✅ | `wilson` at the three known points + n=0 |
+| 4 | ✅ | Byte-identical on repeat; sorted by axes |
+| 5 | ✅ | `--mc` and `python -m depeg_sim.mc`; two lines |
+| 6 | ✅ | 126-point grid; 2016 runs; 15.6 s |
+| 7 | ✅ | 512-run grid; 4.5 s; reproduces 2.1 exactly |
+| 8 | ✅ | Both under budget by 40× |
+| 9 | ✅ | Two ratio tables + two per-point tables; ADR-0017 answers all four questions |
+| 10 | ✅ | `405 passed`; CI tests tiny specs only |
+
+**10 of 10 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1] Noise is too small to matter.** 5 bps/step produced near-step transitions
+  (3 of 126 points mixed). Either the model is deterministic in outcome for this grid
+  (plausible: the conservation law is exact), or the noise is unrealistically low. 2.3
+  calibrates volatility; if the transitions stay step-like at realistic noise, that is
+  itself a result ("outcome is insensitive to price noise; it is a capital accounting").
+- **[LOW-2] Recovering runs hitting `max_steps` under noise (6–25%).** `peg_recovered`
+  needs `for_steps` consecutive in-band steps; noise knocks runs out of band. 2.3 should
+  revisit `for_steps` and tolerance jointly under calibrated noise.
+
+### Learnings for Story 2.3
+
+- The model now has two accepted findings (0010, 0016/0017) and a candidate headline.
+  2.3's job is to replace every placeholder number with a sourced one so those findings
+  can be stated about something real.
+- `volatility_per_step` and `peg_recovered.for_steps` need calibration together.
+- The MC machinery runs the full Epic 2 grid in seconds; 2.6 can afford 64 seeds.
+- 2026-10-03: Senior review APPROVE; status set to done. ADR-0017 accepted with reframing amendment.

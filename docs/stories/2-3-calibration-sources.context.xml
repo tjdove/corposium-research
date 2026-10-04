@@ -1,0 +1,73 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.3</storyId>
+    <title>Calibration Sources</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-03</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-3-calibration-sources.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>every baseline parameter traced to a public source</iWant>
+    <soThat>a reader can check where the numbers came from</soThat>
+    <tasks>
+      - Gather and verify (AC: 1–9)
+      - Scenarios (AC: 9, 10)
+      - Data README and ADR (AC: 11, 12)
+      - Tests, lint, close out (AC: 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. The status vocabulary and the "ratios, not absolutes" preamble are normative. Figures pre-verified by the dev manager are listed in the story's References with access dates; the builder verifies the remaining ones.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-3-calibration-sources.md" section="Dev Notes">Ratio reasoning, pool-depth decision, Chainlink, volatility, attacker ratio, status vocabulary.</doc>
+      <doc path="docs/BACKGROUND.md" section="5. The cost; Figures to verify">1992 anchors and their verification status.</doc>
+      <doc path="docs/adr/0013-recovery-tolerance-outside-arb-band.md">Tolerance rule for the calibrated scenarios.</doc>
+      <doc path="docs/adr/0017-*.md">Boundary at ratio ≈ 1; baseline is placed on it deliberately.</doc>
+      <doc path="docs/stories/2-2-monte-carlo.md" section="Key Findings">LOW-1 (noise), LOW-2 (for_steps under noise).</doc>
+    </docs>
+    <code>
+      <existing path="scenarios/soros-baseline.yaml" reason="Structure and header-comment style to copy."/>
+      <existing path="src/depeg_sim/kernel/config.py" reason="No schema changes expected. If a calibration needs a field that does not exist, stop and add a Blockers section rather than extend the schema."/>
+      <existing path="docs/calibration/.gitkeep" reason="Replace with SOURCES.md."/>
+    </code>
+    <dependencies>
+      <python>No new runtime dependencies. For candle retrieval, a one-off script may use urllib (stdlib); do not add requests.</python>
+      <network>The builder on Seoul has normal internet. Record every URL and access date. If a source is paywalled or requires a key, say so and mark the row secondary.</network>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - No config schema changes. No kernel/protocol/agent code changes.
+    - Every parameter row has all five columns and a status; CI-side test asserts SOURCES.md has no row with an empty status cell (simple regex over the markdown table).
+    - Both calibrated scenarios must terminate by something other than max_steps; the fix order is for_steps/tolerance → attacker ratio → nothing else.
+    - Committed data files ≤ 1 MB each; CSV only; retrieval documented.
+    - Numbers in SOURCES.md are copied from the source verbatim, with the conversion shown; never pre-rounded.
+    - The pool-depth limitation (constant-product underestimates near-peg liquidity, overestimates slippage far from peg) must appear in SOURCES.md verbatim or close to it; it goes into the note.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="docs/calibration/SOURCES.md" kind="document">Preamble (ratios, not absolutes; status vocabulary) then one ## section per parameter group, each a markdown table with columns: parameter | value used | source (URL, accessed) | raw figure | conversion | status</interface>
+    <interface name="data/README.md" kind="document">One section per committed file: path, source URL, retrieval command or steps, date, sha256, row count, columns.</interface>
+    <interface name="scenarios/calibrated-baseline.yaml, scenarios/calibrated-stress.yaml" kind="scenario">Header comment: one line per parameter group pointing at the SOURCES.md section; ADR-0017 ratio statement; ADR-0013 tolerance statement.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>tests/test_calibrated_scenarios.py: both files load and validate; content_hash is stable; a short run (max_steps 500 override via model_copy) completes; SOURCES.md status-cell regex test; data files exist and are under 1 MB.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test idea="load both calibrated scenarios; assert agents count and that tolerance >= (fee_bps + min_profit_bps)/10000 per ADR-0013"/>
+      <test idea="SOURCES.md: every table row ending in | has a non-empty last cell in {verified, secondary, assumption}"/>
+      <test idea="each file under data/ is < 1_000_000 bytes and is listed in data/README.md"/>
+      <test idea="short run of each calibrated scenario completes without error (not asserting terminated_by at 500 steps)"/>
+    </ideas>
+  </tests>
+</story-context>
