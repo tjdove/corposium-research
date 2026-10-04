@@ -1,6 +1,6 @@
 # ADR-0021: The par-expecting holder: semantics, fitted capital C*, and what it moves
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-04: finding candidate promoted to F-09; the 1992 zero-edge round trip is recorded as a parametric coincidence of entry 2% = spread 200 bps, not a finding; sawtooth to be fixed by a fill price limit in Epic 3)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.6 AC 8

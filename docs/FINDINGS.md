@@ -301,20 +301,98 @@ at what it actually bought) is the x-axis for 2.7's headline chart.
 
 ---
 
-## Headline candidates (ranked, 2026-10-04, revised after 2.5)
+## F-08 confirmation (2026-10-04, from 2.6)
 
-1. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
-   surprise; mechanism clean; one sentence.
-2. **"Liquidity depth decides how far the peg falls; defense resources decide whether it
-   comes back."** (F-02, qualified by F-03) — the first-generation result, stated for DeFi.
-3. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
-   (F-01) — true, important for how "recovery" is measured, but less novel.
+**Reproduce:** `python run.py scenarios/usdc-2023.yaml` (hash `2c3aeaa9825d`) then
+`plot_validation_overlay(run_dir)`; `python scripts/fit_holder.py` for the fit.
 
-4. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
-   (F-08) — the validation lesson; may displace 1 if 2.6 confirms it quantitatively.
+One par-expecting buyer, sized by back-solving the replay with D\* held, takes the
+trough from −5,769 to **−1,138 bps** against −1,373 observed: from 4.2× too deep to 17%
+too shallow with one fitted parameter. **C\* = 9,166,667 model units ≈ $2.15B**, 0.79×
+the attacker's episode net burn ($2.71B), 0.22× Circle's cash. The buyer absorbed 82% of
+the attack's flow; the calibrated defender it replaces had absorbed 89%. From 35 h to
+49 h the simulated path lies on the observed one; the trough is 3.2 h late (pace was
+fitted without the buyer and is not re-fitted). The hypothesis in F-08's last paragraph
+is now quantitative: the depeg's depth was set by the attacker against roughly $2B of
+capital that believed the promise.
 
-The note probably leads with 1 or 4, states 2 as the framework, and uses 3 in the methods
-section to justify the recovery criterion. F-08 goes in the limitations section regardless.
+---
+
+## F-09 · A single-entry-price buyer makes depeg depth bimodal
+
+**Date:** 2026-10-04 · **ADR:** [0021](adr/0021-par-expecting-holder.md) · **Story:** 2.6
+**Reproduce:** `python scripts/fit_holder.py --workers 8` (≈ 10 s); read the two refinement
+tables.
+
+**Expected.** Trough depth would fall smoothly as buyer capital rises, so the fit rule
+would land within a few bps of −1,373.
+
+**Observed.** Trough against holder capital on the replay: 5M → −3,785; 7.5M → −2,207;
+8.33M → −1,653; 9.17M → −1,138; 10M → −225; 20M → −220. A cliff between 9.17M and 10M.
+The observed −1,373 sits on the cliff face, and no single capital lands on it.
+
+**Why.** Below the cliff the buyer runs out of reference before the attack ends, and the
+attacker sets the trough. Above it the buyer outlasts the attack and the trough stops at
+about the buyer's entry discount (−200 bps plus fee and impact). One entry price means one
+of two regimes. The tranche redeem rule sharpens the cliff: weekend redemptions return
+reference the buyer spends again, so near the edge a small capital increment is worth
+much more than its face value (what moved C\* from 10M to 9.17M when the rule changed).
+
+**What it changed.** The fit is accepted at −1,138 and the 17% gap is stated. A holder
+with a distribution of entry prices (several tranches at 1%, 2%, 5%, 10%) is the natural
+next model and goes to Epic 3 behind the fill-price-limit fix. The note states the fit as
+"one buyer, one price, within 17%" rather than tuning toward the observation.
+
+**For the note.** The real market's trough was set by the *shape* of belief, not just its
+size: how much capital would buy at 1%, at 5%, at 12%. A single believer gives a cliff;
+many believers at different prices give a curve. The March-2023 price found the point on
+that curve where the attacker's selling met the buyers' bids.
+
+---
+
+## F-06 refinement (2026-10-04, from 2.6)
+
+With the holder present at `C*/D*`, the calibrated-baseline probe's 50% point moves from
+nominal ratio ≈ 0.39 to **≈ 0.50**; every seed recovers through 0.425 (was 0.325). The
++0.11 shift is about twice the holder's face-value share of `budget + reserves` (0.051),
+by the same mechanism as F-03 and the 2.5 refinement: a resource that buys below par and
+recycles through redemption absorbs more than its face value.
+
+---
+
+## F-07 refinement (2026-10-04, from 2.6)
+
+Re-scan 4.0–7.0 by 0.1 on `soros-1992` with the holder present. **The flip stays at 5.7×
+(ratio 1.206).** The 5.1/5.2 anomaly (exhausted while 5.3–5.6 did not) is gone; the
+boundary is clean. The dead zone (4.0–5.6 stall at `max_steps`, final −143 … −178 bps)
+persists. At 4.0–4.2 the holder flattens the trough to −222 (buyer-set regime, F-09); at
+4.3 and above the attacker sets it. The holder loses at every multiple because the
+defender's 200 bps spread sets its redemption payout at exactly its 2% entry — a
+coincidence of two dev-manager assumptions, not a finding. At 3.6% of the 6× attacker the
+holder is too small to test BACKGROUND §4's "convergence traders had to switch sides";
+that test needs a holder with a sell rule, and goes to Epic 3.
+
+---
+
+## Headline candidates (ranked, 2026-10-04, revised after 2.6)
+
+1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
+   (F-08, confirmed by 2.6) — now carries a number: no believers −5,769 bps; $2.15B of
+   believers −1,138; observed −1,373. Backed by the one validation chart the note has. Lead.
+2. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
+   surprise; mechanism clean; one sentence. Second section, or the lead if 2.7's collapse
+   plot shows it at calibrated scale with the buyer present.
+3. **"Liquidity depth decides how far the peg falls; defense resources decide whether it
+   comes back."** (F-02, qualified by F-03, F-06) — the framework.
+4. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
+   (F-01, F-07 dead zone) — methods section, justifies the recovery criterion; the 1992
+   dead zone makes it more than a footnote.
+5. **"One believer gives a cliff; many believers at different prices give a curve."**
+   (F-09) — the limitation that points at the next model; limitations section.
+
+The note leads with 1, uses the validation overlay as figure 1, states 3 as the framework,
+shows 2 as the counterintuitive mechanism, uses 4 in methods, and closes on 5 and the
+1992 open question (does the buyer have to switch sides for Black Wednesday?).
 
 ---
 
@@ -328,7 +406,17 @@ section to justify the recovery criterion. F-08 goes in the limitations section 
   Yes at 5.3× Quantum, provisionally (F-07); re-run after the 2.5 depth re-fit.
 - Does D* land at a physical aggregate depth once the attacker is episode-sized? (2.5)
 - ~~Does the model's USDC-2023 trajectory match the observed trough and recovery timing?~~
-  Timing yes, depth no (F-08). Re-asked in 2.6 with the par-expecting buyer.
+  Timing yes, depth no (F-08). ~~Re-asked in 2.6 with the par-expecting buyer.~~ With one
+  buyer at $2.15B: depth within 17%, timing 3.2 h late, weekend path matches from 35 h
+  (F-08 confirmation, F-09).
+- Does the F-03 collapse (all depths on one curve against the price-adjusted ratio) hold at
+  calibrated scale with the buyer present? (2.7)
+- Does oracle lag matter at all under deviation-triggered updates at Chainlink's cadence?
+  (2.7)
+- Does the holder have to switch sides (sell) for the 1992 analogue to exhaust at the
+  historical multiple? (Epic 3: holder sell rule)
+- Does a fill price limit on the holder remove the sawtooth without moving C\* much?
+  (Epic 3)
 - Does D* land at a physical aggregate depth once the attacker is episode-sized? Yes on the
   calibrated baseline ($3.9B/side), but only because the defender stands in for the missing
   buyer (F-08).

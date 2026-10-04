@@ -27,6 +27,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0018](0018-calibration-judgment-calls.md) | Calibration judgment calls: pool anchor, reserves split, attacker ratio, market-depth multiple | Accepted (amended; §3 superseded by 0019 amendment) | 2026-10-04 |
 | [0019](0019-fitted-depth-and-1992-analogue.md) | Fitted depth D*, 1992 split/multiple, boundary at calibrated depth | Accepted (amended; §1 superseded, re-fit in 2.5) | 2026-10-04 |
 | [0020](0020-episode-flow-replay-and-capacity-schedule.md) | Episode-flow attacker, re-fit D*, replay semantics; replay does not validate (F-08) | Accepted (amended; adds Story 2.6) | 2026-10-04 |
+| [0021](0021-par-expecting-holder.md) | Par-expecting holder: tranche redeem rule, C* = 9.17M ($2.15B), replay −5,769 → −1,138; depth bimodal in holder capital (F-09) | Accepted (finding, amended) | 2026-10-04 |
 
 ## Template
 

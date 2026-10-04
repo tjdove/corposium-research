@@ -213,6 +213,10 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
 - **L-14 — Push before Tim is told "ready to merge".** PROCESS.md was pushed to the PR #17
   branch after Tim had already merged it, and missed main. Anything added to a PR after the
   "merge when ready" message needs its own PR or an explicit "one more commit, hold".
+- **L-15 — A ruling's expectation is a prediction, not a constraint.** The 2.6 ruling
+  said the redeem-rule change "should not move the trough"; it moved it by 800 bps at
+  10M. The builder reported the falsification with its cause and carried on. Write
+  expectations into rulings so they can be checked, and treat a miss as a result.
 
 ---
 

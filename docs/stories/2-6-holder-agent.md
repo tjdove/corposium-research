@@ -1,6 +1,6 @@
 # Story 2.6: Par-Expecting Buyer Agent
 
-Status: review
+Status: done
 
 ## Story
 
@@ -852,9 +852,102 @@ holder (500 steps).
 - `tests/test_scripts.py`, `tests/test_calibrated_scenarios.py`, `tests/test_1992_scenarios.py`, `tests/test_usdc_2023.py`
 - `docs/stories/2-6-holder-agent.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅ — the buyer takes the replay from 4.2× too deep to 17% too
+shallow with one fitted parameter, and the weekend path sits on the observed one from 35 h.
+
+### Summary
+
+Independent reproduction on the review box (Python 3.13.15, fresh install):
+`pytest` → `502 passed in 15.50s`; `ruff check .` → `All checks passed!`;
+`ruff format --check .` → `83 files already formatted`. All five scenarios re-run: hashes
+`2c3aeaa9825d`, `44ac03c60e5f`, `17b24b458e47`, `f4e26ae66440`, `516edaef4795` and troughs
+−1,137.8 / −1,253.2 / −1,231.0 / −5,982.4 / −7,692.4 match the Debug Log exactly.
+`fit_holder.py --workers 2` (1m01s) lands on C\* = 9,166,667 (−1,137.8). The builder's
+scratch `holder_detail.py` re-run here gives the same per-agent figures: replay holder
+redeemed 6,693,374 before / 2,804,188 after the capacity change, PnL +82,521; calibrated
+baseline defender spend 10,261,334 → 6,054,986; soros-1992 arbitrageur 102,758,495 →
+100,347,952, exhaustion step 9550 → 9549, holder PnL −64,942. Overlay regenerated and
+inspected.
+
+The blocker was the right call and the builder's diagnostic (C\* independent of the rule,
+1992 dependent on it) was exactly what the ruling needed. The builder then caught that my
+ruling's expectation ("the rule change should not move the trough") was wrong: under the
+tranche rule the holder recycles ~0.9M of weekend redemption proceeds into further buying,
+which near the cliff is enough to outlast the attack, so 10M went from −1,052 to −225 and
+C\* moved to 9.17M. Reported plainly, with the cause. That is what the Rulings asked for.
+
+### Rulings
+
+1. **ADR-0021 → Accepted (finding, amended).** Amendment: the "finding candidate" section
+   is promoted to F-09 in FINDINGS.md; the 1992 section's observation that the holder's
+   round trip pays nothing is recorded as a parametric coincidence (entry 2% = defender
+   spread 200 bps, both dev-manager assumptions), not a finding.
+2. **The holder's sawtooth (±310/−220 bps for 3.5 h) is a model artefact to fix, not
+   publish.** A price limit on the holder's own fills (stop buying when its own trade would
+   lift the spot above its entry price) is the obvious rule. It is not in 2.7 (charts) and
+   it changes C\*, so it goes in Epic 3 as a story of its own, ahead of the multi-tranche
+   holder. Until then the overlay is shown with the artefact described in the caption.
+3. **Pace is not re-fitted.** Confirmed. Two parameters to one path is over-fitting; the
+   3.2 h lateness is stated in VALIDATION.md and the note.
+4. **The overlay chart clips the observed-trough annotation** (label and leader run off the
+   bottom axis). Fix in 2.8 (committed figures): y-limits must include both trough
+   annotations. Added to the 2.8 ACs in `epics.md`.
+5. **Holder columns in `summary.json` → deferred to 2.7.** Right not to change every
+   run's output in this story. 2.7's F-03 collapse plot needs "stable absorbed by the
+   peg's defenders" per cell, so 2.7 adds `defender_bought_stable`, `holder_bought_stable`
+   and `holder_pnl` to the summary (None when the agent is absent) as its own first commit.
+6. **Second-refinement pass landing on 5M–10M rather than 7.5M–12.5M.** The rule as
+   amended says "between the new neighbours", and the new pick after pass 1 was 7.5M, so
+   its neighbours were 5M and 10M. Applied correctly; my parenthetical in the ruling was a
+   guess at the outcome, not part of the rule.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `agents/holder.py` as amended; tranche rule; never sells; no `ctx.rng` (grep clean) |
+| 2 | ✅ | `HolderConfig` four fields; `tests/test_holder_config.py` pins all seven pre-2.6 hashes |
+| 3 | ✅ | `tests/test_holder.py`: wait/buy/redeem tranche/done/PnL/trace; real modules, manual phases |
+| 4 | ✅ | two-pass fit, table in Debug Log, reproduced here; `--dry-run` tested |
+| 5 | ✅ | `usdc-2023.yaml` holder entry with status line; VALIDATION.md 2.6 table + paragraphs; overlay |
+| 6 | ✅ | SOURCES.md holder section with $2.15B next to $2.71B burn and $9.7B cash |
+| 7 | ✅ | four scenarios at 9,166,667; before/after in Debug Log; 1992 re-scan both files; probe re-run |
+| 8 | ✅ | ADR-0021; "which actor decides" in Completion Notes |
+| 9 | ✅ | 502 passed; ruff clean; CI green (e18fc39) |
+
+**9 of 9 ACs met.**
+
+### Key Findings
+
+- **F-08 confirmed with a number.** No buyer: −5,769. One buyer at $2.15B (0.79× the
+  attack): −1,138. Observed: −1,373. The buyer absorbed 82% of the attack flow, where the
+  calibrated defender had absorbed 89% — the defender was standing in for the market.
+- **F-09 (new): a single-entry-price buyer makes depth bimodal.** Attacker-set below the
+  cliff, buyer-set (≈ entry discount) above it; the observed trough is on the cliff face.
+  Real buyers entered at a spread of prices.
+- **F-06 refinement:** the probe's 50% point moves 0.39 → 0.50 with the holder; twice its
+  face-value share, same mechanism as F-03 (buys below par, recycles).
+- **F-07 refinement:** the 1992 flip stays at 5.7; the 5.1/5.2 anomaly is gone; the dead
+  zone persists; the holder at 3.6% of the attacker cannot test the "convergence traders
+  switched sides" claim — that needs a holder with a sell rule (Epic 3).
+
+### Learnings for Story 2.7
+
+- A ruling's stated expectation is a prediction, not a constraint. The builder was right
+  to report it falsified and continue.
+- The holder is now part of the calibrated model. Every sweep from here runs with it
+  present at `C*/D*` of the cell's depth, which the sweep spec must be able to express.
+- The F-03 price-adjusted ratio is an outcome, not a parameter: it cannot be a heatmap
+  axis, but it can be the x-axis of a collapse plot across depths.
+
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.5 review (F-08); inserted into Epic 2
 - 2026-10-04: Config, agent, tests and fit script implemented; C* = 10,000,000 fitted. Blocked: the normative redeem condition (`redeem_fraction_min` 0.1) never lets the holder redeem at C* in any scenario, contradicting the Dev Notes' "redeem Monday" intent (see Blockers)
 - 2026-10-04: Dev manager ruled on Blockers (option 3 tranche redeem rule; second refinement pass; record timing and cliff). AC 1, AC 4 and Dev Notes amended. Status back to in-progress.
 - 2026-10-04: Resumed per Rulings (Claude Code, Opus 5.5). Tranche redeem rule (`redeem_horizon_steps` 10); two-pass fit: C* = 9,166,667 (−1,137.8 bps, ≈ $2.15B, 0.79× net burn); the rule change moved the trough at 10M (−1,052 → −225). Holder added to five scenarios at C*/D*; replay, propagation, 1992 re-scan, probe re-run; VALIDATION.md 2.6 section; SOURCES.md holder section; ADR-0021 Proposed. Status → review
+- 2026-10-04: Senior review APPROVE; ADR-0021 accepted (finding, amended); F-09 added; Status done

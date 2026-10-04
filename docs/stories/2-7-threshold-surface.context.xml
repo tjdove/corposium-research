@@ -1,0 +1,77 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.7</storyId>
+    <title>Threshold Surface and Oracle-Lag Sensitivity</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-7-threshold-surface.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>the two headline charts at calibrated scale with the buyer present</iWant>
+    <soThat>the note can state at what attacker size the peg stays broken, and whether oracle lag changes that</soThat>
+    <tasks>
+      - Summary fields (AC: 1)
+      - Linked-axis scales (AC: 2)
+      - Threshold surface (AC: 3, 4, 8)
+      - Oracle sensitivity (AC: 5, 6, 8)
+      - Headline, ADR, close out (AC: 7, 9, 10, 11)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–11. The metric choice (p_stays_broken) and the absorbed-ratio definition in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-7-threshold-surface.md" section="Dev Notes">Metric choice, absorbed ratio, expected shapes, cost.</doc>
+      <doc path="docs/FINDINGS.md" section="F-03, F-06, F-08 confirmation, F-09">What the charts are testing.</doc>
+      <doc path="docs/stories/2-2-monte-carlo.md" section="Dev Notes">How mc.parquet is built and binned by ratio.</doc>
+      <doc path="docs/adr/0021-par-expecting-holder.md">Holder present at C*/D* in every cell.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/analysis/summary.py" symbol="summarize" reason="Add the three fields; keep key order stable."/>
+      <existing path="src/depeg_sim/experiments/sweep.py" symbol="LinkedAxis, expand" reason="Add scales; apply in expand."/>
+      <existing path="src/depeg_sim/experiments/mc.py" symbol="aggregate_mc, _grid_point" reason="Carry new summary columns through; p_peg_recovered already present."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_peg_trajectory, plot_validation_overlay" reason="Figure conventions and footer."/>
+      <existing path="src/depeg_sim/analysis/stats.py" symbol="wilson" reason="Half-widths for annotations and bars."/>
+      <existing path="scripts/probe_boundary.py" symbol="resources" reason="Denominator convention for the nominal ratio axis."/>
+      <existing path="sweeps/capital-vs-resources-mc.yaml" reason="Spec style to copy."/>
+    </code>
+    <dependencies>
+      <python>numpy/scipy not required: fit the logistic with a short numpy Newton or grid search; matplotlib for charts. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - No kernel/ or protocol/ changes. PHASE_ORDER_VERSION stays 1.
+    - scenario_hash of every scenario unchanged; run-vs-rerun byte tests unchanged.
+    - Charts read mc.parquet + manifest only; no scenario re-runs inside chart code.
+    - Nominal ratio denominator = defender budget + redemption reserves (probe_boundary.resources); absorbed ratio denominator = defender_bought_stable + holder_bought_stable + redemption_paid_total.
+    - No hand-tuning of axes to make a contour appear; the AC 3 extension rule is the only permitted change, and it is reported.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="LinkedAxis.scales" kind="field" path="src/depeg_sim/experiments/sweep.py">list[float] | None; len == len(paths); all > 0; default None == all 1.0</interface>
+    <interface name="plot_threshold_surface" kind="function" path="src/depeg_sim/analysis/charts.py">plot_threshold_surface(sweep_dir: Path) -> Path (threshold_surface.png)</interface>
+    <interface name="plot_oracle_sensitivity" kind="function" path="src/depeg_sim/analysis/charts.py">plot_oracle_sensitivity(sweep_dir: Path) -> Path (oracle_sensitivity.png)</interface>
+    <interface name="summary fields" kind="keys" path="src/depeg_sim/analysis/summary.py">defender_bought_stable, holder_bought_stable, holder_pnl: float | None</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; synthetic mc.parquet (5 depth × 3 capital rows, hand-set p values) + minimal manifest in tmp_path for both chart tests, asserting the PNG exists and > 20 kB; scales equivalence test; summary field tests on a short calibrated-baseline run (max_steps 300).</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="short run with holder: holder_bought_stable > 0, holder_pnl is float; without holder: both None"/>
+      <test ac="2" idea="scales [1, 1, 0.55] on three paths: third path value == 0.55 × value; scales length mismatch → SweepSpecError"/>
+      <test ac="2" idea="expand(pool-depth-x-attacker.yaml) cells identical before/after (pin the first and last cell hashes)"/>
+      <test ac="4" idea="synthetic parquet with p_peg_recovered 1.0 below a ratio and 0.0 above: contour exists; function returns the path"/>
+      <test ac="6" idea="synthetic parquet with 2 thresholds × 3 heartbeats renders without error"/>
+    </ideas>
+  </tests>
+</story-context>
