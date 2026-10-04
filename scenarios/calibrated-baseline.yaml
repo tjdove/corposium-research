@@ -1,0 +1,57 @@
+# Calibrated baseline — the USDC / SVB episode of 10-13 March 2023 (Story 2.3).
+# Every value is sourced in docs/calibration/SOURCES.md; judgment calls are in ADR-0018.
+# The model is scale-free: the calibrated quantities are ratios. Anchor: pool depth
+# 1,000,000 per side = the USDC leg of Curve 3pool on 2023-03-10 ($510M x 46% = $234.6M);
+# every balance below is dollars x 1e6 / 234.6e6.
+#
+#   time         SOURCES.md#time         12 s slots; 18,000 steps = the ~60 h episode
+#   pool         SOURCES.md#pool         raw USDC-leg TVL as constant-product depth (troughs
+#                                        are upper bounds); fee 1 bp read on-chain (March 2023)
+#   oracle       SOURCES.md#oracle       Chainlink USDC/USD: 0.25% deviation, 82,800 s heartbeat
+#   redemption   SOURCES.md#redemption   1:1, no fee (2023); capacity = observed net burn
+#                                        11-14 Mar 2023; reserves = Circle's T-bill share
+#   environment  SOURCES.md#environment  calm-week (27 Feb - 3 Mar 2023) realised USDC vol
+#   attacker     SOURCES.md#attacker     capital / (budget + reserves) = 1.0 (ADR-0017 boundary,
+#                                        a design choice); pace and start_step unchanged
+#   defender     SOURCES.md#defender     budget = Circle's cash share (23:77 vs reserves); policy
+#                                        parameters are assumptions
+#   arbitrageur  SOURCES.md#arbitrageur  unchanged from soros-baseline (assumptions)
+#   termination  SOURCES.md#termination  tolerance = fee 1 + min profit 20 + 10 bps margin
+#                                        (ADR-0013); for_steps = one Chainlink heartbeat
+version: 1
+name: calibrated-baseline
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 18000
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 1_000_000
+  reserve_reference: 1_000_000
+  fee_bps: 1
+oracle:
+  heartbeat_steps: 6900
+  deviation_threshold_pct: 0.25
+redemption:
+  reserves: 138_107_417
+  spread_bps: 0
+  capacity_per_step: 605.79
+  peg_price: 1.0
+environment:
+  base_price: 1.0
+  volatility_per_step: 3.086e-05
+  shocks: []
+agents:
+  - { type: attacker, id: attacker-1, capital: 179_454_391, start_step: 50, pace: 0.1 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 1.0, spend_pace: 0.2 }
+termination:
+  reserves_exhausted: true
+  peg_recovered: { for_steps: 6900, tolerance: 0.0031 }
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: false
+  checkpoint_every: 6900

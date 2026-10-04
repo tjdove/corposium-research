@@ -1,6 +1,6 @@
 # Story 2.3: Calibration Sources
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -26,26 +26,26 @@ so that a reader can check where the numbers came from.
 
 ## Tasks / Subtasks
 
-- [ ] Gather and verify (AC: 1–9)
-  - [ ] Chainlink heartbeat (primary: data.chain.link USDC/USD or docs addresses page)
-  - [ ] Curve 3pool fee (primary: curve.fi pool page or contract `fee()`)
-  - [ ] Circle redemption fee schedule (primary: circle.com docs)
-  - [ ] USDC net burn March 11–14 2023 (name the dashboard; screenshot or CSV under `data/` if ≤ 1 MB)
-  - [ ] USDC/USD candles, calm week and stress window; compute both sds; commit the CSVs
-  - [ ] Write SOURCES.md with the five-column rows and status marks
+- [x] Gather and verify (AC: 1–9)
+  - [x] Chainlink heartbeat (primary: data.chain.link USDC/USD or docs addresses page)
+  - [x] Curve 3pool fee (primary: curve.fi pool page or contract `fee()`)
+  - [x] Circle redemption fee schedule (primary: circle.com docs)
+  - [x] USDC net burn March 11–14 2023 (name the dashboard; screenshot or CSV under `data/` if ≤ 1 MB)
+  - [x] USDC/USD candles, calm week and stress window; compute both sds; commit the CSVs
+  - [x] Write SOURCES.md with the five-column rows and status marks
 
-- [ ] Scenarios (AC: 9, 10)
-  - [ ] `scenarios/calibrated-baseline.yaml`, `scenarios/calibrated-stress.yaml`
-  - [ ] Run both; record outcomes; if either ends by `max_steps`, revisit `for_steps`/tolerance first (LOW-2 from 2.2), then attacker ratio, and record what you changed and why
+- [x] Scenarios (AC: 9, 10)
+  - [x] `scenarios/calibrated-baseline.yaml`, `scenarios/calibrated-stress.yaml`
+  - [x] Run both; record outcomes; if either ends by `max_steps`, revisit `for_steps`/tolerance first (LOW-2 from 2.2), then attacker ratio, and record what you changed and why
 
-- [ ] Data README and ADR (AC: 11, 12)
-  - [ ] `data/README.md`; `Proposed` ADR for the judgment calls
+- [x] Data README and ADR (AC: 11, 12)
+  - [x] `data/README.md`; `Proposed` ADR for the judgment calls
 
-- [ ] Tests, lint, close out (AC: 13)
-  - [ ] `tests/test_calibrated_scenarios.py`: both load, hash, run short
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 2.3: calibration sources`, push to `main`
+- [x] Tests, lint, close out (AC: 13)
+  - [x] `tests/test_calibrated_scenarios.py`: both load, hash, run short
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 2.3: calibration sources`, push to `main`
 
 ## Dev Notes
 
@@ -144,22 +144,176 @@ needs a key, note that and commit the CSV with a retrieval date instead of a com
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`) via Claude Code
 
 ### Debug Log References
 
-_(real command output; both calibrated runs' three CLI lines)_
+```
+$ pytest; echo exit=$?
+417 passed in 4.01s
+exit=0
+
+$ ruff check .; echo exit=$?
+All checks passed!
+exit=0
+
+$ ruff format --check .; echo exit=$?
+74 files already formatted
+exit=0
+
+$ python run.py scenarios/calibrated-baseline.yaml; echo exit=$?
+depeg-sim: scenario=calibrated-baseline seed=42 hash=e3252a1ffa5b
+run: steps=7051 terminated_by=peg_recovered max_depeg_bps=-9972.1 reserves_exhausted=False
+wrote: output/calibrated-baseline-42-e3252a1f
+exit=0
+
+$ python run.py scenarios/calibrated-stress.yaml; echo exit=$?
+depeg-sim: scenario=calibrated-stress seed=42 hash=546d28330e87
+run: steps=7067 terminated_by=peg_recovered max_depeg_bps=-9972.1 reserves_exhausted=False
+wrote: output/calibrated-stress-42-546d2833
+exit=0
+```
+
+Verification reads (2026-10-04):
+
+```
+# Chainlink feed directory (reference-data-directory.vercel.app/feeds-mainnet.json), "USDC / USD":
+path usdc-usd      proxy 0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6  heartbeat 82800  threshold 0.25
+path usdc-usd-svr  proxy 0xfB6471ACD42c91FF265344Ff73E88353521d099F  heartbeat 86400  threshold 0.25
+
+# Curve 3pool fee(), eth_call (eth.drpc.org; 1rpc.io agrees at 16,793,344); FEE_DENOMINATOR 10**10
+11000000 2020-10-06T04:17:04+00:00 4000000 4 bps
+14000000 2022-01-13T22:59:55+00:00 3000000 3 bps
+15500000 2022-09-09T01:39:42+00:00 1000000 1 bps
+16793344 2023-03-09T21:34:47+00:00 1000000 1 bps
+16800000 2023-03-10T20:08:47+00:00 1000000 1 bps
+16820000 2023-03-13T15:36:47+00:00 1000000 1 bps
+latest (publicnode)                0x16e360 = 1500000 = 1.5 bps
+
+# Bitstamp USDC/USD hourly, log-return sd (data/*.csv)
+calm   2023-02-27..03-03  rows 120  sd_hourly=0.0005345425225988582  sd_step=3.086182693157524e-05
+stress 2023-03-10..03-13  rows 96   sd_hourly=0.01309650361013093   sd_step=0.0007561269884751998
+
+# DefiLlama USDC supply: 2023-03-11 42,200,261,242 -> 2023-03-15 38,107,230,325
+net burn 4,093,030,917 / 4 days = 1,023,257,729.25 /day -> 142,119.13 $/step -> 605.79 model/step
+```
+
+32-seed check of each committed scenario (seeds 1..32, `python -m depeg_sim.sweep … --mc`):
+
+```
+calibrated-baseline  {'peg_recovered': 31, 'max_steps': 1}   sustained median 101  range 101..7342
+calibrated-stress    {'max_steps': 27, 'peg_recovered': 5}   sustained median 3359 range 122..7012
+```
+
+Attacker-ratio probe (calm, seed 42, scratch sweep over `agents[type=attacker].capital`):
+
+```
+ratio  terminated_by   steps_run  max_depeg_bps  defender_spent  redemption_paid  sustained
+ 1.0   peg_recovered   7051       -9972.1        16,119,549.5    4,238,712.6      101
+ 2.0   peg_recovered   7061       -9992.7        19,325,500.8    4,244,770.5      111
+ 4.0   peg_recovered   7066       -9998.1        22,574,303.0    4,247,799.5      116
+ 8.0   peg_recovered   7076       -9999.5        25,845,429.7    4,253,857.4      126
+16.0   peg_recovered   7077       -9999.9        29,132,433.3    4,254,463.2      127
+```
+
+405 → 417 tests (+12, `tests/test_calibrated_scenarios.py`).
 
 ### Completion Notes List
 
-_(include: the two volatility sds, both scenarios' outcomes, which figures stayed `secondary`, the ADR number)_
+- **Outcomes (seed 42):**
+
+  | scenario | terminated_by | steps_run | max_depeg_bps | steps_to_sustained_recovery |
+  |---|---|---|---|---|
+  | calibrated-baseline | peg_recovered | 7051 | −9972.1 | 101 |
+  | calibrated-stress | peg_recovered | 7067 | −9972.1 | 117 |
+
+  Neither needed the fix order (for_steps/tolerance → attacker ratio). Both terminate by
+  `peg_recovered` as committed. But see the stress finding: that's seed luck.
+- **Volatility:** calm (27 Feb – 3 Mar 2023) **sd_step = 3.086e-05**; stress (10–13 Mar
+  2023) **sd_step = 7.561e-04**. That's 24.5×, not the ~100× guessed. Bitstamp's thin book
+  inflates the calm figure, and the stress figure is mostly the depeg itself, which the
+  model applies to the *reference* price (a double count, stated in SOURCES.md).
+- **Finding (for the dev manager to decide on a FINDINGS entry): under realised stress
+  volatility the recovery criterion is mostly unreachable.** At the ADR-0013 tolerance
+  (31 bps) and `for_steps` = one heartbeat (6,900), 5 of 32 seeds recover. The rest run to
+  `max_steps` (calm: 31 of 32). Over one `for_steps` window the reference wanders
+  σ√6900 ≈ 7.56e-4 × 83 ≈ 6.3%, twenty times the band, and AMM deviation is measured
+  against the fixed peg. "Under realised stress volatility, the recovery criterion itself
+  must widen", or deviation should be measured against the reference, not the peg. Seed
+  42 happens to be a recovering seed. The committed stress scenario meets AC 10, but the
+  result isn't robust, and the scenario header says so.
+- **Finding: the calibrated attacker isn't on the ADR-0017 boundary.** With sourced
+  ratios the attacker is 179× pool depth (ADR-0017 measured capital/depth 0.1–2.4). The
+  first dump crashes spot to 0.0028. The defender buys the dump back almost for free
+  (F-03 at its limit), spends 16.1M of 41.3M, and the peg recovers. Raising the attacker
+  to 16× (budget + reserves) still recovers. A never-stopping attacker at this scale
+  can't win. The boundary at calibrated scale needs a `stop_below_price` assumption (a
+  rational seller doesn't dump at 0.003) or multi-venue depth. Proposed in ADR-0018 as a
+  consequence for 2.5/2.6, not changed here: the story fixes pace/start_step and sets no
+  stopping rule.
+- **Finding: redemption is throughput-bound.** At the observed net burn (605.79/step =
+  $1.02B/day), the facility pays at most 10.9M (7.9% of reserves) in 18,000 steps, so
+  `reserves_exhausted` can't fire. That matches March 2023: reserves were ample; the
+  banking rails were shut.
+- **Two expected figures were wrong in the story; I used the verified values.**
+  - Curve 3pool fee in March 2023 was **1 bp**, read on-chain at three blocks spanning
+    9–13 March 2023. 4 bps is the 2020 launch fee; today it is 1.5 bps.
+  - Chainlink USDC/USD (`usdc-usd`) heartbeat is **82,800 s** → `heartbeat_steps =
+    6900` (not 86,400 / 7200). 86,400 s belongs to the separate `usdc-usd-svr` feed.
+    data.chain.link returned 403 to automated fetches. I read Chainlink's own feed
+    directory JSON, which docs.chain.link renders. These are today's parameters; the March
+    2023 values were not checked.
+  - Consequences: arb band = 1 + 20 = 21 bps, tolerance 0.0031 (band + 10 bps, ADR-0013);
+    `for_steps` 6900.
+- **Rows still `secondary` (8):** `steps.max_steps` (episode length from press),
+  `amm.reserve_stable` / `amm.reserve_reference` (CoinDesk TVL/share, pre-verified by the
+  dev manager), `redemption.spread_bps` (March 2023 fee-free inferred from Circle's
+  1:1 statement plus later press; the current schedule page is JS-rendered and was read via
+  the search index), `redemption.capacity_per_step` (DefiLlama aggregate; primary =
+  Circle/on-chain supply), `redemption.reserves` and `agents[type=defender].budget`
+  (21Shares, pre-verified), `agents[type=attacker].capital` (design ratio; 1992 anchors
+  pending BACKGROUND verification). Policy/behaviour rows are `assumption`. Everything
+  else is `verified`.
+- **Proposed ADR-0018** (pool anchor, reserves split, attacker ratio, plus the three
+  calibrated-run observations and their consequences for 2.5/2.6).
+- **Data:** three CSVs under `data/` (7.5–9.1 KB each), all produced by
+  `python data/fetch.py` (stdlib, no keys). `data/README.md` gives URL, window, rows,
+  columns and sha256 for each, plus the sources tried and rejected (CoinGecko needs a paid
+  key for 2023; Coinbase has no USDC-USD book; Kraken serves only the last 720 candles).
+  `data/fetch.py` is a retrieval script, not simulator source.
+- **Tests (`tests/test_calibrated_scenarios.py`, 12):** both scenarios load and follow
+  ADR-0013 / heartbeat / ADR-0010 rules; attacker = budget + reserves; content hashes
+  pinned (a calibration change must update the test); stress differs from baseline only
+  in name and volatility; 500-step runs complete; headers point at every SOURCES.md
+  section; every SOURCES.md parameter row has six non-empty cells and a status in the
+  vocabulary; every YAML leaf parameter has a row; data files < 1 MB, named and
+  checksummed in `data/README.md`.
+- `metrics.checkpoint_every: 6900` (one per heartbeat) and `trace_decisions: false` for
+  the 18,000-step scenarios; listed as `assumption` rows.
+- No schema or source changes; no Blockers.
 
 ### File List
 
 **Created:**
 
+- `docs/calibration/SOURCES.md` (replaces `docs/calibration/.gitkeep`)
+- `scenarios/calibrated-baseline.yaml`, `scenarios/calibrated-stress.yaml`
+- `data/README.md`, `data/fetch.py`
+- `data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv`,
+  `data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv`,
+  `data/usdc_supply_defillama_2023-03-01_2023-03-20.csv`
+- `docs/adr/0018-calibration-judgment-calls.md` (Proposed)
+- `tests/test_calibrated_scenarios.py`
+
 **Modified:**
+
+- `docs/stories/2-3-calibration-sources.md`
+
+**Deleted:**
+
+- `docs/calibration/.gitkeep`
 
 ## Change Log
 
 - 2026-10-03: Story drafted by dev manager after Story 2.2 review; dev manager pre-verified the Chainlink deviation threshold and the Curve/Chainalysis/21Shares figures cited above
+- 2026-10-04: Implemented by Claude Code (Opus 5.5); 417 tests pass; both calibrated scenarios end peg_recovered (stress only in 5/32 seeds); ADR-0018 proposed; status → review
