@@ -1,6 +1,6 @@
 # ADR-0019: Fitted aggregate depth D*, the 1992 analogue's split and multiple, and the boundary at calibrated depth
 
-**Status:** Proposed
+**Status:** Accepted (amended in review: decision 1 superseded, see below)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.4 AC 12

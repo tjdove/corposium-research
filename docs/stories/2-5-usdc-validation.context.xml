@@ -1,0 +1,83 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.5</storyId>
+    <title>USDC March-2023 Validation</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-5-usdc-validation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>the model to reproduce the shape of a real depeg</iWant>
+    <soThat>the note's claims rest on more than internal consistency</soThat>
+    <tasks>
+      - Part A: re-anchor attacker, re-fit D*, re-probe, re-run 1992 (AC: 1–5)
+      - Schema and environment (AC: 6, 7)
+      - Replay scenario (AC: 8)
+      - Overlay and validation doc (AC: 9, 10)
+      - ADR, tests, close out (AC: 11, 12, 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. Part A commits before Part B. The timestamp arithmetic in Dev Notes is normative and must appear in the usdc-2023.yaml header.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-5-usdc-validation.md" section="Dev Notes">Why schema changes are allowed here; interpolation; timestamps; what "matches" means; defender encoding.</doc>
+      <doc path="docs/adr/0019-fitted-depth-1992-and-boundary.md" section="Review amendment">The attacker re-anchor decision and the re-fit expectation.</doc>
+      <doc path="docs/FINDINGS.md" section="F-05 correction, F-06, F-07">What to re-check after the re-fit.</doc>
+      <doc path="docs/calibration/SOURCES.md">Attacker row, market_depth_multiple row, capacity row to update.</doc>
+      <doc path="data/README.md">Stress CSV and supply CSV provenance.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="EnvironmentConfig, RedemptionConfig, ScenarioConfig.content_hash" reason="Add price_series_path and capacity_schedule with validators; include series hash in content_hash."/>
+      <existing path="src/depeg_sim/environment/price_process.py" symbol="ReferencePrice.from_config" reason="Series loading and interpolation path."/>
+      <existing path="src/depeg_sim/protocol/redemption.py" symbol="RedemptionModule.on_phase, process" reason="Apply capacity_schedule in PROTOCOL_EVENTS before process(); emit capacity_changed."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_peg_trajectory" reason="Copy its figure setup for plot_validation_overlay."/>
+      <existing path="scripts/fit_depth.py, scripts/probe_boundary.py" reason="Re-run unchanged in Part A."/>
+      <existing path="scenarios/calibrated-baseline.yaml, calibrated-stress.yaml, soros-1992.yaml, soros-1992-no-defense.yaml" reason="Depth updates in Part A."/>
+      <existing path="data/usdc_supply_defillama_2023-03-01_2023-03-20.csv" reason="Net burn source for AC 1."/>
+      <existing path="data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv" reason="Reference series for the replay."/>
+    </code>
+    <dependencies>
+      <python>numpy.interp for interpolation; hashlib. No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Schema changes limited to: EnvironmentConfig.price_series_path, RedemptionConfig.capacity_schedule, and the content_hash extension. Both new fields default to absent; every existing scenario's content_hash must be unchanged (test: baseline hash still 2e09f431ce74… or whatever the pinned value is; the determinism fixtures must not need updating).
+    - No kernel/ changes. PHASE_ORDER_VERSION stays 1.
+    - When price_series_path is set, volatility_per_step must be 0 and shocks must be empty; validator error names the rule.
+    - price_series_path is resolved relative to the scenario YAML's directory, not the CWD; the manifest stores the resolved absolute path AND the series sha256.
+    - capacity_schedule steps strictly ascending; applied at the start of PROTOCOL_EVENTS for that step, before process(); emits capacity_changed {step, old, new}.
+    - pace is chosen by the scan rule in AC 8 (closest trough timing to the observed), not by eye.
+    - The overlay chart re-reads the CSV named in the manifest; it must not take the series as an argument.
+    - VALIDATION.md states what matches, what doesn't, and why, in that order.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="EnvironmentConfig.price_series_path" kind="field" path="src/depeg_sim/kernel/config.py">Path | None = None</interface>
+    <interface name="RedemptionConfig.capacity_schedule" kind="field" path="src/depeg_sim/kernel/config.py">list[CapacityChange] = []; CapacityChange(step: int ge 0, capacity_per_step: float gt 0)</interface>
+    <interface name="ReferencePrice.from_series" kind="classmethod" path="src/depeg_sim/environment/price_process.py">from_series(path: Path, interval_seconds: int, base_price: float = 1.0) -> ReferencePrice (interpolated, hold-last)</interface>
+    <interface name="plot_validation_overlay" kind="function" path="src/depeg_sim/analysis/charts.py">plot_validation_overlay(run_dir: Path) -> Path (validation_overlay.png)</interface>
+    <interface name="docs/calibration/VALIDATION.md" kind="document">Sections: Setup (scenario, timestamps, fitted pace), Comparison table (observed vs simulated: trough bps, trough time, last-outside-band time, recovery direction/timing), What matches, What does not, Why, Figure.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; synthetic 5-row CSV in tmp_path for interpolation tests; hash tests compare content_hash() across two tmp scenarios; existing determinism fixtures untouched; replay scenario tested with max_steps 500 only; overlay tested for file existence/size on a tiny run.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="6,7" idea="5-row CSV at hourly spacing: step 0 == close[0]; step 150 == midpoint of close[0], close[1]; step beyond end == last close"/>
+      <test ac="6" idea="series + volatility 0.001 → ValidationError naming the rule"/>
+      <test ac="6" idea="two scenarios identical except CSV bytes → different content_hash; existing baseline hash unchanged"/>
+      <test ac="8" idea="capacity_schedule [{step 10, 1000}]: queue of 5000 with capacity 100 drains to 0 within ~5 steps after step 10; capacity_changed emitted once"/>
+      <test ac="11" idea="usdc-2023.yaml loads; price_series_path resolves; short run completes; overlay PNG > 20 kB"/>
+    </ideas>
+  </tests>
+</story-context>

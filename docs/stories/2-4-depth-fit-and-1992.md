@@ -1,6 +1,6 @@
 # Story 2.4: Aggregate Depth Fit and the 1992 Analogue Scenario
 
-Status: review
+Status: done
 
 ## Story
 
@@ -391,3 +391,65 @@ doesn't stop the run; it delays when the reserve is touched and leaves part of i
 
 - 2026-10-04: Story drafted by dev manager after Story 2.3 review; Part A added per ADR-0018 amendment / F-05
 - 2026-10-04: Implemented by Claude Code (Opus 5.5). Part A committed separately (D* = 1,833,333,333, trough −1327.8 bps, grid extended one decade); boundary probe; 1992 analogue and counterfactual (both reserves_exhausted; flip multiple 5.3); ADR-0019 Proposed. Status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅ — with ADR-0019 §1 superseded
+
+### Summary
+
+435 passed, ruff clean, CI run 37225011935 green. Every AC met as written, the builder
+resolved a Dev-Notes-vs-constraint conflict correctly (constraint is stricter), and the
+analysis in ADR-0019 is the reason the review can fix the real problem: **D\* ≈ $430B per
+side is the model telling us the attacker is ten times too large**, and the builder's
+decision 2 proves it (pace doesn't move the trough; attacker size does). My ADR-0018
+attacker ratio was the wrong input. Reversed; 2.5 re-anchors the attacker to the observed
+episode flow and re-fits depth.
+
+### Rulings
+
+- **ADR-0019 §1 (D\* = 1.83B): superseded.** Re-fit in 2.5 with the episode-sized attacker.
+- **§2 (D\* absorbs attacker size, not pace): accepted** and is the basis for the reversal.
+- **§3 (boundary at 0.29; deliverable reserves): accepted → F-06.** The formula generalises
+  ADR-0016/0017 to throughput-bound redemption; the three-way outcome is March 2023.
+- **§4 (1992 at 5.3× Quantum; spread dead zone): accepted provisionally → F-07.** Re-run
+  after the re-fit.
+- **Builder merged the dev manager's unmerged story branch into main.** Correct: the story
+  file must be on `main` before work starts; the PR had been approved in chat. Going
+  forward the dev manager confirms the merge before issuing a prompt.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1–2 | ✅ | `fit_depth.py`; rule applied mechanically; grid extended one decade per constraint |
+| 3 | ✅ | YAMLs and SOURCES.md updated (to be revised in 2.5) |
+| 4 | ✅ | `probe_boundary.py`; 0.5–2.0 all `max_steps`; extra 0.1–0.4 probe found 0.25–0.30 |
+| 5–9 | ✅ | `soros-1992.yaml` with statuses per line; 50:50 split; 6× Quantum; shock; spread 200; capacity unbound |
+| 10 | ✅ | `reserves_exhausted` at 9,932; flip 5.3× recorded |
+| 11 | ✅ | `soros-1992-no-defense.yaml`; both charts described |
+| 12 | ✅ | ADR-0019; three findings written up |
+| 13 | ✅ | `435 passed`; CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1]** Defender spread chatter (57 `spread_changed` in soros-1992): add
+  `restore_threshold_pct` in Epic 3.
+- **[LOW-2]** The £27bn Treasury primary returned 403; status stays `secondary`. Tim may
+  be able to retrieve it from the Thatcher Foundation archive link in BACKGROUND.md.
+
+### Learnings for Story 2.5
+
+- Anchor the attacker to the episode; fit depth second. Report D\* as a dollar figure and
+  as a multiple of the Curve leg so a reader can judge it.
+- Pace is free to fit trough *timing* once depth is set.
+- Recovery in the calibrated scenario needs the outside backstop; 2.5 models it as a
+  scheduled capacity change at the Monday-morning step.
+- 2026-10-04: Senior review APPROVE; status set to done. ADR-0019 §1 superseded (attacker re-anchored, D* re-fit in 2.5); F-06, F-07 and an F-05 correction added.
