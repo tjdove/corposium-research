@@ -1,4 +1,4 @@
-"""Story 2.4: the analysis scripts' dry runs (no sweeps in CI)."""
+"""Stories 2.4, 2.6: the analysis scripts' dry runs (no sweeps in CI)."""
 
 import subprocess
 import sys
@@ -32,7 +32,23 @@ def test_probe_boundary_dry_run_lists_cells():
     assert ratios == [f"ratio {r}" for r in ("0.5", "0.75", "1", "1.25", "1.5", "2")]
 
 
-@pytest.mark.parametrize("script", ["fit_depth.py", "probe_boundary.py"])
+def test_fit_holder_dry_run_lists_grid():
+    text = dry_run("fit_holder.py")
+    assert "target_bps=-1373 entry_discount_pct=2 pace=0.05" in text
+    grid = next(line for line in text.splitlines() if line.startswith("grid (7): "))
+    values = grid.split(": ", 1)[1].split(", ")
+    assert values == [
+        "1,000,000",
+        "2,000,000",
+        "5,000,000",
+        "10,000,000",
+        "20,000,000",
+        "50,000,000",
+        "100,000,000",
+    ]
+
+
+@pytest.mark.parametrize("script", ["fit_depth.py", "probe_boundary.py", "fit_holder.py"])
 def test_dry_run_writes_nothing(script, tmp_path):
     dry_run(script, "--output", str(tmp_path))
     assert list(tmp_path.iterdir()) == []

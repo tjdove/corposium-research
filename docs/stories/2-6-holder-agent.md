@@ -1,6 +1,6 @@
 # Story 2.6: Par-Expecting Buyer Agent
 
-Status: in-progress
+Status: blocked
 
 ## Story
 
@@ -22,15 +22,16 @@ so that the replay can reproduce the observed trough and the note can say what d
 
 ## Tasks / Subtasks
 
-- [ ] Config and factory (AC: 2)
-  - [ ] `HolderConfig`; union; `build_agents`; hash-stability test
-  - [ ] Commit separately: `story 2.6: holder config`
+- [x] Config and factory (AC: 2)
+  - [x] `HolderConfig`; union; `build_agents`; hash-stability test (`build_agents` branch
+    landed with the agent in the second commit: it needs the `Holder` class)
+  - [x] Commit separately: `story 2.6: holder config`
 
-- [ ] Agent (AC: 1, 3)
-  - [ ] `agents/holder.py`; `tests/test_holder.py`
+- [x] Agent (AC: 1, 3)
+  - [x] `agents/holder.py`; `tests/test_holder.py`
 
 - [ ] Fit (AC: 4, 5, 6)
-  - [ ] `scripts/fit_holder.py`; run; `C*`
+  - [x] `scripts/fit_holder.py`; run; `C*`
   - [ ] Update `usdc-2023.yaml`; re-run; overlay; `VALIDATION.md` before/after; `SOURCES.md` holder section
   - [ ] Look at the new overlay and describe it
 
@@ -38,7 +39,7 @@ so that the replay can reproduce the observed trough and the note can say what d
   - [ ] Add holder to the four scenarios at `C*/D*`; re-run all; re-scan 1992; re-probe
 
 - [ ] ADR, tests, close out (AC: 8, 9)
-  - [ ] Proposed ADR; `tests/test_scripts.py` dry-run for `fit_holder.py`
+  - [ ] Proposed ADR; `tests/test_scripts.py` dry-run for `fit_holder.py` (dry-run test done)
   - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
   - [ ] Dev Agent Record, Change Log, `Status: review`
   - [ ] Commit `story 2.6: par-expecting buyer agent`, push to `main`
@@ -108,6 +109,80 @@ claim is confirmed quantitatively; say so.
 - [Source: docs/BACKGROUND.md#4-The-attackers] — convergence trades
 - [Source: docs/stories/1-7-agents.md] — agent pattern and tests
 
+## Blockers
+
+**2026-10-04 — the normative redeem condition contradicts the intended behaviour; at C\*
+the holder can never redeem in any of the five scenarios.**
+
+The Dev Notes make the redeem rule normative (context XML: "The redeem condition and fit
+rule in Dev Notes are normative"): redeem only when `queue_depth == 0` and
+`capacity_per_step >= redeem_fraction_min × stable`, default `redeem_fraction_min = 0.1`.
+The same section says the holder "will wait (`hold_wait`) all weekend and redeem Monday.
+That is the intended behaviour and it is the March-2023 story." Both cannot hold at the
+fitted size.
+
+**What I ran.** `python scripts/fit_holder.py --workers 8` (full table in Debug Log) gives
+**C\* = 10,000,000** model units (trough −1,052.1 bps; ≈ $2.346B at `s`; 0.87× the
+attacker's 11,540,596 episode net burn). In the replay at C\* the holder spends all its
+capital between steps 8117 and 9959 (719 buys) and ends holding **10,068,775 stable**. The
+rule needs `capacity ≥ 0.1 × stable`, so the largest balance it can ever redeem is
+`capacity / 0.1`:
+
+| scenario | holder capital at C\*/D\* | capacity per step | largest redeemable balance |
+|---|---|---|---|
+| usdc-2023 (weekend → Monday) | 10,000,000 | 605.79 → 19,181.59 | 6,058 → 191,816 |
+| calibrated-baseline / -stress | 10,000,000 | 605.79 | 6,058 |
+| soros-1992 / -no-defense | 10,000,000 | 13,986.57 | 139,866 |
+
+(All four propagated scenarios sit at D\* = 16,666,667, so `C* × depth / D*` = 10,000,000
+in each.) At C\* the holder never redeems anywhere: `redeem_when_capacity` is inert, it
+holds ~10.07M stable to `max_steps` in every scenario, and the Monday redemption the story
+describes does not happen.
+
+**Diagnostic (in-process override, not committed): what the choice changes.**
+`redeem_fraction_min` overridden to 0.001 on the same runs:
+
+| run | `redeem_fraction_min` | trough (step) | final | holder redeem requests | holder paid | holder PnL (mark-to-market) |
+|---|---|---|---|---|---|---|
+| usdc-2023 | 0.1 | −1,052.1 (10361) | −27.3 | none | 0 | 41,307 |
+| usdc-2023 | 0.001 | −1,052.1 (10361) | −27.3 | step 25501: 10,068,775 | 10,068,775 | 68,775 |
+| soros-1992 | 0.1 | −6,029.2 (3302) | −143.1, reserves exhausted | none | 0 | −77,592 |
+| soros-1992 | 0.001 | −5,932.1 (3377) | −144.3, reserves exhausted | from step 2202 | 6,573,268 | 819,796 |
+
+So **C\* itself does not depend on the redeem rule** (the trough is identical: nothing the
+holder holds is redeemable at weekend capacity either way). The replay's post-Monday path
+is also identical. What depends on it is AC 7: in 1992 the holder either sits on its stable
+(and loses when reserves exhaust) or redeems during the attack, competes with the
+arbitrageur for reserves, and profits. That is exactly the "does the buyer change who
+decides 1992" question AC 7 and AC 8 ask, so I can't pick the rule myself.
+
+**Options I can see (dev manager's call):**
+1. Keep the rule as written (`0.1`). The holder is a pure absorber that never redeems at
+   fitted size; drop the "redeem Monday" expectation from the story and VALIDATION text.
+2. Lower the default `redeem_fraction_min` (e.g. 0.001, ~1,000 steps ≈ 3.3 h to pay out).
+   Gives the Monday redemption in the replay; changes 1992 as above.
+3. Change the rule's shape, e.g. redeem when the queue is empty, sized to what the channel
+   can pay soon (`min(stable, capacity × N)`), rather than all-or-nothing. A new rule;
+   needs AC 1 amended.
+
+**Other things the dev manager should see before deciding** (facts from the fit, not
+blockers):
+- The fit misses the target by 321 bps (−1,052.1 vs −1,373). The trough is a cliff in
+  capital: 7.5M → −2,206.7, 10M → −1,052.1, 12.5M → −215.8 (once the holder can absorb the
+  attack, the price stops at about its 2% entry). The AC 4 refinement (5 points between the
+  pick's neighbours 5M and 20M) lands on 7.5M, 10M (the pick again), 12.5M, 15M, 17.5M, so
+  it does not resolve the 7.5M–12.5M cliff. The rule was applied as written; C\* = 10M.
+- Trough timing moves from 31.6 h (2.5) to 34.5 h (step 10361) with the holder: outside
+  2.5's ±2 h target. Pace is not re-fitted (out of scope).
+- C\* < attack size (0.87×), so per the Dev Notes the buyer alone does not explain the
+  trough by that test.
+
+**Done so far:** `HolderConfig` + hash-stability test (commit `957cec2`); `Holder` agent,
+factory branch, `tests/test_holder.py`, `scripts/fit_holder.py` + dry-run test (next
+commit). `pytest`: 494 passed; `ruff check .` and `ruff format --check .` clean.
+**Not done (waiting on the ruling):** scenario YAML changes, replay re-run, overlay,
+VALIDATION.md / SOURCES.md, propagation, 1992 re-scan, probe, ADR.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -116,11 +191,39 @@ claim is confirmed quantitatively; say so.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul
 
 ### Debug Log References
 
 _(real command output; fit table, replay CLI lines before/after, four propagated runs, 1992 re-scan, probe)_
+
+`python scripts/fit_holder.py --workers 8` (real 0m6.742s):
+
+```
+fit_holder: scenario=scenarios/usdc-2023.yaml target_bps=-1373 entry_discount_pct=2 pace=0.05
+grid (7): 1,000,000, 2,000,000, 5,000,000, 10,000,000, 20,000,000, 50,000,000, 100,000,000
+grid pass (target -1373 bps):
+ holder_capital  max_depeg_bps  step_of_max_depeg terminated_by  steps_run
+        1000000       -5,455.3               9524     max_steps      33600
+        2000000       -5,108.7               9560     max_steps      33600
+        5000000       -3,784.8               9681     max_steps      33600
+       10000000       -1,052.1              10361     max_steps      33600
+       20000000         -219.6               8163     max_steps      33600
+       50000000         -210.7               8231     max_steps      33600
+      100000000         -210.5               8116     max_steps      33600
+
+refine pass between 5,000,000 and 20,000,000 (grid pick 10,000,000):
+ holder_capital  max_depeg_bps  step_of_max_depeg terminated_by  steps_run
+        7500000       -2,206.7               9793     max_steps      33600
+       10000000       -1,052.1              10361     max_steps      33600
+       12500000         -215.8               8205     max_steps      33600
+       15000000         -215.8               8262     max_steps      33600
+       17500000         -214.6               8157     max_steps      33600
+
+C* = 10000000 (trough -1052.1 bps) ≈ $2,346,000,000 at s = 0.0042625746 units/$
+```
+
+Checks before blocking: `pytest` → `494 passed in 6.06s` (exit=0); `ruff check .` → `All checks passed!`; `ruff format --check .` → `83 files already formatted` (exit=0).
 
 ### Completion Notes List
 
@@ -135,3 +238,4 @@ _(include: C* in three units, before/after overlay description, VALIDATION.md ta
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.5 review (F-08); inserted into Epic 2
+- 2026-10-04: Config, agent, tests and fit script implemented; C* = 10,000,000 fitted. Blocked: the normative redeem condition (`redeem_fraction_min` 0.1) never lets the holder redeem at C* in any scenario, contradicting the Dev Notes' "redeem Monday" intent (see Blockers)
