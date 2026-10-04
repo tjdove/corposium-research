@@ -175,7 +175,7 @@ class DefenderConfig(StrictModel):
 
 class HolderConfig(StrictModel):
     """Par-expecting buyer (Story 2.6): buys below ``1 - entry_discount_pct/100``, redeems
-    once the redemption channel can pay it out. ``redeem_fraction_min`` is a constructor
+    in tranches the redemption channel can pay. ``redeem_horizon_steps`` is a constructor
     default on the agent, not a config field."""
 
     type: Literal["holder"]

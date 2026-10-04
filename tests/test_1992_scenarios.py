@@ -23,14 +23,14 @@ STATUS = re.compile(r"\b(verified|secondary|assumption)\b")
 
 def parts(path):
     cfg = load_scenario(Path(path))
-    atk, arb, dfn = cfg.agents
+    atk, arb, dfn, _ = cfg.agents
     return cfg, atk, arb, dfn
 
 
 @pytest.mark.parametrize("path", SCENARIOS)
 def test_validates_and_shares_d_star(path):
     cfg, atk, arb, dfn = parts(path)
-    assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender"]
+    assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender", "holder"]
     assert cfg.amm.reserve_stable == cfg.amm.reserve_reference == D_STAR
     assert cfg.steps.interval_seconds == 12 and cfg.steps.max_steps == 2 * DAY
     assert atk.start_step == 600
@@ -63,8 +63,8 @@ def test_no_defense_differs_only_in_budget_and_spread():
 
 def test_content_hashes_are_pinned():
     assert [load_scenario(Path(p)).content_hash()[:12] for p in SCENARIOS] == [
-        "329eda7c2118",
-        "1badaed6cf4a",
+        "f4e26ae66440",  # Story 2.6: + holder (329eda7c2118 without it)
+        "516edaef4795",  # Story 2.6: + holder (1badaed6cf4a without it)
     ]
 
 

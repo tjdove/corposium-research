@@ -21,6 +21,14 @@
 # (ratio 1.206) exhausts; 5.1 and 5.2 also exhaust but 5.3-5.6 stall at max_steps near
 # -150 bps with reserves unpaid (F-07 dead zone). Story 2.4 (D* 1.83e9): clean flip at 5.3.
 #
+# Run with the holder (Story 2.6; capital C* x depth / D* = 9,166,667): reserves_exhausted at
+# steps_run 9550 (one step earlier); max_depeg_bps -5982.4 at step 3337. The arbitrageur
+# redeems 100,347,952 (was 102,758,495); the holder redeems 2,377,717, is left holding
+# 9,219,585 stable when reserves run out, PnL -64,942 (marked at spot). Multiple scan
+# 4.0-7.0 with the holder: the flip stays at 5.7 (ratio 1.206); 5.1 and 5.2 no longer
+# exhaust; 4.0-5.6 stall at max_steps (final -143 ... -178 bps) and the holder loses at
+# every multiple (redemption pays 0.98 under the 200 bps spread, its entry price).
+#
 # One line per parameter: path  value  status  source / reasoning
 # - seed  42  assumption  project convention (SOURCES.md#time)
 # - steps.interval_seconds  12  verified  SOURCES.md#time (Ethereum slot); kept so time matches the USDC scenarios
@@ -48,6 +56,10 @@
 # - agents[type=defender].spend_pace  0.2  assumption  as calibrated-baseline (story AC 8); BACKGROUND §3 reports buying "at times reportedly around £2 billion an hour" (unsourced, not used)
 # - agents[type=defender].spread_adjust_bps  200  assumption  stands for the two rate rises, 10 -> 12 -> 15% (BACKGROUND §3); the spread widening is the model's only "raise the cost of exit" lever (BACKGROUND "Where the analogy breaks" 1)
 # - agents[type=defender].max_spend  100703325  assumption  = budget (story AC 8)
+# - agents[type=holder].capital  9166667  assumption  C* x (depth / D*) = 9,166,667 x 16,666,667 / 16,666,667 (Story 2.6); C* fitted on usdc-2023 to the observed trough (SOURCES.md#holder). BACKGROUND §4: the convergence traders before their belief broke
+# - agents[type=holder].entry_discount_pct  2.0  assumption  as usdc-2023 (SOURCES.md#holder)
+# - agents[type=holder].pace  0.05  assumption  as usdc-2023 (SOURCES.md#holder)
+# - agents[type=holder].redeem_when_capacity  true  assumption  as usdc-2023 (SOURCES.md#holder): redeems at the floor once the queue is clear
 # - termination.reserves_exhausted  true  assumption  the first-generation outcome this scenario tests (BACKGROUND "How economists explain it")
 # - termination.peg_recovered.for_steps  6900  verified  as calibrated-baseline (SOURCES.md#termination)
 # - termination.peg_recovered.tolerance  0.0031  verified  as calibrated-baseline, ADR-0013 (SOURCES.md#termination)
@@ -91,6 +103,12 @@ agents:
     spend_pace: 0.2
     spread_adjust_bps: 200
     max_spend: 100_703_325
+  - type: holder
+    id: holder-1
+    capital: 9_166_667
+    entry_discount_pct: 2.0
+    pace: 0.05
+    redeem_when_capacity: true
 termination:
   reserves_exhausted: true
   peg_recovered: { for_steps: 6900, tolerance: 0.0031 }

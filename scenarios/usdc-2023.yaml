@@ -1,5 +1,6 @@
 # USDC March-2023 replay — validation against the observed depeg (Story 2.5).
-# calibrated-baseline parameters (docs/calibration/SOURCES.md) with five changes:
+# calibrated-baseline parameters (docs/calibration/SOURCES.md) with five changes (2.5)
+# and a holder (2.6):
 #   1. environment: the observed USDC/USD series replaces the stochastic reference
 #      (price_series_path, Bitstamp hourly closes, linearly interpolated to 12 s steps,
 #      held at the last close past the series end). volatility 0, no shocks.
@@ -15,6 +16,12 @@
 #      with the attack at step 8100 > for_steps 6900, the pre-attack calm would count as
 #      recovery (ADR-0010). The ADR-0013 band (31 bps) is measured from the timeseries
 #      instead (docs/calibration/VALIDATION.md).
+#   6. (Story 2.6) holder: a par-expecting buyer (F-08). capital 9,166,667 (status assumption,
+#      fitted to observed trough, this story): scripts/fit_holder.py with D* fixed, closest
+#      max_depeg_bps to -1373 over the log grid 1M-100M and two 5-point refinements;
+#      achieved -1137.8 bps (≈ $2.15B at s, 0.79x the attacker's episode net burn).
+#      entry_discount_pct 2.0, pace 0.05, redeem_when_capacity true: assumptions
+#      (SOURCES.md#holder).
 #
 # Timestamps (the series is UTC; US daylight saving began 2023-03-12 02:00, so ET is
 # UTC-5 on 10-11 March and UTC-4 from 12 March):
@@ -74,6 +81,12 @@ agents:
   - { type: attacker, id: attacker-1, capital: 11_540_596, start_step: 8100, pace: 0.002 }
   - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
   - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 99.0, spend_pace: 0.2 }
+  - type: holder
+    id: holder-1
+    capital: 9_166_667
+    entry_discount_pct: 2.0
+    pace: 0.05
+    redeem_when_capacity: true
 termination:
   reserves_exhausted: true
   max_steps: true

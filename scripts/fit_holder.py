@@ -11,10 +11,12 @@ Selection rule (story 2.6 AC 4), applied mechanically:
    closest to the target (default -1373, the Bitstamp hourly low 0.86267).
 2. Refine with 5 evenly spaced capitals strictly between the pick's two grid neighbours
    (between the pick and its one neighbour at either end of the grid).
-3. ``C*`` is the capital closest to the target among the grid and refined points (ties go
-   to the smaller capital).
+3. Re-pick the closest among everything run so far and refine once more with 5 points
+   strictly between its new neighbours in that sorted set (amended 2026-10-04).
+4. ``C*`` is the capital closest to the target among every point run (ties go to the
+   smaller capital). Stop there.
 
-Prints the grid table, the refinement table, then ``C* = <units> (trough <bps>) ≈
+Prints the grid table, the two refinement tables, then ``C* = <units> (trough <bps>) ≈
 $<dollars>`` with dollars = units / s (SOURCES.md). ``--dry-run`` prints the grid and exits.
 """
 
@@ -92,9 +94,15 @@ def closest(df: pd.DataFrame, target: float) -> pd.Series:
     return df.loc[order.index[0]]
 
 
-def neighbours(grid: list[int], pick: int) -> tuple[int, int]:
-    i = grid.index(pick)
-    return grid[max(i - 1, 0)], grid[min(i + 1, len(grid) - 1)]
+def neighbours(capitals: list[int], pick: int) -> tuple[int, int]:
+    """The pick's neighbours in ``capitals`` (sorted, unique); the pick itself at an end."""
+    i = capitals.index(pick)
+    return capitals[max(i - 1, 0)], capitals[min(i + 1, len(capitals) - 1)]
+
+
+def tried(df: pd.DataFrame) -> pd.DataFrame:
+    """Every distinct capital run so far, sorted (a refined point can repeat a grid one)."""
+    return df.drop_duplicates("holder_capital").sort_values("holder_capital").reset_index(drop=True)
 
 
 def show(title: str, df: pd.DataFrame) -> None:
@@ -126,13 +134,14 @@ def main(argv: list[str] | None = None) -> int:
     base = write_base(cfg, args.output / "fit-holder-base")
     grid = run_table(spec_for("fit-holder", base, GRID), args.output, args.workers)
     show(f"grid pass (target {args.target_bps:g} bps):", grid)
-    pick = int(closest(grid, args.target_bps)["holder_capital"])
-    lo, hi = neighbours(GRID, pick)
-    refined = run_table(
-        spec_for("fit-holder-refine", base, refine_between(lo, hi)), args.output, args.workers
-    )
-    show(f"refine pass between {lo:,} and {hi:,} (grid pick {pick:,}):", refined)
-    best = closest(pd.concat([grid, refined]).reset_index(drop=True), args.target_bps)
+    seen = grid
+    for n, name in enumerate(("fit-holder-refine", "fit-holder-refine2"), start=1):
+        pick = int(closest(seen, args.target_bps)["holder_capital"])
+        lo, hi = neighbours(seen["holder_capital"].astype(int).tolist(), pick)
+        refined = run_table(spec_for(name, base, refine_between(lo, hi)), args.output, args.workers)
+        show(f"refine pass {n} between {lo:,} and {hi:,} (pick {pick:,}):", refined)
+        seen = tried(pd.concat([seen, refined]))
+    best = closest(seen, args.target_bps)
     c_star = int(best["holder_capital"])
     print(
         f"C* = {c_star} (trough {best['max_depeg_bps']:.1f} bps) ≈ ${c_star / S:,.0f} "

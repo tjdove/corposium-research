@@ -9,13 +9,16 @@ reference. Each step, in this order (one action at most)::
                  -> swap buy_stable, amount_in = pace * reference
     hold_redeem  elif redeem_when_capacity and available_stable > 0
                  and redemption.queue_depth == 0
-                 and redemption.capacity_per_step >= redeem_fraction_min * available_stable
-                 -> redeem all available stable
+                 -> redeem min(available_stable,
+                               redemption.capacity_per_step * redeem_horizon_steps)
     hold_wait    elif stable > 0 (held, or queued and not yet paid)
     hold_done    else
 
-The redeem condition keeps it from queueing behind other redeemers or into a channel
-that would take more than ~``1 / redeem_fraction_min`` steps to pay it. It never sells
+The redeem condition keeps it from queueing behind other redeemers. It redeems in
+tranches the channel can pay within ``redeem_horizon_steps`` (default 10) at the current
+capacity, so the condition is in market units, not in multiples of its own balance
+(Story 2.6 Rulings). A tranche usually takes several steps to pay; while it drains, the
+queue is not empty and the holder waits, then queues the next tranche. It never sells
 on the AMM (no panic rule in this story) and never draws from ``ctx.rng``. ``hold_done``
 is not terminal: if the discount reappears and it still has reference, it buys again.
 
@@ -44,7 +47,7 @@ class Holder(Agent):
         entry_discount_pct: float,
         pace: float,
         redeem_when_capacity: bool = True,
-        redeem_fraction_min: float = 0.1,
+        redeem_horizon_steps: int = 10,
         peg_price: float = 1.0,
     ) -> None:
         if not capital > 0:
@@ -53,14 +56,14 @@ class Holder(Agent):
             raise ValueError(f"entry_discount_pct must be in [0, 100), got {entry_discount_pct}")
         if not 0 < pace <= 1:
             raise ValueError(f"pace must be in (0, 1], got {pace}")
-        if not 0 < redeem_fraction_min <= 1:
-            raise ValueError(f"redeem_fraction_min must be in (0, 1], got {redeem_fraction_min}")
+        if not redeem_horizon_steps > 0:
+            raise ValueError(f"redeem_horizon_steps must be > 0, got {redeem_horizon_steps}")
         super().__init__(agent_id, stable=0.0, reference=capital, peg_price=peg_price)
         self.capital = float(capital)
         self.entry_discount_pct = float(entry_discount_pct)
         self.pace = float(pace)
         self.redeem_when_capacity = bool(redeem_when_capacity)
-        self.redeem_fraction_min = float(redeem_fraction_min)
+        self.redeem_horizon_steps = int(redeem_horizon_steps)
         self.bought_stable = 0.0
         self.spent_reference = 0.0
 
@@ -89,16 +92,13 @@ class Holder(Agent):
         obs["queued_redeem"] = self.queued_redeem
         return obs
 
-    def _can_redeem(self, ctx: RunContext) -> bool:
+    def _tranche(self, ctx: RunContext) -> float:
+        """Stable to redeem this step; 0 when the redeem rule does not apply."""
         red = self._redemption(ctx)
         avail = self.available_stable
-        return (
-            self.redeem_when_capacity
-            and red is not None
-            and avail > DUST
-            and red.queue_depth == 0
-            and red.capacity_per_step >= self.redeem_fraction_min * avail
-        )
+        if not self.redeem_when_capacity or red is None or avail <= DUST or red.queue_depth:
+            return 0.0
+        return min(avail, red.capacity_per_step * self.redeem_horizon_steps)
 
     def decide(self, ctx: RunContext) -> list[Action]:
         amm = self._amm(ctx)
@@ -109,12 +109,12 @@ class Holder(Agent):
         ):
             action = self._swap("buy_stable", self.pace * self.balances[REFERENCE])
             rule = "hold_buy"
-        elif self._can_redeem(ctx):
+        elif (tranche := self._tranche(ctx)) > DUST:
             action = Action(
                 source=self.agent_id,
                 target="redemption",
                 kind="redeem",
-                params={"amount_stable": self.available_stable},
+                params={"amount_stable": tranche},
             )
             rule = "hold_redeem"
         else:

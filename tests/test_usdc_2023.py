@@ -14,6 +14,7 @@ from depeg_sim.kernel.config import load_scenario
 
 SCENARIO = Path("scenarios/usdc-2023.yaml")
 SERIES = Path("data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv").resolve()
+C_STAR = 9_166_667  # Story 2.6 fit
 UNIX_0 = 1_678_406_400  # 2023-03-10 00:00 UTC, first row of the series
 
 
@@ -23,7 +24,7 @@ def step_at(unix: int) -> int:
 
 def test_validates_with_the_normative_timestamps():
     cfg = load_scenario(SCENARIO)
-    atk, _, dfn = cfg.agents
+    atk, _, dfn, hold = cfg.agents
     assert cfg.environment.price_series_path == SERIES
     assert cfg.environment.volatility_per_step == 0 and cfg.environment.shocks == []
     assert atk.start_step == step_at(1_678_503_600) == 8100  # 2023-03-10 22:00 ET
@@ -38,12 +39,15 @@ def test_validates_with_the_normative_timestamps():
     assert atk.pace == 0.002  # fitted by sweeps/usdc-2023-pace.yaml
     assert dfn.threshold_pct == 99.0  # defender never acts
     assert cfg.termination.peg_recovered is None
+    # Story 2.6: the fitted par-expecting buyer (scripts/fit_holder.py)
+    assert hold.type == "holder" and hold.capital == C_STAR
+    assert (hold.entry_discount_pct, hold.pace, hold.redeem_when_capacity) == (2.0, 0.05, True)
 
 
 def test_hash_includes_the_csv():
     cfg = load_scenario(SCENARIO)
     assert cfg.environment.price_series_sha256 == hashlib.sha256(SERIES.read_bytes()).hexdigest()
-    assert cfg.content_hash()[:12] == "73db527c8ddf"
+    assert cfg.content_hash()[:12] == "2c3aeaa9825d"  # 73db527c8ddf before the holder
 
 
 def tiny(tmp_path, max_steps=500):

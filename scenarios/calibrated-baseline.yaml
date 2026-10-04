@@ -23,6 +23,9 @@
 #   defender     SOURCES.md#defender     budget = Circle's cash share (23:77 vs reserves); policy
 #                                        parameters are assumptions
 #   arbitrageur  SOURCES.md#arbitrageur  unchanged from soros-baseline (assumptions)
+#   holder       SOURCES.md#holder       par-expecting buyer (Story 2.6): capital = C* x (depth / D*)
+#                                        = 9,166,667 x 16,666,667 / 16,666,667 = 9,166,667; C* fitted
+#                                        on usdc-2023 to the observed trough; entry, pace assumptions
 #   termination  SOURCES.md#termination  tolerance = fee 1 + min profit 20 + 10 bps margin
 #                                        (ADR-0013); for_steps = one Chainlink heartbeat
 version: 1
@@ -54,6 +57,12 @@ agents:
   - { type: attacker, id: attacker-1, capital: 11_540_596, start_step: 50, pace: 0.1 }
   - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
   - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 1.0, spend_pace: 0.2 }
+  - type: holder
+    id: holder-1
+    capital: 9_166_667
+    entry_discount_pct: 2.0
+    pace: 0.05
+    redeem_when_capacity: true
 termination:
   reserves_exhausted: true
   peg_recovered: { for_steps: 6900, tolerance: 0.0031 }

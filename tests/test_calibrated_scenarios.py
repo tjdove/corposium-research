@@ -36,7 +36,7 @@ def leaf_paths(node, prefix=""):
 @pytest.mark.parametrize("path", SCENARIOS)
 def test_loads_and_follows_adr_0013(path):
     cfg = load_scenario(Path(path))
-    assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender"]
+    assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender", "holder"]
     arb = cfg.agents[1]
     band = (cfg.amm.fee_bps + arb.min_profit_bps) / 10_000
     assert cfg.termination.peg_recovered.tolerance >= band  # ADR-0013
@@ -50,7 +50,8 @@ def test_loads_and_follows_adr_0013(path):
 def test_content_hashes_are_pinned():
     # A calibration change must be deliberate: update these with SOURCES.md.
     hashes = [load_scenario(Path(p)).content_hash()[:12] for p in SCENARIOS]
-    assert hashes == ["0ef967d36e34", "d7fe2f1626b8"]
+    # Story 2.6: + holder (0ef967d36e34, d7fe2f1626b8 without it; tests/test_holder_config.py)
+    assert hashes == ["44ac03c60e5f", "17b24b458e47"]
 
 
 def test_stress_differs_only_in_name_and_volatility():
@@ -87,6 +88,7 @@ def test_header_points_at_sources(path):
         "attacker",
         "defender",
         "arbitrageur",
+        "holder",
         "termination",
     ):
         assert f"SOURCES.md#{section}" in header
@@ -117,7 +119,7 @@ def test_every_sources_row_has_a_status():
             assert len(cells) == 6, cells
             assert all(cells), f"empty cell in {cells[0]}"
             assert cells[-1] in STATUSES, f"{cells[0]}: status {cells[-1]!r}"
-    assert tables >= 9
+    assert tables >= 10
 
 
 @pytest.mark.parametrize("path", SCENARIOS)

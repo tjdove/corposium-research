@@ -66,7 +66,7 @@ def test_holder_parses_in_the_union_with_default():
         {"entry_discount_pct": -0.1},
         {"pace": 0},
         {"pace": 1.01},
-        {"redeem_fraction_min": 0.1},  # constructor default, not a config field
+        {"redeem_horizon_steps": 10},  # constructor default, not a config field
     ],
 )
 def test_holder_field_constraints(bad):
@@ -85,3 +85,32 @@ def test_holder_yaml_round_trip(tmp_path):
     path = tmp_path / "s.yaml"
     path.write_text(yaml.safe_dump(data), encoding="utf-8")
     assert load_scenario(path).agents[-1].redeem_when_capacity is False
+
+
+C_STAR = 9_166_667  # scripts/fit_holder.py on usdc-2023 (Story 2.6)
+D_STAR = 16_666_667
+WITH_HOLDER = [
+    "usdc-2023",
+    "calibrated-baseline",
+    "calibrated-stress",
+    "soros-1992",
+    "soros-1992-no-defense",
+]
+
+
+@pytest.mark.parametrize("name", WITH_HOLDER)
+def test_holder_at_the_replay_capital_to_depth_ratio(name):
+    cfg = load_scenario(SCENARIO_DIR / f"{name}.yaml")
+    (holder,) = [a for a in cfg.agents if a.type == "holder"]
+    assert holder.capital == round(C_STAR * cfg.amm.reserve_stable / D_STAR)
+    assert (holder.entry_discount_pct, holder.pace, holder.redeem_when_capacity) == (
+        2.0,
+        0.05,
+        True,
+    )
+
+
+@pytest.mark.parametrize("name", ["soros-baseline", "soros-volatile"])
+def test_soros_baselines_have_no_holder(name):
+    cfg = load_scenario(SCENARIO_DIR / f"{name}.yaml")
+    assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender"]

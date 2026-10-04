@@ -111,3 +111,68 @@ Story 2.7. One panel, hours on x. The observed hourly closes (blue, dotted marke
 (black) falls almost vertically from 27 h to −5,769 at 31.6 h, climbs back in a straight
 line, meets the blue line at ~63 h and follows it from there, entering the band just after
 the "redemption capacity changes" marker at 85 h and holding −27 bps to 112 h.
+
+---
+
+## Story 2.6: with the par-expecting buyer
+
+Everything above is the Story 2.5 replay and stays as written. Story 2.6 adds the missing
+counterparty F-08 named: a `holder` that buys below $0.98 at 5% of its remaining reference
+per step and redeems in tranches (`min(stable, capacity × 10)`) whenever the redemption
+queue is empty. Its capital is the one fitted parameter: **C\* = 9,166,667 model units
+(≈ $2.15B, 0.79× the attacker's episode net burn)**, chosen by `scripts/fit_holder.py` as
+the grid/refinement point closest to −1,373 bps, with D\* = 16,666,667 and pace 0.002 held.
+Scenario hash `2c3aeaa9825d`; run `output/usdc-2023-42-2c3aeaa9/`.
+
+| quantity | observed | 2.5 (no holder) | 2.6 (holder, C\*) |
+|---|---|---|---|
+| trough depth | −1,373 bps | −5,769 bps | **−1,138 bps** (17% shallower than observed) |
+| trough time (±2 h target) | 31.0 h | 31.6 h (within; fitted via pace) | **34.2 h** (+3.2 h, outside; pace was fitted in 2.5 without the holder and is not re-fitted) |
+| deviation at the capacity change (85 h) | −36 bps | −52 bps | −52 bps |
+| first back in band after the capacity change | 86.0 h | 85.3 h | 85.3 h |
+| last time outside the band | ≥ 95.0 h, censored | 85.3 h | 85.3 h |
+| recovery direction and timing vs the capacity change | upward into the band within 1 h | upward within 0.3 h | upward within 0.3 h |
+| weekend path | rebound to −150 … −500 bps by 45–55 h, dip near 55 h, ≈ −100 by 72 h | straight-line climb from −5,769, meets the observed path at 63 h | climbs from −1,138 and sits on the observed path from ≈ 35 h; flat at −170 bps from 49 h to 69 h while the observed price dips to −520 |
+| who absorbed the attack's 11.54M | (market buyers) | arbitrageur buys + redemption at weekend capacity | holder bought 9.50M stable with 9.42M reference (its 9.17M plus recycled redemptions); arbitrageur redeemed 2.02M |
+| holder redemptions | n/a | n/a | 6.69M before the capacity change (85 h), 2.80M after; holder PnL +82.5k |
+
+**What the buyer fixed.** The trough depth: from 4.2× too deep to 17% too shallow, with
+one fitted parameter at a size ($2.15B) that is plausible for the weekend's discount
+buyers and smaller than the flow they absorbed. The weekend recovery shape also improved:
+the simulated price now rebounds from the trough at about the speed the observed one did,
+and sits on the observed path from ≈ 35 h, instead of climbing in a straight line until 63 h.
+
+**What it didn't fix, and what it added.**
+- **The trough is late.** 34.2 h vs 31.0 h. The holder holds the price near its entry for
+  the first ~3.5 h of the attack, and the trough comes only once its reference runs out.
+  Pace (0.002) was fitted in 2.5 against a model with no buyer, so it is now tuned to the
+  wrong mechanism. Re-fitting it is not in scope (story Rulings 3).
+- **The fit cannot land on −1,373.** The trough as a function of capital is close to
+  bimodal: 7.5M → −2,207, 8.33M → −1,653, 9.17M → −1,138, 10M → −225. Below the cliff the
+  buyer runs out of reference before the attack ends and the attacker sets the trough;
+  above it the buyer outlasts the attack and the trough sits at about its 2% entry. A
+  single entry price makes the trough jump between the two. Real buyers came in at a
+  spread of prices (Proposed ADR-0021).
+- **A sawtooth at the start of the attack.** From 27 h to ≈ 30.5 h the simulated price
+  swings between ≈ +310 and −220 bps. Each holder buy is 5% of its reference, ≈ 450k at
+  first, into a 16.7M pool, so it overshoots par before the attacker pushes the price back
+  down. This is a model artefact (the buyer has no price limit on its own fills); the
+  hourly series cannot show whether anything like it happened within the hour.
+- **Most of the holder's redemption happens over the weekend, not on Monday.** The
+  weekend channel (605.79 × 17,400 steps ≈ 10.5M) was big enough for 6.69M of the holder's
+  9.50M. As in 2.5, the calibrated weekend capacity is the 11–15 March average, so this
+  probably overstates what the weekend channel could pay.
+- **From 63 h on, the agreement is still the input.** Same caveat as 2.5: the arbitrageur
+  trades the AMM toward the oracle, which follows the observed series. The flat −170 bps
+  stretch from 49 h to 69 h is the other side of it: the AMM can follow the observed
+  price up, but nothing sells stable to follow it back down.
+
+**Figure** (`output/usdc-2023-42-2c3aeaa9/validation_overlay.png`; committed figures are
+Story 2.8). The black simulated line leaves 0 at the 27 h marker and fills a dense band
+between ≈ +310 and −220 bps until ≈ 30.5 h. It then drops to ≈ −1,060 at 31.5 h, bounces
+to −900 and reaches its trough at −1,138, 34.2 h, about 3 h after and 235 bps above the
+blue observed trough (−1,373 at 31 h). From 35 h the two lines overlap, stepping up
+through −500 at 40 h to about −280 at 45 h. The black line then holds at −170 from 49 h
+to 69 h while the blue line dips to −520 at 55 h and comes back. Both step up near 70 h,
+and both enter the grey band at the 85 h capacity marker. The black line holds −27 bps to
+112 h.

@@ -79,33 +79,45 @@ def test_never_sells_on_the_amm():
 def test_waits_while_the_queue_is_not_empty():
     w = world(capacity=100.0)
     w.redemption.execute(w.ctx, _redeem("other", 1_000.0))  # someone else is queued
-    h = holder(stable=500.0)  # capacity 100 >= 0.1 x 500
+    h = holder(stable=500.0)
     assert w.redemption.queue_depth == 1
     assert w.step(h) == []
     assert rules(w, "h") == ["hold_wait"]
 
 
-def test_waits_while_capacity_is_short():
-    w = world(capacity=99.0)
-    h = holder(stable=1_000.0)  # needs capacity >= 100
-    assert w.step(h) == []
-    assert rules(w, "h") == ["hold_wait"]
-    assert decisions(w, "h")[0].observed["capacity_per_step"] == 99.0
-
-
-def test_redeems_all_when_queue_empty_and_capacity_suffices():
+def test_small_balance_redeems_all_when_queue_empty():
     w = world(capacity=100.0)
-    h = holder(stable=1_000.0)
+    h = holder(stable=600.0)  # tranche cap 100 x 10 = 1000 > 600
     (act,) = w.step(h)
     assert act.target == "redemption" and act.kind == "redeem"
-    assert act.params == {"amount_stable": 1_000.0}
+    assert act.params == {"amount_stable": 600.0}
     assert rules(w, "h") == ["hold_redeem"]
-    # 100 paid this step, 900 still queued and still owned
+    assert decisions(w, "h")[0].observed["capacity_per_step"] == 100.0
+
+
+def test_large_holder_redeems_one_tranche_per_clear_step():
+    w = world(capacity=100.0)
+    h = holder(stable=1_000_000.0)  # far more than the channel pays in 10 steps
+    (act,) = w.step(h)
+    assert act.params == {"amount_stable": 1_000.0}  # capacity x redeem_horizon_steps
+    # 100 paid this step, 900 of its own tranche still queued: it waits while it drains
     assert h.queued_redeem == pytest.approx(900.0)
-    assert h.balances["stable"] == pytest.approx(900.0)
-    # its own request is now the queue: it waits, it does not redeem twice
-    assert w.step(h) == []
-    assert rules(w, "h")[-1] == "hold_wait"
+    assert h.balances["stable"] == pytest.approx(1_000_000.0 - 100.0)
+    for _ in range(9):
+        assert w.step(h) == []
+    assert w.redemption.queue_depth == 0 and h.queued_redeem == pytest.approx(0.0)
+    (act2,) = w.step(h)  # queue clear again: the next tranche
+    assert act2.params == {"amount_stable": 1_000.0}
+    assert rules(w, "h") == ["hold_redeem"] + ["hold_wait"] * 9 + ["hold_redeem"]
+    assert h.balances["stable"] == pytest.approx(1_000_000.0 - 1_100.0)
+
+
+def test_tranche_follows_current_capacity():
+    w = world(capacity=100.0)
+    h = holder(stable=1_000_000.0)
+    w.redemption.capacity_per_step = 5_000.0  # e.g. a capacity_schedule step
+    (act,) = w.step(h)
+    assert act.params == {"amount_stable": 50_000.0}
 
 
 def test_redeem_when_capacity_false_never_redeems():
@@ -115,12 +127,12 @@ def test_redeem_when_capacity_false_never_redeems():
     assert rules(w, "h") == ["hold_wait"]
 
 
-def test_redeem_fraction_min_is_a_constructor_default():
+def test_redeem_horizon_steps_is_a_constructor_default():
     w = world(capacity=100.0)
-    h = Holder("h", capital=1.0, entry_discount_pct=2.0, pace=0.05, redeem_fraction_min=0.5)
-    h.balances["stable"] = 1_000.0  # needs capacity >= 500
-    w.step(h)
-    assert rules(w, "h") == ["hold_wait"]
+    h = Holder("h", capital=1.0, entry_discount_pct=2.0, pace=0.05, redeem_horizon_steps=3)
+    h.balances["stable"] = 1_000.0
+    (act,) = w.step(h)
+    assert act.params == {"amount_stable": 300.0}
 
 
 # full cycle ----------------------------------------------------------------------------
@@ -183,7 +195,7 @@ def test_never_draws_from_rng():
         {"entry_discount_pct": 100},
         {"pace": 0},
         {"pace": 1.5},
-        {"redeem_fraction_min": 0},
+        {"redeem_horizon_steps": 0},
     ],
 )
 def test_construction_guards(kw):
@@ -208,7 +220,7 @@ def test_from_config_and_factory():
     *_, h = build_agents(ScenarioConfig.model_validate(data))
     assert isinstance(h, Holder) and h.name == "h"
     assert (h.capital, h.entry_discount_pct, h.pace) == (7.0, 3.0, 0.2)
-    assert (h.redeem_when_capacity, h.redeem_fraction_min) == (False, 0.1)
+    assert (h.redeem_when_capacity, h.redeem_horizon_steps) == (False, 10)
     assert h.peg_price == 2.0 and h.entry_price == pytest.approx(2.0 * 0.97)
     assert h.balances == {"stable": 0.0, "reference": 7.0} and h.initial_value == 7.0
     cfg = HolderConfig(type="holder", id="z", capital=1, entry_discount_pct=0, pace=1)

@@ -176,6 +176,21 @@ pre-backstop flow. The 1992 Quantum anchor stays as narrative only.
 | `agents[type=arbitrageur].min_profit_bps` | 20 | no public source | none | unchanged from `soros-baseline` | assumption |
 | `agents[type=arbitrageur].latency_steps` | 1 | no public source | none | one slot (12 s) reaction time | assumption |
 
+## Holder
+
+The par-expecting buyer (Story 2.6, F-08): market makers, funds and treasuries who bought
+discounted USDC over the weekend because they expected Circle to redeem at $1 once banks
+reopened. Not the issuer (that is the defender, inactive in the replay). The same entry is
+in `calibrated-baseline`, `calibrated-stress`, `usdc-2023` and both 1992 scenarios at the
+same capital-to-depth ratio, `C* / D*` = 9,166,667 / 16,666,667 = 0.55.
+
+| parameter | value used | source (URL, accessed) | raw figure | conversion | status |
+|---|---|---|---|---|---|
+| `agents[type=holder].capital` | 9166667 | fitted to observed trough, this story (Story 2.6, `scripts/fit_holder.py` on `scenarios/usdc-2023.yaml`, D\* held at 16,666,667); observed trough: Bitstamp hourly close (`data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv`, see Environment) | lowest close 0.86267 → −1,373 bps at 2023-03-11 07:00 UTC | log grid 1M…100M: 5M → −3,784.8, 10M → −224.6; refine 5M–20M: 7.5M → −2,206.7; refine again 5M–10M: closest is 9,166,667 (−1,137.8 bps). = 9,166,667 / s ≈ **$2.15B**, against the episode net burn $2.71B (attacker, 0.79×) and Circle's $9.7B cash (defender budget, 0.22×). Other scenarios: C\* × depth / D\* = 9,166,667 (all are at D\*) | assumption |
+| `agents[type=holder].entry_discount_pct` | 2.0 | no public source | none | buys only below $0.98: well outside the 21 bps arbitrage band and the defender's −100 bps trigger, so it is the patient buyer of a real discount, not a fee-band arbitrageur; the observed weekend path sat 150–1,400 bps below par (VALIDATION.md) | assumption |
+| `agents[type=holder].pace` | 0.05 | no public source | none | 5% of remaining reference per 12 s step: a buyer that deploys most of its capital within ~1 h of the discount appearing (half-life ≈ 14 steps) | assumption |
+| `agents[type=holder].redeem_when_capacity` | true | Circle, 12/13 Mar 2023, via Ledger Insights (see Redemption) | Circle's liquidity operations resume when banks reopen on Monday | the weekend buyers redeemed once Circle reopened. Rule: when the redemption queue is empty, redeem `min(stable, capacity_per_step × 10)` (a constructor default, Story 2.6 Rulings) | assumption |
+
 ## Termination
 
 | parameter | value used | source (URL, accessed) | raw figure | conversion | status |
@@ -208,3 +223,5 @@ pre-backstop flow. The 1992 Quantum anchor stays as narrative only.
 | redemption capacity per step / pool depth | 3.6e-05 | 605.79 / 16.67M |
 | redemption capacity × max_steps / reserves | 0.079 | 10.9M / 138.1M |
 | arbitrageur / pool depth | 0.012 | 200,000 / 16.67M, assumption |
+| holder / pool depth (`C* / D*`) | 0.55 | 9,166,667 / 16,666,667, fitted to the replay trough (Story 2.6) |
+| holder / attacker | 0.79 | 9,166,667 / 11,540,596 |

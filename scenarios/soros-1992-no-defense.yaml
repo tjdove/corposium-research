@@ -25,6 +25,11 @@
 # 3054); redemption_paid_total 100,703,325. The price reaches -1000 bps at step 614 vs 2225
 # in soros-1992 (1,611 steps sooner).
 #
+# Run with the holder (Story 2.6; capital 9,166,667): reserves_exhausted at steps_run 7807
+# (one step later); max_depeg_bps -7692.4 at step 1543. The arbitrageur redeems 99,864,131
+# (was 100,703,325); the holder redeems 839,194 and is left holding 9,378,392 stable,
+# PnL +67,601 (marked at spot). Every multiple 4.0-7.0 still exhausts, with or without it.
+#
 # One line per parameter: path  value  status  source / reasoning
 # - seed  42  assumption  project convention (SOURCES.md#time)
 # - steps.interval_seconds  12  verified  SOURCES.md#time (Ethereum slot); kept so time matches the USDC scenarios
@@ -52,6 +57,10 @@
 # - agents[type=defender].spend_pace  0.2  assumption  as calibrated-baseline (story AC 8); BACKGROUND §3 reports buying "at times reportedly around £2 billion an hour" (unsourced, not used)
 # - agents[type=defender].spread_adjust_bps  0  assumption  counterfactual: no rate rises (soros-1992: 200, standing for 10 -> 12 -> 15%, BACKGROUND §3)
 # - agents[type=defender].max_spend  100703325  assumption  = budget (story AC 8)
+# - agents[type=holder].capital  9166667  assumption  C* x (depth / D*) = 9,166,667 x 16,666,667 / 16,666,667 (Story 2.6); C* fitted on usdc-2023 to the observed trough (SOURCES.md#holder). BACKGROUND §4: the convergence traders before their belief broke
+# - agents[type=holder].entry_discount_pct  2.0  assumption  as usdc-2023 (SOURCES.md#holder)
+# - agents[type=holder].pace  0.05  assumption  as usdc-2023 (SOURCES.md#holder)
+# - agents[type=holder].redeem_when_capacity  true  assumption  as usdc-2023 (SOURCES.md#holder): redeems at the floor once the queue is clear
 # - termination.reserves_exhausted  true  assumption  the first-generation outcome this scenario tests (BACKGROUND "How economists explain it")
 # - termination.peg_recovered.for_steps  6900  verified  as calibrated-baseline (SOURCES.md#termination)
 # - termination.peg_recovered.tolerance  0.0031  verified  as calibrated-baseline, ADR-0013 (SOURCES.md#termination)
@@ -95,6 +104,12 @@ agents:
     spend_pace: 0.2
     spread_adjust_bps: 0
     max_spend: 100_703_325
+  - type: holder
+    id: holder-1
+    capital: 9_166_667
+    entry_discount_pct: 2.0
+    pace: 0.05
+    redeem_when_capacity: true
 termination:
   reserves_exhausted: true
   peg_recovered: { for_steps: 6900, tolerance: 0.0031 }
