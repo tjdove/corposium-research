@@ -1,6 +1,6 @@
 # Story 2.5: USDC March-2023 Validation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -125,7 +125,7 @@ reaches (e.g. 99.0) and note it. Setting budget to 1 also works; pick one and st
 ### References
 
 - [Source: docs/epics.md#Story-2.5]
-- [Source: docs/adr/0019-fitted-depth-1992-and-boundary.md] — review amendment
+- [Source: docs/adr/0019-fitted-depth-and-1992-analogue.md] — review amendment
 - [Source: docs/FINDINGS.md] — F-05 correction, F-06
 - [Source: docs/calibration/SOURCES.md] — attacker, capacity, pool sections
 - [Source: data/README.md] — stress and supply CSVs
@@ -483,3 +483,71 @@ the weekend channel was slower than the 11–15 March average used for capacity.
 
 - 2026-10-04: Story drafted by dev manager after Story 2.4 review; Part A added per ADR-0019 amendment
 - 2026-10-04: Implemented by Claude Code (Opus 5.5). Part A committed separately (net burn $2.71B; D* = 16,666,667 ≈ $3.91B/side); schema fields, series environment, capacity schedule; usdc-2023 replay (pace 0.002); overlay and VALIDATION.md; ADR-0020 Proposed. Status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅ — the replay fails validation, and that is the deliverable
+
+### Summary
+
+454 passed, ruff clean, CI run 37226493089 green. Baseline hash unchanged
+(`2e09f431ce74`) despite two new schema fields. Reviewer re-ran the replay: −5,768.5 bps
+at `max_steps`, identical; regenerated the overlay and inspected it. Part A re-anchored
+the attacker correctly ($2.71B over 10–13 March, from the committed CSV) and re-fitted
+D\* to a defensible $3.9B/side. Part B built the observed-series environment and the
+capacity schedule cleanly.
+
+Then the faithful replay — no AMM defender, because Circle didn't buy on AMMs — fell four
+times further than the real market. The builder traced it: D\* was fitted with the
+defender absorbing 89% of the attack, and nothing in the replay takes that role. The model
+is missing the agent who bought USDC at $0.88 expecting $1.00 on Monday. That is **F-08**,
+the most useful finding so far, and it changes Epic 2's scope.
+
+### Rulings
+
+- **ADR-0020: accepted.** All five decisions stand; `peg_recovered` dropped from the replay
+  (pre-attack calm would count as recovery, ADR-0010); `threshold_pct 99` for schema parity.
+- **Scope: Story 2.6 (par-expecting buyer) inserted; charts → 2.7; figures → 2.8;
+  Epic 2 ends Oct 15.** Recorded in CHARTER.md's decision log for Tim's confirmation.
+- **F-06 refinement** (flip at 0.39 not 0.29; F-03 price effect): recorded; 2.7's axis
+  takes the price adjustment.
+- **Duplicate ADR-0019:** my error; merged.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | Net burn $2,707,423,804 from CSV; ratio-1.0 row removed with note |
+| 2 | ✅ | D\* 16,666,667 / 16.67 / $3.91B per side vs $234.6M leg; −1253.2 bps |
+| 3 | ✅ | Probe: flip ≈ 0.39; formula now a lower bound |
+| 4 | ✅ | 1992 re-run; flip no longer clean (5.1–5.2 exhaust, 5.3–5.6 stall, ≥5.7 exhaust) |
+| 5 | ✅ | Part A commit `981d0ed` |
+| 6–7 | ✅ | `price_series_path`, `capacity_schedule`, series sha256 in hash; interpolation and hash tests |
+| 8 | ✅ | `usdc-2023.yaml` with timestamp arithmetic; pace 0.002 by scan rule; defender inactive |
+| 9 | ✅ | `plot_validation_overlay` (reviewer inspected) |
+| 10 | ✅ | `VALIDATION.md` with the comparison table; matches/doesn't/why |
+| 11 | ✅ | `tests/test_usdc_2023.py` |
+| 12 | ✅ | ADR-0020; findings in Completion Notes |
+| 13 | ✅ | `454 passed`; CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+- **F-08** (missing par-expecting buyer): the replay result.
+- **[LOW-1]** Post-63 h agreement is the oracle following the input; VALIDATION.md says
+  so. Any future "recovery matches" claim must exclude that window.
+- **[LOW-2]** The 1992 flip's non-monotonicity (exhaust / stall / exhaust across 5.1–5.7×)
+  is the F-07 dead zone interacting with pace; not worth chasing before 2.6.
+
+### Learnings for Story 2.6
+
+- Back-solve the buyer's capital from the replay with D\* held; one parameter, one
+  observation.
+- The buyer is a holder-family agent with the opposite sign to the spec's panic-seller;
+  reuse the 1.7 agent pattern and tests.
+- After 2.6, re-run calibrated-baseline and both 1992 scenarios with the buyer and see
+  what moves.
+- 2026-10-04: Senior review APPROVE; status set to done. ADR-0020 accepted; F-08 added; Story 2.6 (buyer agent) inserted into Epic 2.

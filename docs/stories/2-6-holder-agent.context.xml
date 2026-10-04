@@ -1,0 +1,81 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.6</storyId>
+    <title>Par-Expecting Buyer Agent</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-6-holder-agent.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>an agent that buys the discounted stablecoin because it expects redemption at par</iWant>
+    <soThat>the replay can reproduce the observed trough and the note can say what decided March 2023</soThat>
+    <tasks>
+      - Config and factory (AC: 2)
+      - Agent (AC: 1, 3)
+      - Fit (AC: 4, 5, 6)
+      - Propagate (AC: 7)
+      - ADR, tests, close out (AC: 8, 9)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–9. The redeem condition and fit rule in Dev Notes are normative.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-6-holder-agent.md" section="Dev Notes">Who the agent is, redeem condition, expected fit, what to watch in propagation.</doc>
+      <doc path="docs/FINDINGS.md" section="F-08">Why this agent exists.</doc>
+      <doc path="docs/adr/0020-episode-flow-replay-and-capacity-schedule.md" section="Review amendment">Scope decision and sizing discipline.</doc>
+      <doc path="docs/stories/1-7-agents.md" section="Dev Notes">Agent base contract, phase usage, decision-record shape, closed-form sizing (not needed here: the holder buys a fraction of balance, no targeting).</doc>
+      <doc path="docs/BACKGROUND.md" section="4. The attackers">Convergence trades — the 1992 counterpart.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/agents/base.py" symbol="Agent" reason="Extend; same observe/decide/settle/record pattern."/>
+      <existing path="src/depeg_sim/agents/arbitrageur.py" reason="Closest existing agent: it also buys below band and redeems; copy its redeem-action construction and settle handling."/>
+      <existing path="src/depeg_sim/agents/factory.py" symbol="build_agents" reason="Add the holder branch."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="AgentConfig union" reason="Add HolderConfig."/>
+      <existing path="src/depeg_sim/protocol/redemption.py" symbol="queue_depth, capacity_per_step" reason="Holder reads these for its redeem condition."/>
+      <existing path="scripts/fit_depth.py" reason="Template for fit_holder.py; same selection rule."/>
+      <existing path="scenarios/usdc-2023.yaml, calibrated-baseline.yaml, calibrated-stress.yaml, soros-1992.yaml, soros-1992-no-defense.yaml" reason="Gain a holder entry."/>
+      <existing path="docs/calibration/VALIDATION.md, SOURCES.md" reason="Before/after table; holder section."/>
+    </code>
+    <dependencies>
+      <python>No new dependencies.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Schema change limited to HolderConfig + union membership; existing hashes unchanged (test).
+    - No kernel/ or protocol/ changes. PHASE_ORDER_VERSION stays 1.
+    - The holder never sells on the AMM in this story. No panic rule.
+    - Holder never calls ctx.rng.
+    - C* chosen by the stated rule; no hand-picking; D* is NOT re-fitted.
+    - Propagated holder capital in the four other scenarios = C* × (their depth / D*), stated in each header.
+    - VALIDATION.md keeps the 2.5 table and adds the 2.6 one; do not overwrite history.
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="Holder" kind="Agent subclass" path="src/depeg_sim/agents/holder.py">Holder(agent_id, capital, entry_discount_pct, pace, redeem_when_capacity=True, redeem_fraction_min=0.1); classmethod from_config(cfg: HolderConfig)</interface>
+    <interface name="HolderConfig" kind="pydantic model" path="src/depeg_sim/kernel/config.py">type: Literal["holder"]; id: str; capital: float gt 0; entry_discount_pct: float ge 0; pace: float gt 0 le 1; redeem_when_capacity: bool = True</interface>
+    <interface name="scripts/fit_holder.py" kind="script">args: --scenario (default scenarios/usdc-2023.yaml), --target-bps (default -1373), --entry-discount 2.0, --pace 0.05, --workers, --output, --dry-run. Prints the grid table then "C* = <units> (trough <bps>) ≈ $<dollars>".</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; holder unit tests with real modules and manual phases per 1.7; hash-stability test over every scenario in scenarios/; fit_holder --dry-run only in CI; replay and propagation runs are reported, not tested, except a short usdc-2023 run with the holder (max_steps 500).</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="spot 0.99, discount 2% → hold_wait; spot 0.97 → hold_buy with pace × reference"/>
+      <test ac="1" idea="holding stable, queue non-empty → hold_wait; queue empty and capacity ≥ 10% of stable → hold_redeem for full balance"/>
+      <test ac="1" idea="after redeem fulfilled at 0.999 on stable bought at 0.97: pnl > 0"/>
+      <test ac="2" idea="all scenarios in scenarios/ hash identically before and after adding HolderConfig to the union (pin the hashes in a fixture)"/>
+      <test ac="3" idea="trace on: one Decision per step with rule in the four names"/>
+      <test ac="4" idea="fit_holder.py --dry-run lists 7 grid values"/>
+    </ideas>
+  </tests>
+</story-context>
