@@ -646,7 +646,7 @@ exit=0
 exit=0
 ```
 
-(`ruff check .` and `ruff format --check .` are the second and third pairs.) `PHASE_ORDER_VERSION` 1; no changes under `kernel/` other than `HolderConfig` in `kernel/config.py` (AC 2); none under `protocol/`.
+(`ruff check .` and `ruff format --check .` are the second and third pairs.) CI on 10ea310: `gh run list` → `completed success story 2.6: par-expecting buyer agent ci main push 37234187066 56s 2026-10-04T20:58:46Z`. `PHASE_ORDER_VERSION` 1; no changes under `kernel/` other than `HolderConfig` in `kernel/config.py` (AC 2); none under `protocol/`.
 
 Scratch scripts (not committed):
 
