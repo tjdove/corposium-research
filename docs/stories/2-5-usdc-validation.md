@@ -510,7 +510,7 @@ the most useful finding so far, and it changes Epic 2's scope.
 - **ADR-0020: accepted.** All five decisions stand; `peg_recovered` dropped from the replay
   (pre-attack calm would count as recovery, ADR-0010); `threshold_pct 99` for schema parity.
 - **Scope: Story 2.6 (par-expecting buyer) inserted; charts → 2.7; figures → 2.8;
-  Epic 2 ends Oct 15.** Recorded in CHARTER.md's decision log for Tim's confirmation.
+  Epic 2 ends Oct 15.** Recorded in CHARTER.md's decision log; confirmed by Tim 2026-10-04.
 - **F-06 refinement** (flip at 0.39 not 0.29; F-03 price effect): recorded; 2.7's axis
   takes the price adjustment.
 - **Duplicate ADR-0019:** my error; merged.
