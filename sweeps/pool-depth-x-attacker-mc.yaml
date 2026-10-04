@@ -1,0 +1,16 @@
+# Pool depth x attacker capital, Monte Carlo (Story 2.2). The Story 2.1 grid
+# (sweeps/pool-depth-x-attacker.yaml) on soros-volatile with 32 seeds per point. ADR-0016
+# says depth governs trough depth and recovery time, not the outcome. This sweep feeds
+# the secondary-axis (depth) chart in Story 2.6.
+# 4 x 4 = 16 grid points x 32 seeds = 512 runs.
+version: 1
+name: pool-depth-x-attacker-mc
+base: scenarios/soros-volatile.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference]
+    values: [250000, 500000, 1000000, 2000000]
+axes:
+  agents[type=attacker].capital: [100000, 300000, 600000, 1200000]
+seeds: { count: 32, start: 1000 }
+max_steps: 2000

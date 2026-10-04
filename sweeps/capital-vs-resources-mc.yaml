@@ -1,0 +1,22 @@
+# Capital vs defense resources, Monte Carlo (Story 2.2): the ADR-0016 test.
+# ADR-0016 (amended) predicts terminated_by is set by
+#   attacker_capital vs defender_budget + redemption_reserves
+# and that pool depth moves the trough, not the verdict. The grid puts the ratio
+# capital / (budget + reserves) between ~0.46 (600k / 1.35M) and ~2.67 (1.2M / 450k),
+# with many points near 1.0 from different budget/reserves splits, at two pool depths.
+# Base: soros-volatile (5 bps per-step reference noise), so seeds matter; 16 per point.
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 7 x 3 x 3 x 2 = 126 grid points x 16 seeds = 2016 runs.
+version: 1
+name: capital-vs-resources-mc
+base: scenarios/soros-volatile.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference]
+    values: [500000, 2000000]
+axes:
+  agents[type=attacker].capital: [600000, 700000, 800000, 900000, 1000000, 1100000, 1200000]
+  agents[type=defender].budget: [200000, 400000, 600000]
+  redemption.reserves: [250000, 500000, 750000]
+seeds: { count: 16, start: 1000 }
+max_steps: 1500

@@ -11,7 +11,7 @@ A sweep spec (``sweeps/<name>.yaml``) names a base scenario and the config paths
         values: [250000, 500000, 1000000, 2000000]
     axes:                                      # one path per axis; column name = path
       agents[type=attacker].capital: [100000, 300000, 600000, 1200000]
-    seeds: [42]
+    seeds: [42]                                # or {count: 16, start: 1000} -> 1000..1015
     overrides: {}                              # fixed path -> value for every cell
     max_steps: 2000                            # optional steps.max_steps override
 
@@ -57,7 +57,7 @@ from typing import Any, Literal
 
 import pandas as pd
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from depeg_sim import __version__
 from depeg_sim.analysis.summary import SUMMARY_KEYS
@@ -140,13 +140,34 @@ class LinkedAxis(_Strict):
     values: list[Any] = Field(min_length=1)
 
 
+class SeedRange(_Strict):
+    """``{count: N, start: s}`` in a spec: the seeds ``s, s+1, ..., s+N-1``."""
+
+    count: int = Field(gt=0)
+    start: int = Field(default=0, ge=0)
+
+
 class SweepSpec(_Strict):
     version: Literal[1]
     name: str = Field(pattern=r"^[A-Za-z0-9_.-]+$")
     base: Path
     linked_axes: list[LinkedAxis] = Field(default_factory=list)
     axes: dict[str, list[Any]] = Field(default_factory=dict)
-    seeds: list[int] = Field(min_length=1)
+    seeds: list[int] | SeedRange
+
+    @field_validator("seeds")
+    @classmethod
+    def _non_empty(cls, v: list[int] | SeedRange) -> list[int] | SeedRange:
+        if isinstance(v, list) and not v:
+            raise ValueError("seeds must not be empty")
+        return v
+
+    def seed_list(self) -> list[int]:
+        """The expanded seeds, in order."""
+        if isinstance(self.seeds, SeedRange):
+            return list(range(self.seeds.start, self.seeds.start + self.seeds.count))
+        return list(self.seeds)
+
     overrides: dict[str, Any] = Field(default_factory=dict)
     max_steps: int | None = Field(default=None, gt=0)
 
@@ -194,7 +215,7 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
     for path, value in spec.overrides.items():
         base = set_path(base, path, value)
     cells = []
-    combos = itertools.product(*(a.values for a in axes), spec.seeds)
+    combos = itertools.product(*(a.values for a in axes), spec.seed_list())
     for index, (*values, seed) in enumerate(combos):
         cfg = base
         for axis, value in zip(axes, values, strict=True):
@@ -256,7 +277,7 @@ def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
         "sweep_name": spec.name,
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
         "axes": [a.model_dump(mode="json") for a in spec.axis_list()],
-        "seeds": spec.seeds,
+        "seeds": spec.seed_list(),
         "overrides": spec.overrides,
         "max_steps": spec.max_steps,
         "cell_count": len(cells),
@@ -277,6 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("spec", type=Path, help="Path to a sweep YAML file")
     p.add_argument("--workers", type=int, default=1, help="Worker processes (default 1)")
     p.add_argument("--output", type=Path, default=Path("output"), help="Parent output directory")
+    p.add_argument("--mc", action="store_true", help="Aggregate over seeds into mc.parquet")
     args = p.parse_args(argv)
     if not args.spec.exists():
         print(f"error: sweep spec not found: {args.spec}", file=sys.stderr)
@@ -293,4 +315,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"sweep: {spec.name} cells={len(cells)} workers={args.workers}")
     sweep_dir = run_sweep(spec, args.output, workers=args.workers)
     print(f"wrote: {sweep_dir / SWEEP_PARQUET}")
+    if args.mc:
+        from depeg_sim.experiments.mc import aggregate_and_report
+
+        aggregate_and_report(sweep_dir)
     return 0
