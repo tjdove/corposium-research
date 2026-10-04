@@ -24,6 +24,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0015](0015-sweep-cell-directory-layout.md) | Sweep cells live at `<sweep>/<index>-<seed>-<hash8>/` | Accepted | 2026-10-03 |
 | [0016](0016-outcome-set-by-capital-not-depth.md) | Outcome boundary is set by capital vs defense resources, not pool depth | Accepted (finding, amended; refined by 0017) | 2026-10-03 |
 | [0017](0017-depth-enters-through-defender-price.md) | Depth enters the verdict through the price the defender pays | Accepted (finding, amended) | 2026-10-03 |
+| [0018](0018-calibration-judgment-calls.md) | Calibration judgment calls: pool anchor, reserves split, attacker ratio, market-depth multiple | Accepted (amended) | 2026-10-04 |
 
 ## Template
 

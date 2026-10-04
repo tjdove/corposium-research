@@ -122,6 +122,68 @@ survives; a deep market shows a mild chart and runs out of money.
 
 ---
 
+## F-04 · Under realised stress volatility, "recovery to peg" is mostly unreachable — the reference itself wanders more than the band
+
+**Date:** 2026-10-04 · **ADR:** [0018](adr/0018-calibration-judgment-calls.md) (amendment) · **Story:** 2.3
+**Reproduce:** run `scenarios/calibrated-stress.yaml` over seeds 1000–1031 (a 1×32 sweep);
+count `terminated_by == "peg_recovered"`
+
+**Expected.** With sourced parameters, the stress scenario (March 10–13 2023 realised
+volatility, 7.561e-4 per 12 s step) would recover like the calm one.
+
+**Observed.** 5 of 32 seeds recover; 27 run to `max_steps`. The calm scenario (3.086e-5)
+recovers in 31 of 32. Seed 42 happens to be one of the five, so the story's AC passed by
+luck; the builder said so.
+
+**Why.** `peg_recovered` requires the AMM price within 31 bps of **par** for 6,900
+consecutive steps (one Chainlink heartbeat). Over 6,900 steps at stress volatility the
+*reference price itself* drifts σ√6900 ≈ 6.3%, twenty times the band. The pool can track
+the reference perfectly and still never satisfy "at par for a day."
+
+**What it changed.** The recovery criterion conflates two questions: "is the pool tracking
+the dollar?" and "is the dollar reference itself stable?" ADR-0018's amendment schedules a
+`peg_recovered.reference: peg | oracle` option so each question can be asked separately.
+Until then, headline sweeps use calm volatility and the note states the limitation.
+
+**For the note.** This is a measurement finding, not a market finding, but it matters for
+how anyone reads a "time to recovery" number: under real stress, the recovery clock
+depends on what you measure recovery against. March 2023 USDC "recovered" when it tracked
+the dollar again, not when the dollar stopped moving.
+
+---
+
+## F-05 · A single-venue model cannot be calibrated to a market-scale event without an aggregate-depth assumption
+
+**Date:** 2026-10-04 · **ADR:** [0018](adr/0018-calibration-judgment-calls.md) · **Story:** 2.3
+**Reproduce:** `python run.py scenarios/calibrated-baseline.yaml` → `max_depeg_bps −9972`
+
+**Expected.** Anchoring pool depth to Curve 3pool's USDC leg ($235M) and scaling Circle's
+reserves ($42B) and an attacker at ratio 1.0 would give a calibrated baseline near the
+ADR-0017 boundary.
+
+**Observed.** The attacker is 179× pool depth. Its first 10% dump drives the pool to
+$0.003 (−9972 bps). The defender then buys stable almost for free and the peg "recovers"
+with the attacker never near exhausting anything. Probing attacker ratios 1–16× all
+recover. The ADR-0017 boundary does not exist in this regime.
+
+**Why.** Circle's reserves and the March-2023 selling pressure were spread across the
+whole USDC market (dozens of venues plus OTC), while the model has one pool. Scaling
+market-wide balances against one venue's depth is a venue-aggregation error, not a
+calibration. The observed trough of $0.87 against ~$1.2B/hour of selling implies aggregate
+effective depth in the billions, not $235M.
+
+**What it changed.** A fourth judgment call, `market_depth_multiple` (status
+`assumption`), fitted in Story 2.4 by back-solving the depth at which the calibrated
+attacker's first dump reproduces the observed ≈ −1300 bps trough. One parameter fitted to
+one observation, stated as such; everything else stays sourced.
+
+**For the note.** State it as a limitation up front: the model is one constant-product
+venue standing in for a market. The fitted aggregate depth is the price of that
+simplification, and the F-03 trade-off (shallow = deeper trough, cheaper defense) is the
+reason the choice matters.
+
+---
+
 ## Headline candidates (ranked, 2026-10-04)
 
 1. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
@@ -138,10 +200,10 @@ section to justify the recovery criterion.
 
 ## Open questions the next findings should answer
 
-- Does the F-03 boundary survive calibrated parameters (2.3)? The calibrated baseline is
-  placed on it by design.
-- Under realised stress volatility (March 2023 window), does `peg_recovered` remain
-  reachable, or must the criterion widen? (2.3)
+- ~~Does the F-03 boundary survive calibrated parameters (2.3)?~~ Not at single-venue depth
+  (F-05); re-asked in 2.4 with the fitted aggregate depth.
+- ~~Under realised stress volatility, does `peg_recovered` remain reachable?~~ No (F-04);
+  criterion to gain a `reference` option after 2.6.
 - Does the 1992-analogue scenario reproduce reserve exhaustion with the historical ratios?
   (2.4)
 - Does the model's USDC-2023 trajectory match the observed trough and recovery timing?
