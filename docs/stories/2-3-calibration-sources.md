@@ -1,6 +1,6 @@
 # Story 2.3: Calibration Sources
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
