@@ -1,0 +1,74 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.4</storyId>
+    <title>Aggregate Depth Fit and the 1992 Analogue Scenario</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-4-depth-fit-and-1992.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>researcher</asA>
+    <iWant>the calibrated pool to stand for the aggregate USDC market, and a scenario parameterised from Black Wednesday in ratio terms</iWant>
+    <soThat>the note can show one fitted parameter against one observation, and the model reproducing the first-generation reserve-exhaustion story</soThat>
+    <tasks>
+      - Depth fit (AC: 1, 2, 3)
+      - Boundary probe (AC: 4)
+      - 1992 scenario (AC: 5–10)
+      - Counterfactual and charts (AC: 11)
+      - ADR, tests, close out (AC: 12, 13)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    See story file ACs 1–13. Part A must be complete and committed before Part B starts; both 1992 scenarios use D*.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-4-depth-fit-and-1992.md" section="Dev Notes">Fit rationale, 1992 ratio table, expected 1992 behaviour.</doc>
+      <doc path="docs/FINDINGS.md" section="F-04, F-05">Why Part A exists; what 'fit, don't tune' means here.</doc>
+      <doc path="docs/adr/0018-calibration-judgment-calls.md" section="Review amendment">market_depth_multiple decision; stop_below_price excluded.</doc>
+      <doc path="docs/BACKGROUND.md" section="§3–§5, mapping table, Figures to verify">All 1992 inputs and their statuses.</doc>
+      <doc path="docs/calibration/SOURCES.md">Add the market_depth_multiple row; update the pool note.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/experiments/sweep.py" symbol="SweepSpec, LinkedAxis, run_sweep" reason="fit_depth.py and probe_boundary.py build specs in code and call run_sweep."/>
+      <existing path="scenarios/calibrated-baseline.yaml, scenarios/calibrated-stress.yaml" reason="Update pool depth to D*; header comment."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_peg_trajectory" reason="Used as-is for both 1992 charts."/>
+      <existing path="tests/test_calibrated_scenarios.py" reason="Pattern for the 1992 scenario tests; SOURCES regex test must still pass."/>
+    </code>
+    <dependencies>
+      <python>No new dependencies. scripts/ use argparse + pandas.</python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - No config schema changes. No kernel/protocol/agent changes. stop_below_price is NOT used (ADR-0018 amendment).
+    - scripts/ are thin: build a SweepSpec, call run_sweep, read sweep.parquet, print a table. --dry-run prints the grid and exits 0 without running.
+    - D* is chosen by the rule in AC 2; no hand-picking. If the grid needs extending, say so and extend by one decade only.
+    - Every 1992 parameter has a status in the YAML header (verified / secondary / assumption) matching BACKGROUND.md; the attacker multiple and budget:reserves split are assumptions with one-sentence reasoning each.
+    - The 1992 scenario must end reserves_exhausted; the only lever is the attacker multiple (AC 10). Do not touch pace, pool depth, or redemption capacity to force it.
+    - Charts are produced, inspected and described; not committed (2.7).
+    - Python 3.12-compatible.
+  </constraints>
+
+  <interfaces>
+    <interface name="scripts/fit_depth.py" kind="script">args: --scenario (default scenarios/calibrated-baseline.yaml), --target-bps (default -1300), --workers, --output, --dry-run. Prints the grid table, then "D* = <value> (trough <bps>)".</interface>
+    <interface name="scripts/probe_boundary.py" kind="script">args: --scenario, --ratios (default 0.5,0.75,1.0,1.25,1.5,2.0), --seeds (default 8), --workers, --output, --dry-run. Sets agents[type=attacker].capital = ratio × (budget + reserves) per cell; prints p_* per ratio from mc.parquet.</interface>
+  </interfaces>
+
+  <tests>
+    <standards>pytest; both scripts tested with --dry-run only (no sweeps in CI); 1992 scenarios load, hash, and run with max_steps overridden to 500; SOURCES.md status regex; YAML header of each 1992 scenario contains the strings 'verified', 'secondary' or 'assumption' on every parameter line (simple test).</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test idea="fit_depth.py --dry-run exits 0 and lists 9 grid values"/>
+      <test idea="probe_boundary.py --dry-run exits 0 and lists 6 ratios × 8 seeds = 48 cells"/>
+      <test idea="soros-1992 and soros-1992-no-defense validate; no-defense has defender budget 1 and spread_adjust 0"/>
+      <test idea="calibrated-baseline amm.reserve_stable == amm.reserve_reference == D* after update (read D* from the YAML comment or a constant in the test)"/>
+      <test idea="SOURCES.md contains a market_depth_multiple row with status assumption"/>
+    </ideas>
+  </tests>
+</story-context>

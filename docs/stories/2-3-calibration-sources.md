@@ -1,6 +1,6 @@
 # Story 2.3: Calibration Sources
 
-Status: review
+Status: done
 
 ## Story
 
@@ -323,3 +323,75 @@ ratio  terminated_by   steps_run  max_depeg_bps  defender_spent  redemption_paid
 
 - 2026-10-03: Story drafted by dev manager after Story 2.2 review; dev manager pre-verified the Chainlink deviation threshold and the Curve/Chainalysis/21Shares figures cited above
 - 2026-10-04: Implemented by Claude Code (Opus 5.5); 417 tests pass; both calibrated scenarios end peg_recovered (stress only in 5/32 seeds); ADR-0018 proposed; status → review
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅
+
+### Summary
+
+The sourcing is exactly what the story asked for: 17 `verified` rows, 8 `secondary` with
+primaries named, policy parameters `assumption`, every conversion shown, three CSVs with
+retrieval script and checksums, and rejected sources documented. Two of my pre-filled
+figures were wrong (Curve fee 1 bp not 4; Chainlink heartbeat 82,800 s not 86,400) and the
+builder caught both by reading the primaries. 417 tests, ruff clean, CI run 37208088626
+green.
+
+The calibrated runs then exposed the model's biggest limitation, and the builder wrote it
+up rather than tuning it away. That is the right behaviour and the review's main job is to
+decide what to do about it.
+
+### Rulings
+
+- **ADR-0018: Accepted, amended.** The three judgment calls stand. The amendment adds a
+  fourth (`market_depth_multiple`) and names the actual problem: the single-venue model was
+  scaled against market-wide balances. 2.4 fits the aggregate depth to the observed
+  March-2023 trough. `stop_below_price` stays out (unsourced; hides the venue issue).
+- **Stress recovery 5/32 → F-04** (measurement finding; `peg_recovered.reference` option
+  scheduled after 2.6).
+- **179× attacker regime → F-05** (the venue-aggregation finding; drives 2.4).
+- **Redemption throughput-bound in the USDC scenario: correct.** That *is* March 2023.
+  `reserves_exhausted` belongs to the 1992 analogue.
+- **Volatility ratio 24.5× not ~100×:** my Dev Notes guess; the measurement wins. Noted that
+  Bitstamp's thin book inflates the calm figure; acceptable for now, flagged in SOURCES.
+
+### Acceptance Criteria Coverage
+
+| AC# | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | SOURCES.md; five columns + status on every row; preamble |
+| 2 | ✅ | Every scenario parameter has a row |
+| 3 | ✅ | Pool section with TVL, share, limitation; fee **1 bp** (verified on-chain) |
+| 4 | ✅ | Chainlink 0.25% / **82,800 s** → 6,900 steps (verified) |
+| 5 | ✅ | Spread 0 (secondary), capacity from DefiLlama burn (secondary), reserves ratio |
+| 6 | ✅ | Calm 3.086e-5, stress 7.561e-4 per step; Bitstamp candles committed |
+| 7 | ✅ | Two anchors; attacker ratio 1.0 as design choice |
+| 8 | ✅ | 23:77 budget:reserves; policy params `assumption` |
+| 9 | ✅ | Tolerance 31 bps per ADR-0013; `for_steps` = 1 heartbeat; 18,000 steps |
+| 10 | ✅ | Both terminate `peg_recovered` (stress: seed-dependent, disclosed) |
+| 11 | ✅ | `data/README.md` with sources, checksums, rejected sources |
+| 12 | ✅ | ADR-0018 |
+| 13 | ✅ | `417 passed`; CI green |
+
+**13 of 13 ACs met.**
+
+### Key Findings
+
+No High or Medium issues.
+
+**Low / advisory:**
+- **[LOW-1]** Calm volatility from Bitstamp likely overstates true USDC/USD noise (thin
+  book). If a deeper venue's candles become available without a key, swap and note.
+- **[LOW-2]** SOURCES.md should carry the `market_depth_multiple` row once 2.4 fits it;
+  until then the calibrated scenarios are documented as single-venue.
+
+### Learnings for Story 2.4
+
+- Fit, don't tune: when a parameter must be assumed, fit it to one named observation and
+  say so.
+- The 1992 analogue uses 1992's ratios (reserves spent vs attack size), where
+  `reserves_exhausted` is the historical outcome; it is the scenario that exercises the
+  channel the USDC scenario can't.
+- 2026-10-04: Senior review APPROVE; status set to done. ADR-0018 accepted with market_depth_multiple amendment; F-04 and F-05 added to FINDINGS.md.

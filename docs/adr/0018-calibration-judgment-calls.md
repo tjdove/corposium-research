@@ -1,6 +1,6 @@
 # ADR-0018: Calibration judgment calls (pool anchor, reserves split, attacker ratio)
 
-**Status:** Proposed
+**Status:** Accepted (amended in review)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.3 AC 12
@@ -79,3 +79,44 @@ running the calibrated scenarios also change how ADR-0017's boundary should be r
 - **Attacker anchored to realised flows** (e.g. $1.2B/hour × hours of stress): gives an
   attacker of the same order as reserves anyway, and imports CEX flows the single-venue
   model can't route.
+
+## Review amendment (2026-10-04, dev manager)
+
+Accepted. All three judgment calls stand as sourced. The "what the calibrated runs show"
+section identifies the model's most important limitation, and this amendment decides how
+to handle it.
+
+**The real issue is venue depth, not the attacker ratio.** Decision 1 anchors pool depth
+to *one* Curve pool's USDC leg ($235M), but Circle's reserves ($42B) and the March-2023
+selling were spread across the whole USDC market: Curve, Uniswap, Binance, Coinbase,
+Kraken, OTC. The single-venue model therefore pits a market-scale attacker against a
+single-pool defense, which is why a 10% dump reaches $0.003 when the real market bottomed
+at $0.87. A 179× capital/depth ratio is not a calibration; it is a venue-aggregation
+error.
+
+**Decision: add a fourth judgment call — `market_depth_multiple`.** The constant-product
+pool in the calibrated scenarios stands for the *aggregate* USDC market near peg, not one
+pool. SOURCES.md gains a row for it, status `assumption`, with the reasoning: observed
+trough $0.87 on ~$1.2B/hour of selling implies aggregate effective depth on the order of
+several $B. Story 2.4 picks the multiple by **back-solving from the observed March-2023
+trough**: the depth at which the calibrated attacker's first dump produces ≈ −1300 bps.
+That makes one parameter fitted to one observation, stated as such, and leaves every
+other parameter sourced. The fitted depth is then held fixed for 2.5 and 2.6.
+
+**Consequences:**
+- The calibrated attacker stays at ratio 1.0 (sourced design choice). With the aggregate
+  depth, capital/depth returns to the range where ADR-0017's boundary exists, and the
+  "is ratio 1.0 on the boundary" question becomes answerable rather than moot.
+- `stop_below_price` stays out. It is unsourced and it hides the venue problem instead of
+  naming it.
+- Redemption throughput-bound → `reserves_exhausted` unreachable in the USDC scenario:
+  **correct and kept.** That is the March-2023 mechanism (banks shut). The 1992 analogue
+  (2.4) is where `reserves_exhausted` is the expected outcome; it uses 1992's ratios.
+- Stress-volatility recovery (5/32 seeds): **finding F-04**, recorded in FINDINGS.md. The
+  recovery criterion as written (31 bps held for 6,900 steps) is unreachable under
+  realised stress volatility because the *reference* itself wanders 6% in that window.
+  Measuring deviation against the fixed peg conflates "the peg is broken" with "the
+  dollar reference is noisy." Decision: a later story adds `peg_recovered.reference`
+  (`peg` | `oracle`) so recovery can be measured as "AMM tracks the oracle" when the
+  question is about the pool, and "AMM at par" when the question is about the promise.
+  Not before 2.6; the headline sweeps use calm volatility.
