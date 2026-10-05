@@ -10,6 +10,8 @@ from depeg_sim.analysis.charts import (
     plot_oracle_sensitivity,
     plot_peg_trajectory,
     plot_threshold_surface,
+    plot_time_to_parity,
+    time_to_parity_hours,
 )
 from depeg_sim.experiments.runner import run_scenario
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
@@ -211,3 +213,95 @@ def test_budget_depth_with_bounds(tmp_path):
     # one row holds everywhere (below), one never holds (above), one crossing
     ps = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
     assert plot_budget_depth(_budget_dir(tmp_path, ps)).is_file()
+
+
+# Story 2.9: time to parity -------------------------------------------------------------
+
+
+def _parity_dir(tmp_path, trough_spread=0.0):
+    """3 depths x 3 capitals. Entry steps from the trough chosen so that, with the trough
+    at step 50 and 12 s steps: early (< 37 h), late (>= 37 h: clock) and never cells."""
+    d = tmp_path / "parity"
+    d.mkdir()
+    depths = [8_333_334, 16_666_667, 33_333_334]
+    caps = [53_836_317, 89_727_196, 179_454_391]
+    entry = {  # (depth index, capital index) -> steps from trough, None = never
+        (0, 0): 20, (0, 1): 100, (0, 2): 5_000,
+        (1, 0): 30, (1, 1): 11_200, (1, 2): 14_000,
+        (2, 0): 40, (2, 1): None, (2, 2): None,
+    }  # fmt: skip
+    rows = []
+    for i, depth in enumerate(depths):
+        for j, cap in enumerate(caps):
+            e = entry[(i, j)]
+            rows.append(
+                {
+                    "pool_depth": depth,
+                    ATK: cap,
+                    "n": 16,
+                    "step_of_max_depeg_std": trough_spread,
+                    "step_of_max_depeg_p05": 50.0 - trough_spread,
+                    "step_of_max_depeg_p50": 50.0,
+                    "step_of_max_depeg_p95": 50.0 + trough_spread,
+                    "steps_to_first_band_entry_p50": float("nan") if e is None else float(e),
+                    "steps_to_first_band_entry_n": 0 if e is None else 16,
+                }
+            )
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": "pool_depth", "paths": ["amm.reserve_stable", "amm.reserve_reference"],
+         "values": depths},
+        {"name": ATK, "paths": [ATK], "values": caps},
+    ]  # fmt: skip
+    _manifest(d, "parity", "scenarios/calibrated-baseline.yaml", axes)
+    return d
+
+
+def test_time_to_parity_hours_from_run_start():
+    mc = pd.DataFrame(
+        {
+            "n": [16, 16, 16],
+            "step_of_max_depeg_std": [0.0, 0.0, float("nan")],
+            "step_of_max_depeg_p05": [50.0, 80.0, 80.0],
+            "step_of_max_depeg_p50": [50.0, 80.0, 80.0],
+            "step_of_max_depeg_p95": [50.0, 80.0, 80.0],
+            "steps_to_first_band_entry_p50": [250.0, 11_020.0, 40.0],
+            "steps_to_first_band_entry_n": [16, 8, 7],
+        }
+    )
+    h = time_to_parity_hours(mc, 12)
+    assert h[0] == pytest.approx(300 * 12 / 3600)  # trough step added back: 1.0 h
+    assert h[1] == pytest.approx(37.0)  # exactly half re-enter: still finite
+    assert pd.isna(h[2])  # fewer than half re-enter: never
+
+
+def test_time_to_parity_needs_one_trough_step_per_cell():
+    mc = pd.DataFrame(
+        {
+            "n": [16],
+            "step_of_max_depeg_std": [2.0],
+            "step_of_max_depeg_p05": [48.0],
+            "step_of_max_depeg_p50": [50.0],
+            "step_of_max_depeg_p95": [52.0],
+            "steps_to_first_band_entry_p50": [100.0],
+            "steps_to_first_band_entry_n": [16],
+        }
+    )
+    with pytest.raises(ValueError, match="trough step differs across seeds"):
+        time_to_parity_hours(mc, 12)
+
+
+def test_time_to_parity_png(tmp_path):
+    d = _parity_dir(tmp_path)
+    png = plot_time_to_parity(d)
+    assert png == d / "time_to_parity.png"
+    assert png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 1500)  # one 10x6 in panel at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_time_to_parity_png_refuses_trough_spread(tmp_path):
+    d = _parity_dir(tmp_path, trough_spread=3.0)
+    with pytest.raises(ValueError, match="trough step differs"):
+        plot_time_to_parity(d)
+    plt.close("all")

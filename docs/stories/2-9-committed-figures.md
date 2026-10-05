@@ -30,9 +30,9 @@ so that the README and the note show figures without running code, and no figure
 
 ## Tasks / Subtasks
 
-- [ ] Time-to-parity chart (AC: 1)
-  - [ ] `plot_time_to_parity`; test; run on `threshold-surface-ref-mc`; look and describe
-  - [ ] Commit separately: `story 2.9: time-to-parity chart`
+- [x] Time-to-parity chart (AC: 1)
+  - [x] `plot_time_to_parity`; test; run on `threshold-surface-ref-mc`; look and describe
+  - [x] Commit separately: `story 2.9: time-to-parity chart`
 - [ ] Figure script and manifest (AC: 2)
   - [ ] `sweep_spec_hash`; `make_figures.py`; overlay y-limit fix; `--quick`
 - [ ] Make targets, guard, CI (AC: 3, 4, 7)
