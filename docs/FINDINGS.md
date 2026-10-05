@@ -374,25 +374,110 @@ that test needs a holder with a sell rule, and goes to Epic 3.
 
 ---
 
-## Headline candidates (ranked, 2026-10-04, revised after 2.6)
+## F-10 · Oracle lag does not matter under deviation-triggered updates at Chainlink's cadence
+
+**Date:** 2026-10-04 · **ADR:** [0022](adr/0022-threshold-surface-metric-and-oracle-lag.md) · **Story:** 2.7
+**Reproduce:** `python -m depeg_sim.sweep sweeps/oracle-lag-mc.yaml --mc --workers 8` (≈ 2 min);
+`plot_oracle_sensitivity(output/oracle-lag-mc)`. Quick check (48 runs): heartbeat {300, 6900}
+× threshold {0, 0.25, 1.0}, 8 seeds.
+
+**Expected.** A slower oracle would let the AMM fall further before the arbitrageur acts,
+so trough depth would grow with heartbeat and threshold.
+
+**Observed.** On the stress base at the episode attack, the mean trough across all 20
+(heartbeat, threshold) cells lies in −1,253.2 … −1,242.5 bps. The calibrated oracle
+(6,900 steps, 0.25%) is within 0.5 bps of zero-lag. Heartbeats ≥ 300 steps give identical
+results at every threshold. Only the 1% threshold moves the trough, by 10.2 bps, and
+identically in every seed.
+
+**Why.** Under stress volatility the reference moves a quarter percent within a few steps,
+so a deviation-triggered oracle updates almost continuously whatever its heartbeat; the
+heartbeat is a backstop that never binds. The arbitrageur's band (fee + min profit) is
+wider than any lag the oracle introduces. The trough is set by the attacker against the
+pool, the defender and the holder, not by when the arbitrageur learns the price.
+
+**For the note.** Chart (3) is a flat line, and that is the result: "oracle lag" is not a
+depeg risk factor at Chainlink's settings. It becomes one only with a wide deviation
+threshold and a long heartbeat together.
+
+---
+
+## F-11 · At calibrated depth the defender wins the price and loses the clock: "stays broken" against par measures recovery speed, and a fixed budget beats any attack the pool is shallow enough to crash
+
+**Date:** 2026-10-04 · **ADR:** [0022](adr/0022-threshold-surface-metric-and-oracle-lag.md) · **Story:** 2.7
+**Reproduce:** `python -m depeg_sim.sweep sweeps/threshold-surface-mc.yaml --mc --workers 8`
+(≈ 2.5 min on 8 workers, 17 min on 2); then from `sweep.parquet` take per-depth medians of
+`defender_spent` and `final_depeg_bps` at the 1.5 column.
+
+**Expected.** `p_stays_broken` would rise with attacker capital at every depth and the
+0.5 contour would mark where the attack beats the defense.
+
+**Observed.** (1) The contour exists (D\* row crosses at nominal 0.56), but of the 279
+non-recovering runs, 68 end *above* +31 bps and 43 end inside the band without holding it
+for 6,900 steps; in those the AMM tracks the reference within 10 bps. Counting only runs
+that end more than 31 bps below the reference, nothing at ≤ 1× D\* breaks (≤ 2/16 at any
+ratio up to 1.5), and the 0.5 crossing appears only at 2× and 4× D\* (nominal ≈ 0.69–0.70).
+(2) At ratio 1.5 the defender spends its whole 41.3M budget in every row; final deviation
+is −9.5 bps at ≤ 1× D\* and −3,486 / −4,062 bps at 2× / 4× D\*.
+
+**Why.** Two things. First, the par criterion: the calm reference is a random walk with no
+anchor, its own spread over one 6,900-step window (≈ 26 bps) is the band width, so a
+recovery that starts late cannot finish against par before the horizon. That is F-04 at
+calm volatility and it is why "stays broken" is mostly the clock at ≤ D\*. Second, the
+price: in a constant-product pool the cost of buying the dump back is what the attacker
+was paid for it. A pool at or below D\* is shallow enough that a $42B-equivalent dump
+crashes the price to a fraction of a cent, and $9.7B-equivalent of budget buys all of it
+back; a pool at 2× D\* pays the attacker more per unit and the same budget cannot. The
+price-defense boundary is set by budget against depth, nearly independently of attacker
+size once the attack exceeds the pool. **Hypothesis for 2.8**: with a reference-relative
+criterion, the surface's contour runs along depth, not along capital.
+
+**What it changed.** Story 2.8 inserted: `peg_recovered.reference: par | oracle`, the
+surface re-run under `oracle`, and a budget × depth probe. The AC 9 headline sentence from
+2.7 is not quoted. Committed figures move to 2.9.
+
+**For the note.** This is F-03 taken to its conclusion and it inverts the DeFi intuition
+twice. Deep liquidity protects the *price* during the attack and makes the *defense*
+unaffordable; an issuer defending on a shallow venue is cheap to defend and terrifying to
+watch. And the thing the issuer cannot buy is time: at Circle's redemption throughput the
+reserves are not the binding constraint, the clock is.
+
+---
+
+## F-04 refinement (2026-10-04, from 2.7)
+
+The stress-base surface (run before the base was changed) put `p_stays_broken` ≥ 0.6875
+in all 40 cells; 11 of 16 seeds never re-enter the band in any cell, and the median final
+deviation is +215 bps *above* par with the AMM tracking the reference. Root cause stated:
+the reference process is a driftless random walk with no anchor at par, so over a 60 h
+horizon it wanders by more than the band even at calm volatility (σ√6900 ≈ 26 bps). Real
+off-venue stablecoin prices mean-revert through redemption arbitrage. Two fixes, both Epic
+3 candidates: a mean-reverting (OU) reference calibrated from calm-period autocorrelation,
+or the reference-relative recovery criterion Story 2.8 builds. 2.8 takes the second
+because it answers the sweep question directly; the replay keeps par because there the
+reference *is* the observed depeg.
+
+---
+
+## Headline candidates (ranked, 2026-10-04, revised after 2.7)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
-   (F-08, confirmed by 2.6) — now carries a number: no believers −5,769 bps; $2.15B of
-   believers −1,138; observed −1,373. Backed by the one validation chart the note has. Lead.
-2. **"Shallow liquidity makes a depeg deeper but a defense cheaper."** (F-03) — the
-   surprise; mechanism clean; one sentence. Second section, or the lead if 2.7's collapse
-   plot shows it at calibrated scale with the buyer present.
-3. **"Liquidity depth decides how far the peg falls; defense resources decide whether it
-   comes back."** (F-02, qualified by F-03, F-06) — the framework.
-4. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
-   (F-01, F-07 dead zone) — methods section, justifies the recovery criterion; the 1992
-   dead zone makes it more than a footnote.
-5. **"One believer gives a cliff; many believers at different prices give a curve."**
-   (F-09) — the limitation that points at the next model; limitations section.
+   (F-08, confirmed) — validation chart; lead.
+2. **"Deep liquidity protects the price and makes the defense unaffordable."** (F-03 +
+   F-11) — the mechanism; the 2.8 surface is its chart if the contour runs along depth.
+3. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
+   F-11) — throughput; explains why validation needed the buyer and why "recovery" is a
+   speed question.
+4. **"Oracle lag is not a depeg risk factor at Chainlink's settings."** (F-10) — short,
+   quotable, a flat chart.
+5. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
+   (F-01, F-07) — methods.
+6. **"One believer gives a cliff; many believers at different prices give a curve."**
+   (F-09) — limitations.
 
-The note leads with 1, uses the validation overlay as figure 1, states 3 as the framework,
-shows 2 as the counterintuitive mechanism, uses 4 in methods, and closes on 5 and the
-1992 open question (does the buyer have to switch sides for Black Wednesday?).
+The note leads with 1 (overlay as figure 1), gives 2 and 3 as the two mechanisms with the
+2.8 surface, states 4 in one paragraph with its chart, uses 5 in methods and closes on 6
+and the 1992 open question.
 
 ---
 
@@ -409,10 +494,12 @@ shows 2 as the counterintuitive mechanism, uses 4 in methods, and closes on 5 an
   Timing yes, depth no (F-08). ~~Re-asked in 2.6 with the par-expecting buyer.~~ With one
   buyer at $2.15B: depth within 17%, timing 3.2 h late, weekend path matches from 35 h
   (F-08 confirmation, F-09).
-- Does the F-03 collapse (all depths on one curve against the price-adjusted ratio) hold at
-  calibrated scale with the buyer present? (2.7)
-- Does oracle lag matter at all under deviation-triggered updates at Chainlink's cadence?
-  (2.7)
+- ~~Does the F-03 collapse hold at calibrated scale with the buyer present?~~ Within ±0.04
+  on the absorbed ratio, but that crossing at ≈ 1 is conservation; the result is the
+  nominal per-depth crossings and saturation above D\* (F-11).
+- ~~Does oracle lag matter under deviation-triggered updates?~~ No (F-10).
+- Under a reference-relative recovery criterion, does the surface's 0.5 contour run along
+  depth rather than capital — is the price-defense boundary budget vs depth? (2.8)
 - Does the holder have to switch sides (sell) for the 1992 analogue to exhaust at the
   historical multiple? (Epic 3: holder sell rule)
 - Does a fill price limit on the holder remove the sawtooth without moving C\* much?
