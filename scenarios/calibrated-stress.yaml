@@ -30,7 +30,8 @@
 #   arbitrageur  SOURCES.md#arbitrageur  unchanged from soros-baseline (assumptions)
 #   holder       SOURCES.md#holder       par-expecting buyer (Story 2.6): capital = C* x (depth / D*)
 #                                        = 9,166,667 x 16,666,667 / 16,666,667 = 9,166,667; C* fitted
-#                                        on usdc-2023 to the observed trough; entry, pace assumptions
+#                                        on usdc-2023 to the observed trough; entry, pace assumptions;
+#                                        Story 3.1 re-fit with buys capped at entry: C* unchanged
 #   termination  SOURCES.md#termination  tolerance = fee 1 + min profit 20 + 10 bps margin
 #                                        (ADR-0013); for_steps = one Chainlink heartbeat
 version: 1

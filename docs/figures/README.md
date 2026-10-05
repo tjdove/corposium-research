@@ -76,17 +76,17 @@ lag. The bottom panel's ~0.7 is F-04's stress-volatility floor, not an oracle ef
 
 **`peg_trajectory_calibrated.png`.** The calibrated baseline (seed 42): the attack takes the
 AMM to −1,253 bps; the defender buys it back within minutes and the run ends
-`peg_recovered`. Bottom: the defender spends 6.1M of its 41.3M budget; redemption pays
-4.2M of 138.1M reserves.
+`peg_recovered`. Bottom: the defender spends 7.7M of its 41.3M budget; redemption pays
+3.2M of 138.1M reserves (Story 3.1: the holder, capped at its $0.98 entry, absorbs less).
 
 **`peg_trajectory_1992.png`.** The 1992 analogue (seed 42) with the defender: the defender's
-budget is gone by ~440 min, the price falls to −5,982 bps, then redemption pays out at its
-capacity and the run ends `reserves_exhausted` with the price at −128 bps.
+budget is gone by ~440 min, the price falls to −5,975 bps, then redemption pays out at its
+capacity and the run ends `reserves_exhausted` with the price at −144 bps.
 
 **`peg_trajectory_1992_no_defense.png`.** The same attack with no defender (no AMM buying,
-no spread rise): the trough is deeper (−7,692 bps) and comes at step 1,543 rather than
-3,337, and redemption alone exhausts the reserves at step 7,807, 1,743 steps sooner;
-final −154 bps.
+no spread rise): the trough is deeper (−7,690 bps) and comes at step 1,546 rather than
+3,344, and redemption alone exhausts the reserves at step 7,805, 1,748 steps sooner;
+final −135 bps.
 
 **`peg_trajectory_baseline.png`.** The toy Soros baseline (1M/1M pool, seed 42): a 300k
 attack drops the price to −573 bps, the defender buys it back, and the run ends

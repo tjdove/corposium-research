@@ -22,6 +22,8 @@
 #      achieved -1137.8 bps (≈ $2.15B at s, 0.79x the attacker's episode net burn).
 #      entry_discount_pct 2.0, pace 0.05, redeem_when_capacity true: assumptions
 #      (SOURCES.md#holder).
+#      Story 3.1: buys capped at the entry price (ADR-0024); fit_holder.py re-run unchanged
+#      picks the same C* = 9,166,667 (-1137.8 bps at step 10269; 10M now -954.2).
 #
 # Timestamps (the series is UTC; US daylight saving began 2023-03-12 02:00, so ET is
 # UTC-5 on 10-11 March and UTC-4 from 12 March):

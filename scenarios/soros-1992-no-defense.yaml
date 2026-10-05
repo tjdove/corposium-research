@@ -29,6 +29,8 @@
 # (one step later); max_depeg_bps -7692.4 at step 1543. The arbitrageur redeems 99,864,131
 # (was 100,703,325); the holder redeems 839,194 and is left holding 9,378,392 stable,
 # PnL +67,601 (marked at spot). Every multiple 4.0-7.0 still exhausts, with or without it.
+# Story 3.1 (holder buys capped at its entry price, ADR-0024): reserves_exhausted at steps_run
+# 7805; max_depeg_bps -7689.8 at step 1546; holder PnL +259,788.
 #
 # One line per parameter: path  value  status  source / reasoning
 # - seed  42  assumption  project convention (SOURCES.md#time)

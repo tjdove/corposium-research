@@ -29,6 +29,12 @@
 # exhaust; 4.0-5.6 stall at max_steps (final -143 ... -178 bps) and the holder loses at
 # every multiple (redemption pays 0.98 under the 200 bps spread, its entry price).
 #
+# Story 3.1 (holder buys capped at its entry price, ADR-0024; C* unchanged): reserves_exhausted
+# at steps_run 9553; max_depeg_bps -5975.4 at step 3344. Multiple scan 4.0-7.0: every
+# multiple >= 5.2 (ratio 1.100) exhausts; 5.0 also exhausts (steps_run 14287), 5.1 stalls;
+# 4.0-4.9 stall at max_steps (final -148 ... -199 bps). The holder is profitable at every
+# multiple: capped, it no longer holds the price above the 0.98 payout at its own loss.
+#
 # One line per parameter: path  value  status  source / reasoning
 # - seed  42  assumption  project convention (SOURCES.md#time)
 # - steps.interval_seconds  12  verified  SOURCES.md#time (Ethereum slot); kept so time matches the USDC scenarios

@@ -1,6 +1,6 @@
 # Story 3.1: Holder Fill-Price Limit
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -23,12 +23,12 @@ so that figure 1's first hours show the market, not a model artefact (ADR-0021 s
 - [x] Fill rule (AC: 1, 2)
   - [x] Sizing helper; `Holder.decide`; tests; hash test
   - [x] Commit separately: `story 3.1: holder fill-price limit`
-- [ ] Re-fit and replay (AC: 3)
-- [ ] Propagate and figures (AC: 4, 5)
-- [ ] ADR, close out (AC: 6, 7)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 3.1: holder fill-price limit, re-fit C*`, push to `main`
+- [x] Re-fit and replay (AC: 3)
+- [x] Propagate and figures (AC: 4, 5)
+- [x] ADR, close out (AC: 6, 7)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 3.1: holder fill-price limit, re-fit C*`, push to `main`
 
 ## Dev Notes
 
@@ -157,24 +157,308 @@ Resume at the Fill rule task.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul.
 
 ### Debug Log References
 
-_(real command output: fit tables, replay CLI lines, propagated runs, 1992 re-scan, `make figures` time, guard, tests, lint)_
+Fill rule, commit `6e83b46` (`story 3.1: holder fill-price limit`): `pytest` 559 passed,
+every scenario `content_hash()` pinned unchanged (`test_every_scenario_hash_is_pinned_for_3_1`).
+
+`python scripts/fit_holder.py --workers 12` (unchanged script and rule; 10 s):
+
+```
+fit_holder: scenario=scenarios/usdc-2023.yaml target_bps=-1373 entry_discount_pct=2 pace=0.05
+grid (7): 1,000,000, 2,000,000, 5,000,000, 10,000,000, 20,000,000, 50,000,000, 100,000,000
+grid pass (target -1373 bps):
+ holder_capital  max_depeg_bps  step_of_max_depeg terminated_by  steps_run
+        1000000       -5,454.6               9524     max_steps      33600
+        2000000       -5,106.4               9560     max_steps      33600
+        5000000       -3,763.5               9683     max_steps      33600
+       10000000         -954.2              10929     max_steps      33600
+       20000000         -225.9               8117     max_steps      33600
+       50000000         -225.9               8117     max_steps      33600
+      100000000         -225.9               8117     max_steps      33600
+
+refine pass 1 between 5,000,000 and 20,000,000 (pick 10,000,000):
+ holder_capital  max_depeg_bps  step_of_max_depeg terminated_by  steps_run
+        7500000       -2,147.4               9797     max_steps      33600
+       10000000         -954.2              10929     max_steps      33600
+       12500000         -225.9               8117     max_steps      33600
+       15000000         -225.9               8117     max_steps      33600
+       17500000         -225.9               8117     max_steps      33600
+
+refine pass 2 between 7,500,000 and 12,500,000 (pick 10,000,000):
+ holder_capital  max_depeg_bps  step_of_max_depeg terminated_by  steps_run
+        8333333       -1,608.6               9831     max_steps      33600
+        9166667       -1,137.8              10269     max_steps      33600
+       10000000         -954.2              10929     max_steps      33600
+       10833333         -225.9               8117     max_steps      33600
+       11666667         -225.9               8117     max_steps      33600
+
+C* = 9166667 (trough -1137.8 bps) ≈ $2,150,500,078 at s = 0.0042625746 units/$
+```
+
+Replay, `python run.py scenarios/usdc-2023.yaml --output output/s31`:
+
+```
+depeg-sim: scenario=usdc-2023 seed=42 hash=2c3aeaa9825d
+run: steps=33600 terminated_by=max_steps max_depeg_bps=-1137.8 reserves_exhausted=False
+wrote: output/s31/usdc-2023-42-2c3aeaa9
+```
+
+`validation_comparison`, 2.6 run (`output/usdc-2023-42-2c3aeaa9`, pre-3.1 code) → 3.1 run:
+trough −1137.81 @ 34.18 h → −1137.82 @ 34.23 h; at capacity change −52.15 → −52.15;
+first in band after change 85.32 h → 85.32 h; last outside 85.32 h → 85.32 h.
+
+Sawtooth amplitude, max − min of `peg_deviation` × 10⁴ over steps 8,100–9,150 (1,051
+rows):
+
+```
+2.5 output/usdc-2023-42-73db527c  max  -27.6  min -5697.6  amplitude 5669.9  (no holder: the crash)
+2.6 output/usdc-2023-42-2c3aeaa9  max  314.7  min  -348.3  amplitude  662.9
+3.1 output/s31/usdc-2023-42-2c3aeaa9  max -27.6  min -412.1  amplitude  384.5
+steps 8,400-9,000:  2.6 max 53.8 min -211.4 amp 265.2 | 3.1 max -204.4 min -214.7 amp 10.2
+```
+
+Propagated scenarios and 1992 spot multiples, pre-3.1 code (git worktree at `8522944`, via
+`PYTHONPATH`) and 3.1 code, scratch `scan31.py` (not committed):
+
+```
+=== BEFORE (pre-3.1 code)
+             scenario  multiple      terminated_by  steps_run  max_depeg_bps  step_of_max_depeg  final_depeg_bps  defender_spent  redemption_paid_total  holder_bought_stable  holder_pnl
+  calibrated-baseline       NaN      peg_recovered       7024       -1,253.2                 50            -19.9     6,054,985.8            4,221,810.0           4,661,439.6   198,965.0
+    calibrated-stress       NaN      peg_recovered       7225       -1,231.0                 50             -3.7     6,055,420.2            4,344,815.4           4,663,198.8   201,938.0
+           soros-1992       NaN reserves_exhausted       9550       -5,982.4               3337           -127.8   100,703,325.0          100,703,325.0          11,597,301.5   -64,942.4
+soros-1992-no-defense       NaN reserves_exhausted       7807       -7,692.4               1543           -153.7             1.0          100,703,325.0          10,217,586.7    67,601.4
+=== AFTER (3.1 fill rule)
+  calibrated-baseline       NaN      peg_recovered       7024       -1,253.2                 50            -19.9     7,699,786.6            3,173,906.3           2,887,233.9   154,690.5
+    calibrated-stress       NaN      peg_recovered       7225       -1,231.0                 50             -3.7     7,702,126.6            3,168,262.6           2,867,035.6   136,379.5
+           soros-1992       NaN reserves_exhausted       9553       -5,975.4               3344           -144.3   100,703,325.0          100,703,325.0           9,441,626.2   126,437.4
+soros-1992-no-defense       NaN reserves_exhausted       7805       -7,689.8               1546           -134.5             1.0          100,703,325.0           9,630,291.2   259,787.7
+```
+
+1992 re-scan. AC 4 asked for 5.5–6.0; 5.5 and 5.6 moved from `max_steps` to exhausted,
+so 5.7 is no longer the flip and the full 4.0–7.0 scan was run (scratch
+`scan31_full.py`, `soros-1992` with the holder, both codes):
+
+```
+code: /tmp/claude-1000/-home-dove-code-corposium-research/f0598b05-3c33-4871-9273-96443d53fd08/scratchpad/old/src/depeg_sim/__init__.py
+  scenario  multiple      terminated_by  steps_run  max_depeg_bps  final_depeg_bps  redemption_paid_total  holder_bought_stable   holder_pnl
+soros-1992       4.0          max_steps      14400         -222.3           -162.7           64,469,951.0          62,053,794.2 -1,018,185.6
+soros-1992       4.1          max_steps      14400         -225.1           -151.3           68,954,011.1          55,002,557.8   -857,385.0
+soros-1992       4.2          max_steps      14400         -222.5           -162.2           72,954,007.5          62,793,733.6   -758,003.5
+soros-1992       4.3          max_steps      14400       -1,044.2           -144.3           76,102,125.1          50,001,105.8   -702,896.1
+soros-1992       4.4          max_steps      14400       -1,746.8           -162.3           78,340,725.5          46,673,299.4   -692,054.8
+soros-1992       4.5          max_steps      14400       -2,319.7           -144.4           80,565,444.1          40,804,832.3   -669,027.5
+soros-1992       4.6          max_steps      14400       -2,786.6           -146.2           82,863,076.8          35,201,607.8   -617,325.9
+soros-1992       4.7          max_steps      14400       -3,185.0           -178.0           84,558,673.0          29,641,952.1   -511,266.1
+soros-1992       4.8          max_steps      14400       -3,540.4           -146.4           86,584,675.0          36,826,850.6   -648,866.4
+soros-1992       4.9          max_steps      14400       -3,867.5           -145.6           88,104,433.5          33,668,048.7   -618,408.7
+soros-1992       5.0          max_steps      14400       -4,152.3           -155.3           89,950,326.1          31,695,318.5   -581,034.5
+soros-1992       5.1          max_steps      14400       -4,415.8           -142.8           91,209,855.0          27,430,896.2   -510,087.7
+soros-1992       5.2          max_steps      14400       -4,639.9           -167.7           92,837,045.7          24,691,859.8   -449,943.2
+soros-1992       5.3          max_steps      14400       -4,857.1           -160.3           94,433,289.3          21,523,861.0   -385,063.4
+soros-1992       5.4          max_steps      14400       -5,052.2           -150.1           96,012,879.0          18,909,923.1   -310,943.0
+soros-1992       5.5          max_steps      14400       -5,237.1           -158.8           97,583,092.1          16,127,530.4   -238,375.9
+soros-1992       5.6          max_steps      14400       -5,405.9           -175.4           98,662,131.2          12,868,357.4   -158,658.7
+soros-1992       5.7 reserves_exhausted       9661       -5,565.4           -142.0          100,703,325.0          12,143,870.6   -134,307.3
+soros-1992       5.8 reserves_exhausted       9623       -5,714.1           -127.2          100,703,325.0          11,872,073.9    -92,999.5
+soros-1992       5.9 reserves_exhausted       9589       -5,854.4           -138.2          100,703,325.0          11,739,534.0    -72,156.7
+soros-1992       6.0 reserves_exhausted       9550       -5,982.4           -127.8          100,703,325.0          11,597,301.5    -64,942.4
+soros-1992       6.1 reserves_exhausted       9518       -6,105.4           -133.8          100,703,325.0          11,468,283.5    -59,718.0
+soros-1992       6.2 reserves_exhausted       9486       -6,220.4           -145.8          100,703,325.0          11,621,152.7    -58,013.0
+soros-1992       6.3 reserves_exhausted       9454       -6,329.6           -140.6          100,703,325.0          11,483,243.9    -51,300.0
+soros-1992       6.4 reserves_exhausted       9422       -6,431.7           -135.2          100,703,325.0          11,348,195.9    -41,483.2
+soros-1992       6.5 reserves_exhausted       9396       -6,530.6           -129.3          100,703,325.0          11,217,107.8    -27,442.7
+soros-1992       6.6 reserves_exhausted       9365       -6,621.9           -123.3          100,703,325.0          11,221,196.0    -17,758.9
+soros-1992       6.7 reserves_exhausted       9339       -6,710.3           -130.0          100,703,325.0          11,079,759.3    -25,531.8
+soros-1992       6.8 reserves_exhausted       9316       -6,794.8           -130.3          100,703,325.0          11,091,100.4    -14,610.0
+soros-1992       6.9 reserves_exhausted       9291       -6,874.1           -130.6          100,703,325.0          10,819,869.9     -6,503.3
+soros-1992       7.0 reserves_exhausted       9269       -6,950.5           -144.9          100,703,325.0          10,967,315.3    -12,320.2
+```
+
+```
+code: /home/dove/code/corposium-research/src/depeg_sim/__init__.py
+  scenario  multiple      terminated_by  steps_run  max_depeg_bps  final_depeg_bps  redemption_paid_total  holder_bought_stable  holder_pnl
+soros-1992       4.0          max_steps      14400         -225.2           -198.8           65,059,664.2          19,604,984.1    30,547.6
+soros-1992       4.1          max_steps      14400         -226.7           -180.1           69,176,443.8          22,186,345.2    36,249.5
+soros-1992       4.2          max_steps      14400         -318.0           -159.7           73,316,572.0          23,730,709.3    46,885.3
+soros-1992       4.3          max_steps      14400       -1,137.1           -153.4           76,854,350.1          14,825,828.0    32,490.0
+soros-1992       4.4          max_steps      14400       -1,821.9           -158.0           81,180,908.1          13,333,830.7    32,429.7
+soros-1992       4.5          max_steps      14400       -2,358.1           -156.6           81,885,236.4          12,172,595.0    31,345.7
+soros-1992       4.6          max_steps      14400       -2,787.2           -148.0           84,002,245.5          11,376,998.7    30,769.6
+soros-1992       4.7          max_steps      14400       -3,166.7           -149.1           87,470,013.6          10,855,679.3    31,794.6
+soros-1992       4.8          max_steps      14400       -3,516.3           -159.5           87,307,110.8           9,905,933.7    28,532.8
+soros-1992       4.9          max_steps      14400       -3,837.7           -152.2           96,267,973.8           9,458,954.5    29,204.9
+soros-1992       5.0 reserves_exhausted      14287       -4,125.4           -149.8          100,703,325.0           9,413,166.0    32,789.0
+soros-1992       5.1          max_steps      14400       -4,385.3           -142.8           96,011,875.2           9,411,610.0    36,415.1
+soros-1992       5.2 reserves_exhausted      10506       -4,623.2           -127.4          100,703,325.0           9,413,282.3    40,293.6
+soros-1992       5.3 reserves_exhausted      10897       -4,840.4           -120.0          100,703,325.0           9,414,880.6    44,069.2
+soros-1992       5.4 reserves_exhausted      11474       -5,040.7           -157.8          100,703,325.0           9,416,405.6    47,911.5
+soros-1992       5.5 reserves_exhausted      12353       -5,224.9           -162.3          100,703,325.0           9,413,686.8    51,637.4
+soros-1992       5.6 reserves_exhausted      13965       -5,396.3           -144.3          100,703,325.0           9,420,168.3    56,280.0
+soros-1992       5.7 reserves_exhausted       9663       -5,556.0           -126.9          100,703,325.0           9,423,201.0    73,108.4
+soros-1992       5.8 reserves_exhausted       9624       -5,705.0           -132.4          100,703,325.0           9,430,495.6   105,496.9
+soros-1992       5.9 reserves_exhausted       9587       -5,844.2           -127.5          100,703,325.0           9,433,215.1   137,928.3
+soros-1992       6.0 reserves_exhausted       9553       -5,975.4           -144.3          100,703,325.0           9,441,626.2   126,437.4
+soros-1992       6.1 reserves_exhausted       9518       -6,097.6           -133.8          100,703,325.0           9,440,303.8   140,216.6
+soros-1992       6.2 reserves_exhausted       9486       -6,213.6           -145.8          100,703,325.0           9,454,892.7   133,291.3
+soros-1992       6.3 reserves_exhausted       9455       -6,322.9           -146.6          100,703,325.0           9,452,365.7   136,808.8
+soros-1992       6.4 reserves_exhausted       9425       -6,426.7           -129.0          100,703,325.0           9,467,239.5   158,019.9
+soros-1992       6.5 reserves_exhausted       9396       -6,524.7           -129.3          100,703,325.0           9,458,483.4   162,063.8
+soros-1992       6.6 reserves_exhausted       9369       -6,617.8           -142.5          100,703,325.0           9,481,864.0   154,457.6
+soros-1992       6.7 reserves_exhausted       9342       -6,706.0           -149.6          100,703,325.0           9,470,757.4   152,124.8
+soros-1992       6.8 reserves_exhausted       9317       -6,790.1           -130.3          100,703,325.0           9,491,433.0   175,578.1
+soros-1992       6.9 reserves_exhausted       9291       -6,869.8           -130.6          100,703,325.0           9,483,795.4   179,850.2
+soros-1992       7.0 reserves_exhausted       9268       -6,945.8           -137.9          100,703,325.0           9,502,003.2   177,992.1
+```
+
+`make figures` (12 workers), on commit `6e83b46`:
+
+```
+sweep: threshold-surface-ref-mc cells=640 workers=12
+sweep: threshold-surface-mc cells=640 workers=12
+sweep: budget-x-depth-mc cells=200 workers=12
+sweep: oracle-lag-mc cells=640 workers=12
+wrote: 10 figures and docs/figures/manifest.json (commit 6e83b468af51)
+make figures: wall time 433 s (12 workers)
+```
+
+Close-out:
+
+```
+$ pytest -o addopts="" -q
+559 passed in 8.84s
+exit=0
+$ ruff check .
+All checks passed!
+exit=0
+$ ruff format --check .
+87 files already formatted
+exit=0
+$ make figures-check
+figures-check: ok, 10 figures match their sources
+exit=0
+```
+
+552 tests at story start; +7 (4 fill-rule, 2 sawtooth cases, 1 hash pin).
+
+CI, GitHub run 37387533598 on this commit's tree (scratch branch `story/3-1-ci`, deleted
+after):
+
+```
+test: success (2026-10-05T23:16:27Z → 2026-10-05T23:17:07Z)
+  All checks passed!
+  87 files already formatted
+  559 passed in 17.92s
+  figures-check: ok, 10 figures match their sources
+figures-quick: success (2026-10-05T23:16:27Z → 2026-10-05T23:25:20Z)
+  quick: ok, 10 figures drawn; wrote docs/figures/quick-ok only
+  make figures-quick: wall time 508 s (4 workers)
+```
 
 ### Completion Notes List
 
-_(include: C* three units before/after; VALIDATION.md row; sawtooth amplitude before/after; overlay description; ADR number)_
+**C\*, before → after: unchanged.** 9,166,667 model units → **9,166,667**; ≈ $2,150,500,078
+→ **≈ $2,150,500,078** at `s`; 0.79× the attacker's episode net burn → **0.79×**
+(11,540,596 units). The fit lands on the same point by a different path. 10M is now
+−954.2 bps (was −224.6), so pass 2 refines between 7.5M and 12.5M (was 5M–10M), and
+9,166,667 gives −1,137.8 bps under both rules. No capital value changes in any scenario,
+so no `content_hash()` moves. The YAML headers and SOURCES.md record the re-fit in
+comments and notes.
+
+**VALIDATION.md 3.1 row:**
+
+| replay | trough depth | trough time | first in band after 85 h | sawtooth amplitude, steps 8,100–9,150 |
+|---|---|---|---|---|
+| 3.1 (capped holder, C\* 9,166,667) | −1,137.8 bps | 34.2 h (step 10,269) | 85.3 h | 384.5 bps (−27.6 … −412.1) |
+
+(2.6: −1,137.8 / 34.2 h, step 10,255 / 85.3 h / 662.9 bps.)
+
+**Sawtooth amplitude, before → after:** 662.9 → **384.5 bps** over the AC window;
+265.2 → **10.2 bps** over the held stretch (steps 8,400–9,000). The AC window starts at
+the attack's first step (−28 bps, before the price reaches −200). It ends 52 steps into
+the fall to the trough, when the holder's reference is nearly spent. Those two ends
+dominate the number. Nothing in the window is above the holder's entry price. At whole
+hours the first 3.5 h read −28, −213, −208, −204 bps (2.6: −28, −171, −197, −196).
+
+**Predictions:**
+- Sawtooth to ≤ 60 bps: **missed** as defined (384.5). Held for the plateau (10.2). The
+  baseline was 662.9, not ~530: ADR-0021's +310/−220 was read off the figure.
+- `C*` within 8.3M–10M: **held** (9,166,667, unchanged).
+- Trough within 100 bps of −1,138: **held** (−1,137.8).
+- Trough time within 1 h of 34.2 h: **held** (34.23 h, +14 steps).
+- C\* moves ≤ 10%: **held** (0%).
+- 1992 flip stays at 5.7: **missed.** Every multiple ≥ 5.2 (ratio 1.100) now exhausts;
+  5.0 also exhausts (`steps_run` 14,287) and 5.1 stalls.
+- AC 6's "attacker's 10%-of-remaining dumps": the replay attacker sells 0.2% of remaining
+  per step (pace 0.002). The ADR states the actual mechanism.
+
+**The 1992 flip moves 5.7 → 5.2 (finding candidate, ADR-0024).** Pre-3.1 code reproduces
+ADR-0021's table exactly. Under the fill rule the dead zone shrinks from 4.0–5.6 to
+4.0–4.9 plus 5.1. The holder is profitable at every multiple (+28.5k … +180k; was −1.02M …
+−6.5k). Diagnostic at 5.5:
+- 2.6 holder: its overshoots kept spot ≥ the $0.98 payout in 7,945 of 11,399 post-attack
+  steps (max 1.034). The arbitrageur redeemed only 81.7M and the holder 15.8M (97.6M
+  total), so reserves never ran out.
+- Capped holder: the arbitrageur redeems 91.5M and the holder 9.2M, and reserves exhaust
+  at `steps_run` 12,353.
+
+The old holder was a loss-making second defender of the floor.
+
+**Propagated scenarios:** same outcomes.
+- `calibrated-baseline` / `calibrated-stress`: `peg_recovered` at 7024 / 7225, trough
+  −1,253.2 / −1,231.0. The defender spends **+27%** (6.05M → 7.70M) because the capped
+  holder absorbs less (bought 4.66M → 2.89M).
+- `soros-1992`: `reserves_exhausted`, 9,550 → 9,553.
+- `soros-1992-no-defense`: `reserves_exhausted`, 7,807 → 7,805.
+
+**Overlay, first 3.5 h:**
+- *Before:* a dense black sawtooth between ≈ +315 and −220 bps from 27 h to ≈ 30.5 h; the
+  y-axis reached +400 to hold it.
+- *After:* a near-vertical drop at 27 h to ≈ −220 bps, then a single thin line easing from
+  −215 to −204 bps until ≈ 30.3 h, then the plunge. Nothing is above zero after the attack
+  starts, and the y-axis tops out at +100. From 31.5 h on the figure is unchanged.
+
+**Figures.** Seven PNGs changed and three are byte-identical (`budget_depth`,
+`oracle_sensitivity`, `peg_trajectory_baseline`). Every p(stays broken) cell of both
+threshold surfaces and of budget × depth is unchanged; F-10's trough range is unchanged.
+`time_to_parity` moves in three fast cells (4× D\*: 0.2 → 0.3 h, 0.2 → 3.6 h; 2× D\*:
+1.9 → 2.0 h) and no clock/price category changes. `docs/figures/README.md` captions for
+the calibrated and 1992 trajectories are updated to the new numbers.
+
+**Guard gap (no ADR of its own; noted in ADR-0024).** No source hash moved, so `make
+figures-check` was already green before the regeneration. A behaviour change in agent
+code with unchanged inputs is invisible to the guard by design (Story 2.9). The figures
+were regenerated because the story said to.
+
+**ADR:** `docs/adr/0024-holder-fill-price-limit.md`, Proposed. It covers the fill rule
+(with the ≤ 0.1 bps undershoot), C\* unchanged, the sawtooth, the baseline defender +27%,
+and the 1992 flip as a finding candidate. Index not edited.
 
 ### File List
 
 **Created:**
 
+- `docs/adr/0024-holder-fill-price-limit.md`
+
 **Modified:**
+
+- `src/depeg_sim/agents/holder.py` (fill cap via `arbitrageur._reference_to_reach`; DUST
+  fall-through; docstring)
+- `tests/test_holder.py` (3 tests moved to spot 0.95; 4 fill-rule tests; two-step sawtooth
+  synthetic, old rule vs new)
+- `tests/test_holder_config.py` (3.1 hash pin)
+- `scenarios/usdc-2023.yaml`, `calibrated-baseline.yaml`, `calibrated-stress.yaml`,
+  `soros-1992.yaml`, `soros-1992-no-defense.yaml` (header comments only; hashes unchanged)
+- `docs/calibration/VALIDATION.md` (Story 3.1 section), `docs/calibration/SOURCES.md`
+  (holder rows)
+- `docs/figures/*.png` (7 changed), `docs/figures/manifest.json`, `docs/figures/README.md`
+- `docs/stories/3-1-holder-fill-price-limit.md`
 
 ## Change Log
 
 - 2026-10-05: Story drafted by dev manager at the Epic 2 retro
 - 2026-10-05: Blocked by builder (Claude Code, Opus 5.5) before Task 1: the arbitrageur's sizing helper ignores the fee, AC 1 asks for fee-exact; see Blockers
 - 2026-10-05: Dev manager ruled on Blockers: reuse the arbitrageur helper unchanged (option a); three implementation notes accepted; AC 1, AC 2 and Dev Notes amended; Status back to in-progress
+- 2026-10-05: Implemented by builder (Claude Code, Opus 5.5): fill rule; C* re-fit (unchanged); replay, propagation, 1992 full re-scan (flip 5.7 → 5.2); figures regenerated; ADR-0024 Proposed. Status review
