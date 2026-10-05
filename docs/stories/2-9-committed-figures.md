@@ -1,6 +1,6 @@
 # Story 2.9: Committed Figures, Time-to-Parity, and `make figures`
 
-Status: blocked
+Status: in-progress
 
 ## Story
 
@@ -10,7 +10,7 @@ so that the README and the note show figures without running code, and no figure
 
 ## Acceptance Criteria
 
-1. `plot_time_to_parity(sweep_dir) -> Path` writes `time_to_parity.png`: heatmap over the sweep's two axes of **median hours to first re-entry** into the recovery band (`steps_to_first_band_entry_p50 × interval / 3600`), cells where fewer than half the seeds ever re-enter (`steps_to_first_band_entry_n < n/2`) hatched and labelled "never"; a dashed contour at the latest start that can still hold `for_steps` by `max_steps` (`(max_steps − for_steps) × interval / 3600`, here 37 h) so the clock boundary is visible; heading states the criterion; reads only `mc.parquet` + manifest; synthetic-parquet test
+1. `plot_time_to_parity(sweep_dir) -> Path` writes `time_to_parity.png`: heatmap over the sweep's two axes of **median hours from run start to first re-entry** into the recovery band (`(step_of_max_depeg + steps_to_first_band_entry) × interval / 3600`, both from the same run, aggregated as the median across seeds; **amended 2026-10-05** — `steps_to_first_band_entry` is counted from the trough, not from step 0; add a check that the trough step is identical across seeds in a cell and label the axis "hours from run start"), cells where fewer than half the seeds ever re-enter (`steps_to_first_band_entry_n < n/2`) hatched and labelled "never"; a dashed contour at the latest start that can still hold `for_steps` by `max_steps` (`(max_steps − for_steps) × interval / 3600`, here 37 h) so the clock boundary is visible; heading states the criterion; reads only `mc.parquet` + manifest; synthetic-parquet test
 2. `scripts/make_figures.py [--quick]` regenerates every figure in `docs/figures/` from its named source and writes `docs/figures/manifest.json`: for each figure its file, source (scenario path or sweep path), the source's hash (`content_hash()` for a scenario; for a sweep, sha256 of the spec file bytes + the base scenario's `content_hash()` — define this once as `sweep_spec_hash(spec_path)` in `experiments/sweep.py`), the generating function, and the git commit. Figures:
    - `peg_trajectory_baseline.png` ← `scenarios/soros-baseline.yaml`
    - `peg_trajectory_calibrated.png` ← `scenarios/calibrated-baseline.yaml`
@@ -65,8 +65,10 @@ byte comparison would fail CI for no reason. The guard therefore never re-runs a
 
 ### Time-to-parity semantics
 
-`steps_to_first_band_entry` under the oracle criterion is the first step the AMM is within
-31 bps of the published oracle price. "Never" = no re-entry by `max_steps`. The dashed
+`steps_to_first_band_entry` under the oracle criterion counts steps **from the trough**
+(`step_of_max_depeg`) to the first step the AMM is within 31 bps of the published oracle
+price (summary.py). Time-to-parity for the chart is measured from run start, so add the
+trough step (amended 2026-10-05, Rulings 1). "Never" = no re-entry by `max_steps`. The dashed
 37 h contour is `(18000 − 6900) × 12 s`: a run that first re-enters after it cannot
 satisfy `peg_recovered` even if it never leaves the band again. Cells above that line but
 finite are "clock"; "never" cells are "price". Say this in the caption.
@@ -136,6 +138,25 @@ it from step 0.**
    spec on disk. That changes the footer of all four sweep figures. Scenario footers
    already print `content_hash()[:12]`.
 
+## Rulings
+
+**2026-10-05 (dev manager), on the Blockers above.**
+
+1. **Option (a).** Measure from run start: `(step_of_max_depeg + steps_to_first_band_entry)`
+   per run, median across seeds, with a check that the trough step is the same for every
+   seed in a cell (fail loudly if not). Axis "hours from run start"; the 37 h deadline is
+   then on the same origin. AC 1 and Dev Notes amended. The mixed origin was my drafting
+   error; the F-11 refinement's numbers already used the correct sum, so no finding
+   changes. On this sweep no cell switches category (trough at step 50–85); say so in the
+   ADR-free Completion Notes.
+2. **`quick-ok` marker → gitignored**, accepted.
+3. **Sweep hash in `run_sweep` manifest and in the footer next to the base hash;
+   `make_figures.py` refuses a sweep output whose hash doesn't match its spec** — accepted.
+   That is the right place for it and it makes the footer and the manifest agree. All
+   four sweep figures change footer; note it in Completion Notes.
+
+Resume at Task 1.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -164,3 +185,4 @@ _(include: time-to-parity chart description — which cells are clock and which 
 
 - 2026-10-04: Story drafted by dev manager after Story 2.8 review; time-to-parity chart added per review ruling 3
 - 2026-10-04: Blocked by builder (Claude Code, Opus 5.5) before Task 1: time-to-parity origin (trough vs step 0) contradicts the 37 h contour; see Blockers
+- 2026-10-05: Dev manager ruled on Blockers: time-to-parity from run start (option a); marker gitignored; sweep hash in manifest and footer. Status back to in-progress
