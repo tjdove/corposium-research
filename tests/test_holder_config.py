@@ -114,3 +114,22 @@ def test_holder_at_the_replay_capital_to_depth_ratio(name):
 def test_soros_baselines_have_no_holder(name):
     cfg = load_scenario(SCENARIO_DIR / f"{name}.yaml")
     assert [a.type for a in cfg.agents] == ["attacker", "arbitrageur", "defender"]
+
+
+# Story 3.1: the fill-price limit is a behaviour change only; no scenario hash moves until
+# the re-fitted C* is written into the holder scenarios.
+HASHES_3_1 = {
+    "calibrated-baseline": "44ac03c60e5f561cc88e9d2a3e00a11dfccf3893ef95e326c2348195ec1c9d4a",
+    "calibrated-stress": "17b24b458e47a6aa483a4883cc384740ea5df25fd31d83fa6c835e5fc672d414",
+    "soros-1992-no-defense": "516edaef47958a1c24474d75ff18ef9a56a749570c860efd362564d05bffc02b",
+    "soros-1992": "f4e26ae664407d5e53b761d54bfd3b0d29e7b773c8af4a0253753f95cce86270",
+    "soros-baseline": "2e09f431ce748e725a3ab84c123711b08b16e276b6af05ee506caa7daac5dd85",
+    "soros-volatile": "84ad0b810807e84b0b07faed41aa50c4d2f8821328d0facef15fc1a50976867b",
+    "usdc-2023": "2c3aeaa9825d0c04a937ba6b1c97087bc59547b2ccf5e9b344e83b6dc3871531",
+}
+
+
+def test_every_scenario_hash_is_pinned_for_3_1():
+    assert {p.stem for p in SCENARIO_DIR.glob("*.yaml")} == set(HASHES_3_1)
+    for name, h in HASHES_3_1.items():
+        assert load_scenario(SCENARIO_DIR / f"{name}.yaml").content_hash() == h, name

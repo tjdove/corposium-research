@@ -5,14 +5,24 @@ funds who bought USDC at $0.88 because they expected Circle to redeem at $1, or 
 1992 convergence traders before their belief broke. Starts holding ``capital``
 reference. Each step, in this order (one action at most)::
 
-    hold_buy     spot < peg_price * (1 - entry_discount_pct / 100) and reference > 0
-                 -> swap buy_stable, amount_in = pace * reference
+    hold_buy     spot < entry_price = peg_price * (1 - entry_discount_pct / 100)
+                 and min(pace * reference, cap) > DUST
+                 -> swap buy_stable, amount_in = min(pace * reference, cap)
     hold_redeem  elif redeem_when_capacity and available_stable > 0
                  and redemption.queue_depth == 0
                  -> redeem min(available_stable,
                                redemption.capacity_per_step * redeem_horizon_steps)
     hold_wait    elif stable > 0 (held, or queued and not yet paid)
     hold_done    else
+
+``cap`` is the fill-price limit (Story 3.1): the reference that lifts AMM spot to
+``entry_price``, from the arbitrageur's closed form ``_reference_to_reach`` reused
+unchanged. That form ignores the AMM fee, so with a fee spot lands slightly below
+``entry_price`` (by ``fee x amount / sqrt(k x entry_price)``: under 0.1 bps at the
+calibrated 1 bp fee), never above it. The holder never lifts the price past the
+price at which it is willing to buy, which removes the ADR-0021 sawtooth above par.
+When the buy amount is at most ``DUST`` it does not buy and falls through to the
+rules below.
 
 The redeem condition keeps it from queueing behind other redeemers. It redeems in
 tranches the channel can pay within ``redeem_horizon_steps`` (default 10) at the current
@@ -29,6 +39,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from depeg_sim.agents.arbitrageur import _reference_to_reach
 from depeg_sim.agents.base import DUST, REFERENCE, STABLE, Agent, action_record
 from depeg_sim.kernel.config import HolderConfig
 from depeg_sim.kernel.interfaces import Action
@@ -100,14 +111,18 @@ class Holder(Agent):
             return 0.0
         return min(avail, red.capacity_per_step * self.redeem_horizon_steps)
 
-    def decide(self, ctx: RunContext) -> list[Action]:
+    def _buy_amount(self, ctx: RunContext) -> float:
+        """Reference to spend this step: ``min(pace x reference, cap)`` while spot is below
+        the entry price, else 0. ``cap`` reuses the arbitrageur's sizing (fee ignored)."""
         amm = self._amm(ctx)
-        if (
-            amm is not None
-            and amm.spot_price < self.entry_price
-            and self.balances[REFERENCE] > DUST
-        ):
-            action = self._swap("buy_stable", self.pace * self.balances[REFERENCE])
+        if amm is None or not amm.spot_price < self.entry_price:
+            return 0.0
+        cap = _reference_to_reach(amm.k, amm.reserve_reference, self.entry_price)
+        return min(self.pace * self.balances[REFERENCE], cap)
+
+    def decide(self, ctx: RunContext) -> list[Action]:
+        if (amount := self._buy_amount(ctx)) > DUST:
+            action = self._swap("buy_stable", amount)
             rule = "hold_buy"
         elif (tranche := self._tranche(ctx)) > DUST:
             action = Action(

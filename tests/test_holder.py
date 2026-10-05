@@ -3,6 +3,8 @@
 import pytest
 from agent_world import config, decisions, events_of, rules, world
 
+from depeg_sim.agents.arbitrageur import _reference_to_reach
+from depeg_sim.agents.base import DUST
 from depeg_sim.agents.factory import build_agents
 from depeg_sim.agents.holder import Holder
 from depeg_sim.kernel.config import HolderConfig, ScenarioConfig
@@ -36,14 +38,14 @@ def test_waits_above_the_discount():
 def test_buys_below_the_discount_at_pace():
     w = world()
     h = holder()
-    w.set_spot(0.97)
+    w.set_spot(0.95)  # the fill cap to 0.98 is ~14.9k here, so pace (5k) binds
     (act,) = w.step(h)
     assert act.target == "amm" and act.params == {"amount_in": 5_000.0, "side": "buy_stable"}
     assert rules(w, "h") == ["hold_buy"]
     assert h.balances["reference"] == pytest.approx(95_000.0)
     assert h.balances["stable"] > 5_000.0  # bought below par
     assert h.bought_stable == h.balances["stable"] and h.spent_reference == 5_000.0
-    w.set_spot(0.97)  # its own buy lifted spot to the entry price; push it back below
+    w.set_spot(0.95)  # push spot back below the entry price
     (act2,) = w.step(h)  # pace applies to the remaining balance
     assert act2.params["amount_in"] == pytest.approx(0.05 * 95_000.0)
 
@@ -141,11 +143,12 @@ def test_redeem_horizon_steps_is_a_constructor_default():
 def test_full_cycle_buy_then_redeem_at_par_is_profitable_and_ends_done():
     w = world(capacity=1_000_000.0, spread_bps=10)  # ppu 0.999
     h = holder(capital=10_000.0, pace=1.0)
-    w.set_spot(0.97)
+    w.set_spot(0.95)  # cap ~14.9k > 10k
     w.step(h)  # buys with everything
     assert h.balances["reference"] == 0.0 and h.balances["stable"] > 10_000.0
-    w.step(h)  # spot still 0.97, no reference: redeem
-    w.step(h)  # nothing left
+    w.set_spot(0.99)  # the market recovers above the entry price
+    w.step(h)  # no reference left: redeem
+    w.step(h)  # nothing left; proceeds are reference but spot is above the entry
     assert rules(w, "h") == ["hold_buy", "hold_redeem", "hold_done"]
     (fill,) = events_of(w, "redeem_fulfilled")
     assert fill.payload["source"] == "h" and fill.payload["reason"] == "full"
@@ -230,7 +233,7 @@ def test_from_config_and_factory():
 def test_snapshot_counters():
     w = world()
     h = holder()
-    w.set_spot(0.97)
+    w.set_spot(0.95)
     w.step(h)
     snap = h.snapshot()
     assert snap["type"] == "holder"
@@ -241,3 +244,87 @@ def _redeem(source, amount):
     return Action(
         source=source, target="redemption", kind="redeem", params={"amount_stable": amount}
     )
+
+
+# Story 3.1: fill-price limit ----------------------------------------------------------
+
+
+def test_buy_that_would_overshoot_is_capped_at_the_entry_price():
+    w = world(fee_bps=1)
+    h = holder(capital=1_000_000.0, pace=0.5)  # pace term 500k, far past the entry price
+    w.set_spot(0.95)
+    cap = _reference_to_reach(w.amm.k, w.amm.reserve_reference, h.entry_price)
+    (act,) = w.step(h)
+    assert act.params["amount_in"] == cap  # the arbitrageur's helper, reused unchanged
+    assert cap < 0.5 * 1_000_000.0
+    spot = w.amm.spot_price
+    assert spot <= h.entry_price + 1e-9
+    # the helper ignores the 1 bp fee, so spot lands a hair below: < 0.1 bps
+    assert (h.entry_price - spot) / h.entry_price < 0.1 / 10_000
+    assert rules(w, "h") == ["hold_buy"]
+
+
+def test_buy_that_would_not_overshoot_is_uncapped():
+    w = world(fee_bps=1)
+    h = holder(capital=100_000.0, pace=0.05)
+    w.set_spot(0.95)
+    cap = _reference_to_reach(w.amm.k, w.amm.reserve_reference, h.entry_price)
+    (act,) = w.step(h)
+    assert cap > 5_000.0 and act.params["amount_in"] == 5_000.0
+    assert w.amm.spot_price < h.entry_price
+
+
+def test_dust_buy_falls_through_to_redeem():
+    # smaller term (pace x a dust reference) <= DUST: no buy; the redeem rule applies
+    w = world()
+    h = holder(stable=1_000.0)
+    h.balances["reference"] = 1e-9
+    w.set_spot(0.95)
+    (act,) = w.step(h)
+    assert act.kind == "redeem" and rules(w, "h") == ["hold_redeem"]
+
+
+def test_dust_cap_falls_through_to_done():
+    # spot a hair below the entry price: the cap term is <= DUST; nothing held: hold_done
+    w = world()
+    h = holder()
+    w.set_spot(h.entry_price * (1 - 1e-15))
+    assert w.amm.spot_price < h.entry_price
+    assert _reference_to_reach(w.amm.k, w.amm.reserve_reference, h.entry_price) <= DUST
+    assert w.step(h) == []
+    assert rules(w, "h") == ["hold_done"]
+
+
+class _UncappedHolder(Holder):
+    """The pre-3.1 rule (ADR-0021): ``pace x reference`` whenever spot < entry price."""
+
+    def _buy_amount(self, ctx):
+        amm = self._amm(ctx)
+        if amm is None or not amm.spot_price < self.entry_price:
+            return 0.0
+        return self.pace * self.balances["reference"]
+
+
+def _two_steps(h):
+    """Holder buy, attacker dump of 60k stable, holder buy; spot after each holder step."""
+    w = world(fee_bps=1)
+    w.set_spot(0.975)
+    w.step(h)
+    after_first = w.amm.spot_price
+    w.amm.swap(60_000.0, "sell_stable")  # the attacker's dump between holder buys
+    w.step(h)
+    return after_first, w.amm.spot_price
+
+
+@pytest.mark.parametrize(
+    "cls, above_par",
+    [(_UncappedHolder, True), (Holder, False)],
+    ids=["old-rule-overshoots", "capped"],
+)
+def test_two_step_sawtooth(cls, above_par):
+    # replay ratio: holder capital 0.55 x pool depth, pace 0.05 (a 27.5k buy into 1M)
+    h = cls("h", capital=550_000.0, entry_discount_pct=2.0, pace=0.05)
+    first, second = _two_steps(h)
+    assert (max(first, second) > 1.0) is above_par
+    if not above_par:
+        assert first <= h.entry_price + 1e-9 and second <= h.entry_price + 1e-9

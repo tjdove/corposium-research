@@ -20,9 +20,9 @@ so that figure 1's first hours show the market, not a model artefact (ADR-0021 s
 
 ## Tasks / Subtasks
 
-- [ ] Fill rule (AC: 1, 2)
-  - [ ] Sizing helper; `Holder.decide`; tests; hash test
-  - [ ] Commit separately: `story 3.1: holder fill-price limit`
+- [x] Fill rule (AC: 1, 2)
+  - [x] Sizing helper; `Holder.decide`; tests; hash test
+  - [x] Commit separately: `story 3.1: holder fill-price limit`
 - [ ] Re-fit and replay (AC: 3)
 - [ ] Propagate and figures (AC: 4, 5)
 - [ ] ADR, close out (AC: 6, 7)
