@@ -229,6 +229,21 @@ def validation_comparison(run_dir: Path) -> dict:
     return out
 
 
+def _include_texts(fig, ax, texts, pad: float = 0.03) -> None:
+    """Lower the y-axis bottom until every text box sits inside the axes (Story 2.9: the
+    2.6 overlay clipped the observed-trough label). Offsets are in points, so lowering the
+    limit moves the anchor up relative to the axes; two passes settle it."""
+    for _ in range(2):
+        fig.canvas.draw()
+        to_axes = ax.transAxes.inverted()
+        lowest = min(to_axes.transform(t.get_window_extent())[0, 1] for t in texts)
+        if lowest >= pad:
+            return
+        lo, hi = ax.get_ylim()
+        # bottom at fraction ``lowest`` must move to ``pad``: grow the span accordingly
+        ax.set_ylim(lo - (pad - lowest) * (hi - lo) / (1 - pad), hi)
+
+
 def plot_validation_overlay(run_dir: Path) -> Path:
     """One panel: observed reference (the manifest's CSV, re-read) and simulated AMM
     price, both in bps from peg, x in elapsed hours from the series start."""
@@ -278,17 +293,21 @@ def plot_validation_overlay(run_dir: Path) -> Path:
                 color=GREY,
                 ha=ha,
             )
+    labels = []
     for who, color, dy in (("observed", BLUE, -30), ("simulated", DARK, 8)):
         h, v = cmp[f"{who}_trough_h"], cmp[f"{who}_trough_bps"]
-        ax.annotate(
-            f"{who} trough {v:,.0f} bps at {h:.1f} h",
-            xy=(h, v),
-            xytext=(40, dy),
-            textcoords="offset points",
-            fontsize=8,
-            color=color,
-            arrowprops={"arrowstyle": "-", "color": color, "lw": 0.8},
+        labels.append(
+            ax.annotate(
+                f"{who} trough {v:,.0f} bps at {h:.1f} h",
+                xy=(h, v),
+                xytext=(40, dy),
+                textcoords="offset points",
+                fontsize=8,
+                color=color,
+                arrowprops={"arrowstyle": "-", "color": color, "lw": 0.8},
+            )
         )
+    _include_texts(fig, ax, labels)
     ax.set_xlabel("elapsed time from series start (hours)")
     ax.set_ylabel("deviation from peg (bps)")
     ax.legend(loc="lower right", fontsize=8, frameon=False)

@@ -31,7 +31,7 @@ also an axis or an override.
 Output (``run_sweep``)::
 
     <output_dir>/<spec.name>/
-      manifest.json                      spec, seeds and the base config after overrides (ADR-0014)
+      manifest.json                      spec, spec_hash, seeds, base config after overrides
       sweep.parquet                      one row per cell, sorted by index
       <index:04d>-<seed>-<hash8>/        a normal run directory per cell (no chart)
 
@@ -44,6 +44,7 @@ from disk, so ``sweep.parquet`` is byte-identical for any worker count.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import multiprocessing
@@ -259,6 +260,17 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
     return cells
 
 
+def sweep_spec_hash(spec_path: Path) -> str:
+    """sha256 hex of the spec file's bytes followed by the base scenario's
+    ``content_hash()``: changes when the spec or the scenario it builds on changes. The
+    hash ``docs/figures/manifest.json`` records for a sweep figure (Story 2.9)."""
+    raw = Path(spec_path).read_bytes()
+    spec = SweepSpec.model_validate(yaml.safe_load(raw))
+    h = hashlib.sha256(raw)
+    h.update(load_scenario(spec.base).content_hash().encode("ascii"))
+    return h.hexdigest()
+
+
 # -- running --------------------------------------------------------------------------
 
 
@@ -282,9 +294,12 @@ def _row(cell: SweepCell, output_dir: Path) -> dict:
     return {"index": cell.index, "seed": cell.seed, **cell.axis_values, **ordered}
 
 
-def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
+def run_sweep(
+    spec: SweepSpec, output_dir: Path, workers: int = 1, spec_path: Path | None = None
+) -> Path:
     """Run every cell and aggregate. Returns ``output_dir/<spec.name>``, which is
-    replaced if it exists."""
+    replaced if it exists. With ``spec_path`` (the file ``spec`` was loaded from) the
+    manifest records ``spec_hash = sweep_spec_hash(spec_path)``; otherwise it is null."""
     if workers < 1:
         raise ValueError(f"workers must be >= 1, got {workers}")
     cells = expand(spec)
@@ -306,6 +321,7 @@ def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
     manifest = {
         "sweep_name": spec.name,
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
+        "spec_hash": None if spec_path is None else sweep_spec_hash(spec_path),
         "base_config": resolved_base(spec).model_dump(mode="json"),
         "axes": [a.model_dump(mode="json", exclude_none=True) for a in spec.axis_list()],
         "seeds": spec.seed_list(),
@@ -344,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: invalid sweep {args.spec}:\n{exc}", file=sys.stderr)
         return 3
     print(f"sweep: {spec.name} cells={len(cells)} workers={args.workers}")
-    sweep_dir = run_sweep(spec, args.output, workers=args.workers)
+    sweep_dir = run_sweep(spec, args.output, workers=args.workers, spec_path=args.spec)
     print(f"wrote: {sweep_dir / SWEEP_PARQUET}")
     if args.mc:
         from depeg_sim.experiments.mc import aggregate_and_report

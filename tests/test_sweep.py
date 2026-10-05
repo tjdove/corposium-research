@@ -18,6 +18,7 @@ from depeg_sim.experiments.sweep import (
     load_sweep,
     main,
     run_sweep,
+    sweep_spec_hash,
 )
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 
@@ -422,3 +423,40 @@ def test_story_2_8_specs_expand():
         atk = next(a for a in c.config.agents if a.type == "attacker")
         assert atk.capital == 179_454_391
         assert c.config.termination.peg_recovered.reference == "oracle"
+
+
+# Story 2.9: sweep_spec_hash --------------------------------------------------------
+
+
+def test_sweep_spec_hash_is_spec_bytes_then_base_hash():
+    path = "sweeps/threshold-surface-ref-mc.yaml"
+    h = hashlib.sha256(open(path, "rb").read())
+    h.update(load_scenario("scenarios/calibrated-baseline.yaml").content_hash().encode())
+    assert sweep_spec_hash(path) == h.hexdigest()
+
+
+def test_sweep_spec_hash_changes_with_spec_or_base(tmp_path):
+    base = tmp_path / "base.yaml"
+    base.write_text(open(BASE).read())
+    s = small(base=str(base))
+    path = write_spec(tmp_path, s)
+    before = sweep_spec_hash(path)
+    assert sweep_spec_hash(path) == before  # stable
+    path.write_text(path.read_text() + "# a comment is a change to the spec bytes\n")
+    after_spec = sweep_spec_hash(path)
+    assert after_spec != before
+    cfg = yaml.safe_load(base.read_text())
+    cfg["termination"]["peg_recovered"]["tolerance"] = 0.007
+    base.write_text(yaml.safe_dump(cfg))
+    assert sweep_spec_hash(path) != after_spec
+
+
+def test_cli_records_spec_hash_in_manifest(tmp_path):
+    path = write_spec(tmp_path, small(max_steps=20))
+    out = tmp_path / "out"
+    assert main([str(path), "--output", str(out)]) == 0
+    m = json.loads((out / "small" / "manifest.json").read_text())
+    assert m["spec_hash"] == sweep_spec_hash(path)
+    assert run_sweep(small(max_steps=20), tmp_path / "o2").joinpath("manifest.json").is_file()
+    m2 = json.loads((tmp_path / "o2" / "small" / "manifest.json").read_text())
+    assert m2["spec_hash"] is None

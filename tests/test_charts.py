@@ -305,3 +305,19 @@ def test_time_to_parity_png_refuses_trough_spread(tmp_path):
     with pytest.raises(ValueError, match="trough step differs"):
         plot_time_to_parity(d)
     plt.close("all")
+
+
+def test_include_texts_keeps_offset_labels_inside_the_axes():
+    # Story 2.6 review ruling 4: the overlay clipped the label 30 points below the trough
+    from depeg_sim.analysis.charts import _include_texts
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
+    ax.plot([0, 1, 2], [0, -1000, -200])
+    label = ax.annotate(
+        "observed trough", xy=(1, -1000), xytext=(40, -30), textcoords="offset points"
+    )
+    _include_texts(fig, ax, [label])
+    fig.canvas.draw()
+    bottom = ax.transAxes.inverted().transform(label.get_window_extent())[0, 1]
+    assert bottom >= 0.0
+    plt.close(fig)

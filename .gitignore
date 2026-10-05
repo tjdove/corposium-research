@@ -24,3 +24,7 @@ output/*
 .vscode/
 .idea/
 .DS_Store
+
+# make figures-quick smoke-test marker (Story 2.9); docs/figures/ commits PNGs,
+# manifest.json and README.md only
+docs/figures/quick-ok
