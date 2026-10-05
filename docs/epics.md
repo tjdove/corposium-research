@@ -26,7 +26,7 @@ one file per story, worked one at a time by Claude Code per `CLAUDE.md`.
 |---|---|---|
 | 1. Kernel + first scenario | Oct 2–6 | Running engine, three agents, one scenario, first chart |
 | 2. Runner, calibration, validation | Oct 3–15 | Sweeps, Monte Carlo, calibrated parameters, USDC-2023 validation, headline threshold |
-| 3. Defense policies + stretch | Oct 14–20 | Defender policy comparison; LP agent and Anvil replay if time allows |
+| 3. What the model asked for | Oct 6–20 | Fill-price fix, defense-policy chart, 1992 switch-sides test, budget vs attack, repo hardening; stretch OU reference, multi-tranche holder, LP agent |
 | 4. Publication | Oct 22–31 | Research note, final charts, site page, one-pager, launch thread |
 
 ---
@@ -402,23 +402,116 @@ So that the README and the note can show figures without running code.
 
 ---
 
-## Epic 3: Defense Policies and Stretch
+## Epic 3: What the Model Asked For
 
 **Expanded Goal:**
 
-Answer "which defense survives." Compare defender policies under matched attack, and if
-Epic 2 closes by Oct 14, add the LP withdrawal agent (reflexive liquidity flight) and the
-Anvil replay.
+Epic 2 closed eight days early with eleven findings. Epic 3 was outlined before the model
+had said anything; it is re-planned here from what the findings need (Epic 2 retro,
+2026-10-05): fix the one artefact in figure 1, deliver the charter's defense-policy chart,
+run the test of the note's thesis (do the believers have to switch sides for the 1992
+analogue to break?), close F-11's open hypothesis, and harden the repo for readers.
+Dates: **Oct 6–20**. Feature freeze **Oct 21** unchanged.
 
-**Delivers:** Defense policy comparison chart; stretch items as time allows.
+**Delivers:** defense-policy comparison chart (charter chart 5); the 1992 switch-sides
+result; the budget-vs-attack result; a repo a stranger can run and audit.
 
-**Story Count:** 3 core + 2 stretch (drafted at Epic 2 retro)
+**Story Count:** 5 core + 3 stretch (ordered; stretch only if core is done by Oct 17). Story files are drafted one at a time; 3.1 drafted 2026-10-05.
 
-- **3.1 Defender policy variants** — early/aggressive, late/conservative, spread-only, no-defense; `plot_policy_comparison`
-- **3.2 Test hardening** — coverage ≥85% on protocol and agents; property tests; termination edge cases
-- **3.3 Repo polish** — README full docs, scenario reference, CONTRIBUTING, reproducibility checklist
-- **3.4 (stretch) LP withdrawal agent** — single `panic_threshold_pct`; pool depth becomes endogenous
-- **3.5 (stretch) Anvil replay** — one scenario against a forked Uniswap V2 pair; simulated vs on-chain execution price chart
+---
+
+### Story 3.1: Holder Fill-Price Limit
+
+As a **researcher**,
+I want the holder to stop buying when its own fill would lift the venue price above its entry price,
+So that figure 1's first 3.5 hours show the market, not a model artefact (ADR-0021 sawtooth).
+
+**Acceptance Criteria (summary):**
+1. `Holder` sizes each buy to `min(pace × reference, the amount that moves spot to entry_price)` (closed-form on constant product, like the arbitrageur); rule name unchanged; `HolderConfig` unchanged; hashes unchanged
+2. `fit_holder.py` re-run under the amended AC 4 rule; new `C*` recorded in three units; replay re-run; overlay regenerated; VALIDATION.md before/after row; propagated scenarios re-run at the new `C*/D*`
+3. The 2.6 overlay's ±310/−220 sawtooth is gone or stated as reduced with numbers; trough timing and depth reported against the ±2 h / observed targets
+4. Proposed ADR; tests; `make figures` regenerated; `pytest`, `ruff`
+
+**Prerequisites:** Story 2.9
+
+---
+
+### Story 3.2: Defender Policy Comparison
+
+As a **researcher**,
+I want four defender policies compared under the same attack,
+So that the note can say which defense survives (charter chart 5).
+
+**Acceptance Criteria (summary):**
+1. `DefenderConfig` gains `restore_threshold_pct` (re-arm after recovery; default absent = current widen-once/restore-once) and `order: buy_first | spread_first`
+2. `sweeps/policy-comparison-mc.yaml`: calibrated-baseline, oracle criterion, holder present; policies {early-aggressive (0.5%, pace 0.5), late-conservative (2%, pace 0.1), spread-only (no buys), no-defense} × attacker ratio {0.5, 0.7, 1.0}; 16 seeds
+3. `plot_policy_comparison(sweep_dir)`: per policy, time-to-parity and defender spend at each ratio, with Wilson bars; `p_stays_broken` as a second panel
+4. Completion Notes: which policy minimises time-to-parity per unit spent; whether spread-only ever recovers (F-07 dead zone); Proposed ADR; tests
+
+**Prerequisites:** Story 3.1
+
+---
+
+### Story 3.3: Holder Sell Rule and the 1992 Switch-Sides Test
+
+As a **researcher**,
+I want the holder to be able to lose its belief and sell,
+So that the note can test BACKGROUND §4's claim that Black Wednesday needed the convergence traders to turn.
+
+**Acceptance Criteria (summary):**
+1. `HolderConfig` gains `exit_discount_pct: float | None = None` (sell all stable on the AMM once spot < 1 − exit/100; rule `hold_exit`; one-way, never re-enters); hashes unchanged when absent
+2. On `soros-1992` at 6×: sweep `exit_discount_pct ∈ {None, 5, 10, 20, 40}` × holder capital ∈ {C*, 5 C*, 25 C*} (the last ≈ the attacker), 8 seeds; record reserves-exhausted step, trough, holder PnL
+3. Multiple re-scan 4.0–7.0 at the largest holder with and without an exit rule: does the flip move, and in which direction?
+4. Completion Notes answer the question in one paragraph with numbers; FINDINGS candidate; Proposed ADR; tests
+
+**Prerequisites:** Story 3.1
+
+---
+
+### Story 3.4: Budget Against Attack at a Deep Pool
+
+As a **researcher**,
+I want the price-defense boundary mapped against attack size at a pool too deep to crash,
+So that F-11's withdrawn clause is replaced by a tested one.
+
+**Acceptance Criteria (summary):**
+1. `sweeps/budget-x-attack-mc.yaml`: 2× D\* fixed, oracle criterion, holder present; defender budget × {0.5, 1, 1.5, 2, 3} × attacker ratio {0.5, 0.8, 1.0, 1.5, 2.0}; 8 seeds
+2. `plot_budget_attack(sweep_dir)`: heatmap of never-re-enters (price loss) with 0.5 contour, plus the crossing budget vs attack on log–log with slope
+3. Completion Notes: is the crossing budget proportional to attack size, to what the attacker extracts, or to neither; one sentence for the note; Proposed ADR; tests
+
+**Prerequisites:** Story 2.9
+
+---
+
+### Story 3.5: Test Hardening and Repo Polish
+
+As a **reader**,
+I want to clone the repo and reproduce every figure without asking anyone,
+So that the note's claims are auditable.
+
+**Acceptance Criteria (summary):**
+1. Coverage ≥ 85% on `protocol/` and `agents/`; property tests on AMM invariants and redemption accounting; termination edge cases (both criteria)
+2. README: full quick start, scenario reference table (every YAML, one line each, with hash), sweep reference, `make` targets, figure index, FINDINGS pointer
+3. `CONTRIBUTING.md` (story process, determinism rule, how to add a scenario); `docs/REPRODUCIBILITY.md` checklist (versions, hashes, commands, expected wall times on a named machine)
+4. Dependency pins reviewed; `pip install -e .` on a clean 3.12 venv documented with timing
+
+**Prerequisites:** Stories 3.1–3.4
+
+---
+
+### Story 3.6 (stretch): Mean-Reverting Reference
+
+Replace the calm random walk with an OU process calibrated from the calm USDC series' autocorrelation; re-run the par-criterion surface; report whether the D\* clock effect survives (F-04 root cause).
+
+### Story 3.7 (stretch): Multi-Tranche Holder
+
+`HolderConfig.tranches: list[{entry_discount_pct, share}]`; re-fit on the replay; report whether the F-09 cliff becomes a curve and the fit lands within 5% of −1,373.
+
+### Story 3.8 (stretch): LP Withdrawal Agent
+
+Single `panic_threshold_pct`; pool depth becomes endogenous; re-run the calibrated baseline and the 1992 analogue.
+
+**Dropped:** Anvil/Foundry replay. A forked-chain execution check touches no finding and costs 2–3 days of plumbing; recorded in the charter decision log 2026-10-05.
 
 **Feature freeze: 2026-10-21.**
 
