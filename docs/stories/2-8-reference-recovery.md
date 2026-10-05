@@ -1,6 +1,6 @@
 # Story 2.8: Reference-Relative Recovery and the Budget × Depth Boundary
 
-Status: ready-for-dev
+Status: blocked
 
 ## Story
 
@@ -95,6 +95,56 @@ Surface: 640 runs (≈ 2.5 min on 8 workers). Budget × depth: 200 runs. Report 
 - [Source: docs/adr/0022-threshold-surface-metric-and-oracle-lag.md] — §7
 - [Source: src/depeg_sim/kernel/termination.py, interfaces.py]
 
+## Blockers
+
+**AC 1's `ReferenceView.reference_price`, "implemented by the Oracle as its published
+price", collides with an existing Oracle property of the same name that means the
+opposite.**
+
+- `src/depeg_sim/protocol/oracle.py:103`: `Oracle.reference_price` already exists and
+  returns `self.source.price`, the raw environment reference ("pass-through …, for
+  diagnostics only"). It was specified that way by Story 1.5 AC 8: "`reference_price`
+  (pass-through to `source.price`, for diagnostics)".
+- Three tests pin that meaning:
+  - `tests/test_oracle.py:84-86`: `oracle.reference_price == 1.0`, then `1.2` after the
+    source moves, while `oracle.price is None` (unpublished).
+  - `tests/test_oracle.py:152-157`: expects `(price, reference_price)` pairs
+    `(1.0, 1.001), (1.0, 1.002)`. The two differ by design.
+  - `tests/test_oracle_integration.py:48`: `oracle.reference_price == env.price`.
+- AC 1 needs `reference_price` to be the **published** price (`None` before the first
+  publish), and the Dev Notes say the kernel must read "a published number", not the
+  environment reference. Satisfying AC 1 literally means redefining an accepted
+  interface in `protocol/` and rewriting those three tests. If I satisfied it by
+  structural accident instead, `find(ReferenceView)` would return the oracle with its
+  *unpublished* price, which the Dev Notes rule out.
+
+**Options** (I have not chosen):
+
+- **(a) Rename the Protocol attribute** (recommended):
+  `ReferenceView.published_price: float | None`, with the Oracle exposing
+  `published_price` as an alias of its existing `price`. No existing semantics change and
+  no existing test changes. The name is unique in the codebase, so `find(ReferenceView)`
+  can only match the oracle. (Using plain `price` would also match the environment's
+  `PriceSource`, which is registered first.)
+- **(b) Repurpose `Oracle.reference_price`** as the published price and rename the
+  diagnostic pass-through (e.g. `source_price`). The interface name matches AC 1 as
+  written, but it changes Story 1.5's interface and three of its tests.
+
+Nothing else in the story needs a ruling. Notes for the record, all implementable as
+written:
+
+- Adding `spot_price` to `PegView` means the termination test stub
+  (`tests/kernel_stubs.py`) must gain `spot_price`, or `find(PegView)` stops matching it.
+  This is a test-fixture edit, not a run-vs-rerun fixture.
+- AC 4 needs the sweep manifest's `base_config` to be the base *after* overrides. Today
+  (Story 2.7) it is before overrides. Identical for every existing sweep (none uses
+  overrides), but `base_config`'s hash will then differ from `base_scenario_hash` when
+  overrides exist. I'd document that in the ADR.
+- AC 2: the summary can use the timeseries `amm_price` and `oracle_price` columns (the
+  published price, `NaN` before the first publish, which counts as out of band).
+
+**State.** Only the status lines changed. No code written.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -103,7 +153,7 @@ Surface: 640 runs (≈ 2.5 min on 8 workers). Budget × depth: 200 runs. Report 
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul.
 
 ### Debug Log References
 
@@ -122,3 +172,7 @@ _(include: the two-surface crossing table; budget × depth crossings and slope; 
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.7 review (F-11); inserted into Epic 2; figures story renumbered to 2.9
+- 2026-10-04: Blocked before implementation: `ReferenceView.reference_price` (AC 1)
+  collides with the existing `Oracle.reference_price` (raw source pass-through, Story 1.5
+  AC 8, pinned by three tests). Options (a) rename the Protocol attribute, (b) repurpose
+  the Oracle property. Status: blocked.
