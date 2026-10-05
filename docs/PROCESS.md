@@ -169,7 +169,8 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
   location, 1.4 mixed-unit fees, 1.5 threshold-0, 1.6 `set_spread_bps` signature, 2.1 cell
   layout, 2.2 manifest key, 2.3 Curve fee and Chainlink heartbeat, 2.4 grid extension,
   2.6 balance-scaled redeem rule, 2.7 surface base vs F-04, 2.8 `reference_price` name
-  collision with Story 1.5, 2.9 time-to-parity origin vs `summary.py`). The builder caught every one,
+  collision with Story 1.5, 2.9 time-to-parity origin vs `summary.py`, 3.1 "exact" sizing
+  vs the fee-free helper in `arbitrageur.py`). The builder caught every one,
   but each cost a round trip. Read the story once more as the builder before setting
   `ready-for-dev`, and **check every base-scenario and axis choice against the open
   findings in `FINDINGS.md`** — 2.7's base contradicted F-04's stated rule — **and grep any

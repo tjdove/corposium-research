@@ -1,7 +1,7 @@
 <story-context id="corposium/story-context" v="1.0">
   <metadata>
     <epicId>3</epicId><storyId>3.1</storyId><title>Holder Fill-Price Limit</title>
-    <status>ready-for-dev</status><generatedAt>2026-10-05</generatedAt><generator>Claude (dev manager)</generator>
+    <status>in-progress</status><generatedAt>2026-10-05</generatedAt><generator>Claude (dev manager)</generator>
     <sourceStoryPath>docs/stories/3-1-holder-fill-price-limit.md</sourceStoryPath>
   </metadata>
   <story>
@@ -35,7 +35,7 @@
     - Python 3.12-compatible.
   </constraints>
   <interfaces>
-    <interface name="Holder.decide" kind="method" path="src/depeg_sim/agents/holder.py">buy amount = min(pace × reference, amount_in to reach entry_price)</interface>
+    <interface name="Holder.decide" kind="method" path="src/depeg_sim/agents/holder.py">buy amount = min(pace × reference, Arbitrageur._reference_to_reach(entry_price)) — helper reused unchanged, fee-free, undershoots ≤ 0.1 bps (amended 2026-10-05)</interface>
   </interfaces>
   <tests>
     <standards>pytest; real AMM, manual phases per 1.7; hash test over scenarios/; fit_holder dry-run test unchanged.</standards>

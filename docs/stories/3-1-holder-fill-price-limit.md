@@ -1,6 +1,6 @@
 # Story 3.1: Holder Fill-Price Limit
 
-Status: blocked
+Status: in-progress
 
 ## Story
 
@@ -10,8 +10,8 @@ so that figure 1's first hours show the market, not a model artefact (ADR-0021 s
 
 ## Acceptance Criteria
 
-1. `Holder.decide`: the buy amount is `min(pace × reference_balance, amount_in that moves the AMM spot exactly to entry_price)`, the second term closed-form on constant product with the fee on input, computed the way `Arbitrageur` sizes its trades (reuse or share that helper; cite it); if the second term is ≤ `DUST` the holder does not buy that step (`hold_wait`); rule names unchanged; `HolderConfig` unchanged; every scenario `content_hash()` unchanged (test)
-2. `tests/test_holder.py`: a buy that would overshoot is capped so post-trade spot ≤ entry_price within 1e-9; a buy that would not overshoot is uncapped; the old sawtooth test case (spot swings above par) no longer occurs on a two-step synthetic
+1. `Holder.decide`: the buy amount is `min(pace × reference_balance, amount_in that moves the AMM spot exactly to entry_price)`, the second term from the arbitrageur's existing `_reference_to_reach` helper, **reused unchanged** (amended 2026-10-05: it ignores the 1 bp fee and undershoots the target by ≤ 0.1 bps, the approximation Story 1.7 accepted; "exactly" is withdrawn); if the smaller of the two terms is ≤ `DUST` the holder does not buy that step and falls through to the redeem / `hold_wait` / `hold_done` rules (amended 2026-10-05); rule names unchanged; `HolderConfig` unchanged; every scenario `content_hash()` unchanged (test)
+2. `tests/test_holder.py`: a buy that would overshoot is capped so post-trade spot ≤ entry_price within 1e-9; a buy that would not overshoot is uncapped; a new two-step synthetic (attacker dump between holder buys) shows spot above par under the old rule and not under the new one (amended 2026-10-05: there was no existing sawtooth test)
 3. `scripts/fit_holder.py` re-run under the two-pass rule (unchanged); new `C*` in three units; `scenarios/usdc-2023.yaml` updated; replay re-run; `validation_comparison` numbers; VALIDATION.md gains a 3.1 row in the before/after table (2.5 → 2.6 → 3.1: trough depth, trough time, first in band, sawtooth amplitude in the first 3.5 h as max − min of deviation over steps 8,100–9,150)
 4. The four propagated scenarios updated to the new `C*/D*`; re-run; outcomes before/after in Completion Notes; 1992 flip re-scanned 5.5–6.0 by 0.1 (the full scan is not needed unless 5.7 moves)
 5. `make figures` re-run; guard green; the overlay figure's first-3.5 h band described in words before and after
@@ -37,8 +37,8 @@ so that figure 1's first hours show the market, not a model artefact (ADR-0021 s
 **From Story 2.9 (Status: done) and the Epic 2 retro**
 
 - Every story that changes a calibrated parameter ends with `make figures` and the guard
-  green; `C*` changes here, so five figures regenerate (overlay, both surfaces,
-  time-to-parity, budget × depth — all carry the holder).
+  green; `C*` changes here, so nine of ten figures regenerate (every scenario except
+  soros-baseline carries the holder; amended 2026-10-05).
 - Predictions below are predictions. Report misses as results.
 - The arbitrageur already has closed-form sizing against a target price (Story 1.7); the
   holder's cap is the same computation with `entry_price` as the target. Open
@@ -133,6 +133,22 @@ to reuse the arbitrageur's sizing helper, which ignores the fee.** No code writt
    and the calibrated and 1992 trajectories, so nine of ten source hashes change.
    `make figures` regenerates all ten either way; the guard will name nine.
 
+## Rulings
+
+**2026-10-05 (dev manager), on the Blockers above.**
+
+1. **Option (a).** Reuse `_reference_to_reach` unchanged. The ≤ 0.1 bps undershoot on a
+   200 bps target is immaterial and it is the approximation the project already accepted
+   in 1.7; two sizing formulas for the same trade would be worse than either. "Exactly" in
+   AC 1 was mine, written without opening the helper (L-2). AC 1 amended. State the
+   undershoot in the ADR.
+2. **New two-step sawtooth test** — accepted; AC 2 amended.
+3. **Skip the buy when the smaller term is ≤ DUST and fall through** — accepted; AC 1
+   amended.
+4. **Nine of ten figures regenerate** — accepted; Dev Notes amended.
+
+Resume at the Fill rule task.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -161,3 +177,4 @@ _(include: C* three units before/after; VALIDATION.md row; sawtooth amplitude be
 
 - 2026-10-05: Story drafted by dev manager at the Epic 2 retro
 - 2026-10-05: Blocked by builder (Claude Code, Opus 5.5) before Task 1: the arbitrageur's sizing helper ignores the fee, AC 1 asks for fee-exact; see Blockers
+- 2026-10-05: Dev manager ruled on Blockers: reuse the arbitrageur helper unchanged (option a); three implementation notes accepted; AC 1, AC 2 and Dev Notes amended; Status back to in-progress
