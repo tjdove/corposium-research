@@ -74,7 +74,10 @@ def test_guard_names_each_stale_figure(tmp_path):
     out = guard(m)
     assert out.returncode == 1
     assert "stale_scenario: STALE, scenarios/usdc-2023.yaml changed" in out.stderr
-    assert "stale_sweep: STALE, sweeps/budget-x-depth-mc.yaml changed" in out.stderr
+    assert (
+        "stale_sweep: STALE, sweeps/budget-x-depth-mc.yaml or its base scenario changed"
+        in out.stderr
+    )
     assert "current" not in out.stderr
     assert "FAIL, 2 problem(s) in 3 figures" in out.stderr
 

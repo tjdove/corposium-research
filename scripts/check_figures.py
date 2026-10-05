@@ -51,8 +51,9 @@ def stale_figures(manifest_path: Path) -> list[str]:
             continue
         now = source_hash(source)
         if now != entry["source_hash"]:
+            what = " or its base scenario" if is_sweep(source) else ""
             problems.append(
-                f"{name}: STALE, {source} changed (manifest {entry['source_hash'][:12]}, "
+                f"{name}: STALE, {source}{what} changed (manifest {entry['source_hash'][:12]}, "
                 f"now {now[:12]}); regenerate with `make figures`"
             )
     return problems
