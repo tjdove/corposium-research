@@ -459,12 +459,54 @@ reference *is* the observed depeg.
 
 ---
 
+## F-11 refinement (2026-10-04, from 2.8)
+
+**Reproduce:** `python -m depeg_sim.sweep sweeps/threshold-surface-ref-mc.yaml --mc --workers 8`
+and `sweeps/budget-x-depth-mc.yaml`; `plot_threshold_surface`, `plot_budget_depth`.
+
+With the recovery criterion measured against the oracle price instead of par
+(`termination.peg_recovered.reference: oracle`, ADR-0023), the reference-wander effect is
+gone and the surface splits into two causes:
+
+- **≤ 0.5× D\*: nothing breaks** at any attack up to 1.5× nominal resources (max
+  `p_stays_broken` 0.25).
+- **1× D\*: breaks on the clock.** Every run gets back within 31 bps of the oracle, but
+  the median first re-entry is at step 12,560–16,943 — after step 11,100, the last start
+  from which 6,900 in-band steps can finish by 18,000. 2.7's last-step filter had counted
+  these as recovered. The 0.5 crossing is at nominal 0.68.
+- **≥ 2× D\*: loses the price.** At ratio ≥ 0.8 all 16 seeds never re-enter the band
+  (final −3,486 / −4,062 bps). Crossings 0.54 and 0.69.
+
+**The "budget scales with depth" hypothesis is not supported.** At a fixed attack of 1.0×
+resources, the 0.5-crossing budget is below 0.25× calibrated at ≤ 0.5× D\*, then 1.57× at
+D\*, 1.80× at 2× and 3.00× at 4×: log–log slope 0.47. Sharper: at 2× and 4× D\* the price
+fails in all 8 seeds at 1× budget and holds in all 8 at 2×, while depth doubles. The same
+budget/depth ratio (1.24) fails at 2× D\* and holds at 4×. The operative quantity at this
+attack is the budget itself. What survives of F-11: a pool shallow enough for the dump to
+crash the price is cheap to defend at any budget; above that depth the defender must
+out-spend something set by the attack, not by the depth. One attack size was tested; the
+next hypothesis ("budget against the attack once the pool does not crash") is an Epic 3
+sweep.
+
+**Time-to-parity.** `steps_to_first_band_entry` already separates the two causes (finite
+and late at D\*; never at ≥ 2× D\*). Story 2.9 charts it beside the surface.
+
+**For the note.** Headline 2 is restated: "Deep liquidity protects the price and makes
+the defense unaffordable" stands for the shallow/deep contrast; the quantitative claim is
+"at calibrated depth the issuer wins the price and loses the clock; twice that depth and
+it loses the price unless it roughly doubles its budget."
+
+---
+
 ## Headline candidates (ranked, 2026-10-04, revised after 2.7)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
    (F-08, confirmed) — validation chart; lead.
 2. **"Deep liquidity protects the price and makes the defense unaffordable."** (F-03 +
-   F-11) — the mechanism; the 2.8 surface is its chart if the contour runs along depth.
+   F-11, refined) — the mechanism; the 2.8 oracle-criterion surface plus the 2.9
+   time-to-parity panel are its charts. The quantitative form: at D\* the issuer wins the
+   price and loses the clock; at 2× D\* it loses the price unless it roughly doubles its
+   budget.
 3. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
    F-11) — throughput; explains why validation needed the buyer and why "recovery" is a
    speed question.
@@ -498,8 +540,11 @@ and the 1992 open question.
   on the absorbed ratio, but that crossing at ≈ 1 is conservation; the result is the
   nominal per-depth crossings and saturation above D\* (F-11).
 - ~~Does oracle lag matter under deviation-triggered updates?~~ No (F-10).
-- Under a reference-relative recovery criterion, does the surface's 0.5 contour run along
-  depth rather than capital — is the price-defense boundary budget vs depth? (2.8)
+- ~~Under a reference-relative criterion, is the price-defense boundary budget vs depth?~~
+  No: slope 0.47; the budget interval that decides 2× and 4× D\* is the same (F-11
+  refinement). Next: budget against attack size at fixed deep pool (Epic 3).
+- Does a mean-reverting (OU) calm reference remove the clock effect at D\* under the par
+  criterion, i.e. is "breaks on the clock" partly the random walk again? (Epic 3)
 - Does the holder have to switch sides (sell) for the 1992 analogue to exhaust at the
   historical multiple? (Epic 3: holder sell rule)
 - Does a fill price limit on the holder remove the sawtooth without moving C\* much?
