@@ -3,7 +3,7 @@
     <epicId>2</epicId>
     <storyId>2.9</storyId>
     <title>Committed Figures, Time-to-Parity, and make figures</title>
-    <status>ready-for-dev</status>
+    <status>in-progress</status>
     <generatedAt>2026-10-04</generatedAt>
     <generator>Claude (dev manager)</generator>
     <sourceStoryPath>docs/stories/2-9-committed-figures.md</sourceStoryPath>
@@ -38,6 +38,7 @@
     - No kernel/ or protocol/ changes; every scenario hash unchanged.
     - docs/figures/ holds PNGs + manifest.json + README.md only.
     - CI never runs a full sweep; figures-quick uses 2 seeds into a temp dir.
+    - Time-to-parity is measured from run start (trough step + steps_to_first_band_entry), amended 2026-10-05.
     - Python 3.12-compatible.
   </constraints>
   <interfaces>
