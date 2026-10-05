@@ -1,0 +1,33 @@
+# Budget x depth under the reference-relative recovery criterion (Story 2.8 AC 5).
+# F-11 hypothesis: the defender budget needed to hold the price scales with pool depth,
+# nearly independently of attacker size once the attack exceeds the pool.
+# Base: scenarios/calibrated-baseline.yaml (calm volatility 3.086e-05/step, per F-04),
+# holder present. Numbers and their origins:
+#   reference = oracle (override): "recovered" = AMM within 31 bps of the oracle's
+#        published price for 6,900 steps (Story 2.8 AC 1), not of par.
+#   D* = 16,666,667 model units per side (fitted, ADR-0019 amendment, Story 2.5);
+#        pool_depth = D* x {0.25, 0.5, 1, 2, 4}, rounded, moving both AMM reserves
+#        (scale 1) and the holder's capital (scale C*/D* = 0.55, ADR-0021), as in
+#        sweeps/threshold-surface-mc.yaml.
+#   defender budget = 41,346,974 x {0.25, 0.5, 1, 2, 4}, rounded: the calibrated budget
+#        (Circle's cash share, SOURCES.md#defender) scaled.
+#   attacker capital fixed at 179,454,391 = ratio 1.0 of the *calibrated* budget +
+#        reserves (41,346,974 + 138,107,417; scripts/probe_boundary.py `resources`).
+#   seeds 1000..1007 (8 per grid point); max_steps 18,000 = the ~60 h horizon.
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 5 x 5 = 25 grid points x 8 seeds = 200 runs.
+version: 1
+name: budget-x-depth-mc
+base: scenarios/calibrated-baseline.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference, "agents[type=holder].capital"]
+    values: [4166667, 8333334, 16666667, 33333334, 66666668]
+    scales: [1, 1, 0.55]
+axes:
+  agents[type=defender].budget: [10336744, 20673487, 41346974, 82693948, 165387896]
+overrides:
+  termination.peg_recovered.reference: oracle
+  agents[type=attacker].capital: 179454391
+seeds: { count: 8, start: 1000 }
+max_steps: 18000

@@ -33,6 +33,10 @@ matches, what does not, why.
 - **Band:** 31 bps, the ADR-0013 band of the calibrated scenarios. `peg_recovered` is off
   in this scenario so the replay covers the whole window. Band statistics are measured
   from the series.
+- **Par, not the oracle (Story 2.8):** the replay keeps measuring against par. It has no
+  `peg_recovered.reference: oracle` and its band statistics use `peg_deviation`, because
+  here the reference *is* the observed depeg, and measuring the venue against it would
+  hide the very deviation being validated.
 
 ## Comparison
 

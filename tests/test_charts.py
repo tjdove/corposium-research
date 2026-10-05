@@ -147,3 +147,67 @@ def test_sweep_chart_needs_its_axis(tmp_path):
     (d / "manifest.json").write_text(json.dumps(m))
     with pytest.raises(ValueError, match="amm.reserve_stable"):
         plot_threshold_surface(d)
+
+
+# Story 2.8: budget x depth and the criterion heading -----------------------------------
+
+BUD = "agents[type=defender].budget"
+
+
+def test_budget_crossing_kinds():
+    from depeg_sim.analysis.charts import budget_crossing
+
+    assert budget_crossing([1, 2, 4], [1.0, 0.0, 0.0]) == (1.5, "crossing")
+    assert budget_crossing([4, 1, 2], [0.0, 1.0, 0.75]) == (pytest.approx(8 / 3), "crossing")
+    assert budget_crossing([1, 2, 4], [0.25, 0.1, 0.0]) == (None, "below")
+    assert budget_crossing([1, 2, 4], [1.0, 1.0, 0.5]) == (None, "above")
+
+
+def test_criterion_helpers():
+    from depeg_sim.analysis.charts import _against, _criterion
+
+    assert _criterion({}) == "reference=par" and _against({}) == "par"
+    assert _criterion({"reference": "oracle"}) == "reference=oracle"
+    assert _against({"reference": "oracle"}) == "the published oracle price"
+
+
+def _budget_dir(tmp_path, ps):
+    d = tmp_path / "bud"
+    d.mkdir()
+    depths, budgets = [8_333_334, 16_666_667, 33_333_334], [20_673_487, 41_346_974, 82_693_948]
+    rows = [
+        {"pool_depth": dep, BUD: b, "n": 8, "p_peg_recovered": 1.0 - ps[i][j]}
+        for i, dep in enumerate(depths)
+        for j, b in enumerate(budgets)
+    ]
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {
+            "name": "pool_depth",
+            "paths": ["amm.reserve_stable", "amm.reserve_reference", "agents[type=holder].capital"],
+            "values": depths,
+            "scales": [1, 1, 0.55],
+        },
+        {"name": BUD, "paths": [BUD], "values": budgets},
+    ]
+    _manifest(d, "bud", "scenarios/calibrated-baseline.yaml", axes, seeds=8)
+    return d
+
+
+def test_budget_depth_png_monotone_crossing(tmp_path):
+    from depeg_sim.analysis.charts import plot_budget_depth
+
+    # crossing budget rises with depth: one crossing per row -> three points
+    ps = [[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 0.25]]
+    png = plot_budget_depth(_budget_dir(tmp_path, ps))
+    assert png.name == "budget_depth.png" and png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 3000)
+    assert plt.get_fignums() == []
+
+
+def test_budget_depth_with_bounds(tmp_path):
+    from depeg_sim.analysis.charts import plot_budget_depth
+
+    # one row holds everywhere (below), one never holds (above), one crossing
+    ps = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+    assert plot_budget_depth(_budget_dir(tmp_path, ps)).is_file()

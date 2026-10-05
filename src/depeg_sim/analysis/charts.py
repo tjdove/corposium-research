@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import itertools
 import json
 import math
 from pathlib import Path
@@ -363,6 +364,16 @@ def _usd(units: float, usd_per_unit: float) -> str:
     return f"${v / 1e9:,.2f}B" if v >= 1e9 else f"${v / 1e6:,.0f}M"
 
 
+def _criterion(rec: dict) -> str:
+    """``peg_recovered.reference`` as the heading names it (absent in pre-2.8 manifests
+    means par)."""
+    return f"reference={rec.get('reference', 'par')}"
+
+
+def _against(rec: dict) -> str:
+    return "the published oracle price" if rec.get("reference") == "oracle" else "par"
+
+
 def _sweep_footer(fig, manifest: dict) -> None:
     fig.text(
         0.995,
@@ -484,10 +495,12 @@ def plot_threshold_surface(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     hours = horizon * base["steps"]["interval_seconds"] / 3600
     deliverable = red["capacity_per_step"] * horizon
     fig.suptitle(
-        f"{manifest['sweep_name']}: where the peg stays broken "
+        f"{manifest['sweep_name']}: where the peg stays broken, criterion "
+        f"{_criterion(rec)} "
         f"(volatility {base['environment']['volatility_per_step']:g}/step, calm per F-04; "
         f"holder present; {len(manifest['seeds'])} seeds per cell)\n"
-        f"stays broken = not back within ±{rec['tolerance'] * BPS:g} bps of par for "
+        f"stays broken = not back within ±{rec['tolerance'] * BPS:g} bps of "
+        f"{_against(rec)} for "
         f"{rec['for_steps']:,} steps by step {horizon:,} ({hours:.0f} h). Not reserve "
         f"exhaustion: redemption can pay only {deliverable / 1e6:.1f}M of "
         f"{red['reserves'] / 1e6:.1f}M reserves within the horizon (F-06).",
@@ -601,6 +614,170 @@ def plot_oracle_sensitivity(sweep_dir: Path) -> Path:
     )
     _sweep_footer(fig, manifest)
     out = sweep_dir / ORACLE_SENSITIVITY
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+# -- budget x depth (Story 2.8) -----------------------------------------------------------
+
+BUDGET_DEPTH = "budget_depth.png"
+BUDGET_PATH = "agents[type=defender].budget"
+
+
+def budget_crossing(budgets: list[float], p: list[float]) -> tuple[float | None, str]:
+    """Budget at which ``p_stays_broken`` falls through 0.5 as budget rises, by linear
+    interpolation between the grid budgets. Returns ``(budget, "crossing")``, or
+    ``(None, "below")`` when even the smallest budget holds (p < 0.5 everywhere), or
+    ``(None, "above")`` when no budget in the grid holds (p >= 0.5 everywhere)."""
+    pairs = sorted(zip(budgets, p, strict=True))
+    if all(pi < 0.5 for _, pi in pairs):
+        return None, "below"
+    for (b0, p0), (b1, p1) in itertools.pairwise(pairs):
+        if p0 >= 0.5 > p1:
+            return b0 + (0.5 - p0) * (b1 - b0) / (p1 - p0), "crossing"
+    return None, "above"
+
+
+def plot_budget_depth(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Left: heatmap of ``p_stays_broken`` over pool depth x defender budget with the 0.5
+    contour. Right: each depth row's 0.5-crossing budget against depth on log-log axes,
+    rows whose crossing lies outside the grid drawn as bounds, a slope-1 reference line
+    (F-11's hypothesis: the crossing budget scales with depth) and the fitted slope."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    depth_col, budget_col = _axis_named(manifest, DEPTH_PATH), _axis_named(manifest, BUDGET_PATH)
+    d_star = base["amm"]["reserve_stable"]
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    attacker = next(a for a in base["agents"] if a["type"] == "attacker")
+    b_cal = defender["budget"]
+    resources = b_cal + base["redemption"]["reserves"]
+    rec = base["termination"]["peg_recovered"]
+
+    mc = mc.sort_values([depth_col, budget_col]).reset_index(drop=True)
+    mc["p"], mc["lo"], mc["hi"] = _p_broken(mc)
+    depths = sorted(mc[depth_col].unique())
+    budgets = sorted(mc[budget_col].unique())
+    grid = mc.pivot(index=depth_col, columns=budget_col, values="p").loc[depths, budgets]
+    half = ((mc["hi"] - mc["lo"]) / 2).to_numpy().reshape(len(depths), len(budgets))
+
+    fig, (left, right) = plt.subplots(1, 2, figsize=(20, 6), dpi=150, constrained_layout=True)
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
+    values = grid.to_numpy()
+    im = left.imshow(values, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=1)
+    if (values >= 0.5).any() and (values < 0.5).any():
+        left.contour(values, levels=[0.5], colors=[ORANGE], linewidths=2.0)
+    for i in range(len(depths)):
+        for j in range(len(budgets)):
+            v = values[i, j]
+            left.text(
+                j,
+                i,
+                f"{v:.2f}\n±{half[i, j]:.2f}",
+                ha="center",
+                va="center",
+                fontsize=7,
+                color="white" if v >= 0.55 else DARK,
+            )
+    left.set_xticks(range(len(budgets)))
+    left.set_xticklabels(
+        [f"{b / b_cal:.3g}× budget\n{_usd(b, usd_per_unit)}" for b in budgets], fontsize=8
+    )
+    left.set_yticks(range(len(depths)))
+    left.set_yticklabels(
+        [f"{d / d_star:.3g}× D*\n{_usd(d, usd_per_unit)}" for d in depths], fontsize=8
+    )
+    left.set_xlabel("defender budget (× calibrated budget; $)")
+    left.set_ylabel("pool depth per side (× D*; $)")
+    left.set_title(
+        "p(stays broken): heatmap, orange line = 0.5 contour, ± Wilson 95% half-width",
+        fontsize=10,
+    )
+    fig.colorbar(im, ax=left, label="p_stays_broken = 1 − p_peg_recovered", shrink=0.9)
+
+    points, bounds = [], []
+    for d in depths:
+        g = mc[mc[depth_col] == d]
+        x, kind = budget_crossing(g[budget_col].tolist(), g["p"].tolist())
+        if kind == "crossing":
+            points.append((d, x))
+        else:
+            bounds.append((d, budgets[0] if kind == "below" else budgets[-1], kind))
+    if points:
+        right.plot(
+            [d for d, _ in points],
+            [x for _, x in points],
+            marker="o",
+            ms=8,
+            color=SERIES[0],
+            lw=2,
+            label="0.5 crossing budget (linear interpolation)",
+        )
+    for kind, marker, text in (
+        ("below", "v", "not reached: holds at the smallest budget (crossing below)"),
+        ("above", "^", "not reached: no budget in the grid holds (crossing above)"),
+    ):
+        pts = [(d, b) for d, b, k in bounds if k == kind]
+        if pts:
+            right.plot(
+                [d for d, _ in pts],
+                [b for _, b in pts],
+                ls="none",
+                marker=marker,
+                ms=10,
+                mfc="white",
+                mec=SERIES[1],
+                mew=1.8,
+                label=text,
+            )
+    if points:
+        d0, x0 = points[len(points) // 2]
+        right.plot(
+            [depths[0], depths[-1]],
+            [x0 * depths[0] / d0, x0 * depths[-1] / d0],
+            color=GREY,
+            ls="--",
+            lw=1.2,
+            label="slope 1 (budget ∝ depth), through the middle crossing",
+        )
+    if len(points) >= 2:
+        lx = [math.log(d) for d, _ in points]
+        ly = [math.log(x) for _, x in points]
+        mx, my = sum(lx) / len(lx), sum(ly) / len(ly)
+        slope = sum((a - mx) * (b - my) for a, b in zip(lx, ly, strict=True)) / sum(
+            (a - mx) ** 2 for a in lx
+        )
+        right.plot([], [], ls="none", label=f"least-squares log–log slope: {slope:.2f}")
+    right.set_xscale("log")
+    right.set_yscale("log")
+    right.set_xticks(depths)
+    right.set_xticklabels([f"{d / d_star:.3g}× D*" for d in depths], fontsize=8)
+    right.set_yticks(budgets)
+    right.set_yticklabels([f"{b / b_cal:.3g}×" for b in budgets], fontsize=8)
+    right.minorticks_off()
+    right.set_xlabel("pool depth per side (log)")
+    right.set_ylabel("defender budget at the 0.5 crossing (× calibrated, log)")
+    right.set_title("Does the budget that holds scale with depth? (F-11)", fontsize=10)
+    right.legend(loc="upper left", fontsize=8, frameon=False)
+    right.spines[["top", "right"]].set_visible(False)
+
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    hours = horizon * base["steps"]["interval_seconds"] / 3600
+    fig.suptitle(
+        f"{manifest['sweep_name']}: defender budget against pool depth, criterion "
+        f"{_criterion(rec)} (attacker {attacker['capital'] / resources:.3g}× nominal resources "
+        f"= {_usd(attacker['capital'], usd_per_unit)}; volatility "
+        f"{base['environment']['volatility_per_step']:g}/step; holder present; "
+        f"{len(manifest['seeds'])} seeds per cell)\n"
+        f"stays broken = not back within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)} "
+        f"for {rec['for_steps']:,} steps by step {horizon:,} ({hours:.0f} h)",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / BUDGET_DEPTH
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out

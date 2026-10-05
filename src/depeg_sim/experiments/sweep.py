@@ -31,7 +31,7 @@ also an axis or an override.
 Output (``run_sweep``)::
 
     <output_dir>/<spec.name>/
-      manifest.json                      spec, seeds and the resolved base config (ADR-0014)
+      manifest.json                      spec, seeds and the base config after overrides (ADR-0014)
       sweep.parquet                      one row per cell, sorted by index
       <index:04d>-<seed>-<hash8>/        a normal run directory per cell (no chart)
 
@@ -219,6 +219,15 @@ def _check_adr_0013(spec: SweepSpec, base: ScenarioConfig) -> None:
         )
 
 
+def resolved_base(spec: SweepSpec) -> ScenarioConfig:
+    """The base scenario with the spec's ``overrides`` applied: what every cell starts
+    from before its axis values."""
+    base = load_scenario(spec.base)
+    for path, value in spec.overrides.items():
+        base = set_path(base, path, value)
+    return base
+
+
 def expand(spec: SweepSpec) -> list[SweepCell]:
     base = load_scenario(spec.base)
     _check_adr_0013(spec, base)
@@ -297,7 +306,7 @@ def run_sweep(spec: SweepSpec, output_dir: Path, workers: int = 1) -> Path:
     manifest = {
         "sweep_name": spec.name,
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
-        "base_config": load_scenario(spec.base).model_dump(mode="json"),
+        "base_config": resolved_base(spec).model_dump(mode="json"),
         "axes": [a.model_dump(mode="json", exclude_none=True) for a in spec.axis_list()],
         "seeds": spec.seed_list(),
         "overrides": spec.overrides,

@@ -389,3 +389,36 @@ def test_threshold_surface_spec_expands():
     ratios = [0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5]
     assert caps == [round(r * total) for r in ratios]
     assert {c.config.steps.max_steps for c in cells} == {18_000}
+
+
+def test_manifest_base_config_is_after_overrides(tmp_path):
+    # Story 2.8 Rulings 3: base_config is the base with overrides applied;
+    # base_scenario_hash stays the base file's own hash.
+    s = small(overrides={"termination.peg_recovered.reference": "oracle"}, max_steps=20)
+    sweep_dir = run_sweep(s, tmp_path)
+    m = json.loads((sweep_dir / "manifest.json").read_text())
+    assert m["base_config"]["termination"]["peg_recovered"]["reference"] == "oracle"
+    assert m["base_scenario_hash"] == load_scenario(BASE).content_hash()
+    assert ScenarioConfig.model_validate(m["base_config"]).content_hash() != m["base_scenario_hash"]
+
+
+def test_story_2_8_specs_expand():
+    ref = expand(load_sweep("sweeps/threshold-surface-ref-mc.yaml"))
+    plain = expand(load_sweep("sweeps/threshold-surface-mc.yaml"))
+    assert len(ref) == len(plain) == 640
+    assert {c.config.termination.peg_recovered.reference for c in ref} == {"oracle"}
+    # identical apart from the criterion and the cell name
+    for a, b in zip(ref[::97], plain[::97], strict=True):
+        da, db = a.config.model_dump(mode="json"), b.config.model_dump(mode="json")
+        for d in (da, db):
+            d.pop("name")
+            d["termination"]["peg_recovered"].pop("reference")
+        assert da == db
+    bud = expand(load_sweep("sweeps/budget-x-depth-mc.yaml"))
+    assert len(bud) == 200
+    budgets = sorted({c.axis_values["agents[type=defender].budget"] for c in bud})
+    assert budgets == [round(41_346_974 * m) for m in (0.25, 0.5, 1, 2, 4)]
+    for c in bud:
+        atk = next(a for a in c.config.agents if a.type == "attacker")
+        assert atk.capital == 179_454_391
+        assert c.config.termination.peg_recovered.reference == "oracle"
