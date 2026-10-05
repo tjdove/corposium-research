@@ -74,6 +74,7 @@ output/         run artifacts (gitignored)
 - `docs/CHARTER.md` — mission, scope, roles, timeline
 - `docs/epics.md` — build plan broken into stories
 - `docs/PROCESS.md` — how the dev-manager role runs the project; review checklist; process lessons
+- `docs/LITERATURE.md` — outside sources and events pointed at the project, with verification status
 - `docs/stories/` — one file per story with acceptance criteria and dev record
 - `CLAUDE.md` — working rules for coding agents
 
