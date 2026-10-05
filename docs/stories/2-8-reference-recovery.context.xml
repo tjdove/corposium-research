@@ -3,7 +3,7 @@
     <epicId>2</epicId>
     <storyId>2.8</storyId>
     <title>Reference-Relative Recovery and the Budget × Depth Boundary</title>
-    <status>ready-for-dev</status>
+    <status>in-progress</status>
     <generatedAt>2026-10-04</generatedAt>
     <generator>Claude (dev manager)</generator>
     <sourceStoryPath>docs/stories/2-8-reference-recovery.md</sourceStoryPath>
@@ -36,7 +36,7 @@
       <existing path="src/depeg_sim/kernel/interfaces.py" symbol="PegView" reason="Add spot_price; add ReferenceView."/>
       <existing path="src/depeg_sim/kernel/termination.py" symbol="check" reason="Branch on reference."/>
       <existing path="src/depeg_sim/kernel/config.py" symbol="PegRecoveredConfig" reason="Add reference field with default par."/>
-      <existing path="src/depeg_sim/protocol/oracle.py" symbol="Oracle.price" reason="Satisfy ReferenceView."/>
+      <existing path="src/depeg_sim/protocol/oracle.py" symbol="Oracle.price" reason="Satisfy ReferenceView via a published_price alias; do not touch reference_price."/>
       <existing path="src/depeg_sim/protocol/amm.py" symbol="spot_price" reason="Already exists; expose via PegView."/>
       <existing path="src/depeg_sim/analysis/summary.py" symbol="steps_to_first_band_entry, steps_to_sustained_recovery" reason="Follow the criterion."/>
       <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_threshold_surface" reason="Heading from manifest criterion; add plot_budget_depth."/>
@@ -59,7 +59,7 @@
   <interfaces>
     <interface name="PegRecoveredConfig.reference" kind="field" path="src/depeg_sim/kernel/config.py">Literal["par", "oracle"] = "par"</interface>
     <interface name="PegView.spot_price" kind="property" path="src/depeg_sim/kernel/interfaces.py">float (reference per unit stable)</interface>
-    <interface name="ReferenceView" kind="Protocol" path="src/depeg_sim/kernel/interfaces.py">reference_price: float | None</interface>
+    <interface name="ReferenceView" kind="Protocol" path="src/depeg_sim/kernel/interfaces.py">published_price: float | None (Oracle alias of price; reference_price keeps its 1.5 meaning)</interface>
     <interface name="plot_budget_depth" kind="function" path="src/depeg_sim/analysis/charts.py">plot_budget_depth(sweep_dir: Path) -> Path (budget_depth.png)</interface>
   </interfaces>
 

@@ -1,6 +1,6 @@
 # Story 2.8: Reference-Relative Recovery and the Budget × Depth Boundary
 
-Status: blocked
+Status: in-progress
 
 ## Story
 
@@ -10,7 +10,7 @@ so that the threshold surface shows where the attack beats the defense rather th
 
 ## Acceptance Criteria
 
-1. `PegRecoveredConfig` gains `reference: Literal["par", "oracle"] = "par"`; every existing scenario's `content_hash()` unchanged (test); with `"oracle"`, the in-band test in `termination.check` uses `spot / oracle_price − 1` instead of `peg_deviation`, where `spot` comes from a new `PegView.spot_price` property and `oracle_price` from a new `ReferenceView` Protocol (`reference_price: float | None`) in `kernel/interfaces.py`, implemented by the Oracle as its published price; before the first oracle publish the step counts as out of band; the kernel still reads only Protocol views (no import of `protocol/`); `PHASE_ORDER_VERSION` stays 1
+1. `PegRecoveredConfig` gains `reference: Literal["par", "oracle"] = "par"`; every existing scenario's `content_hash()` unchanged (test); with `"oracle"`, the in-band test in `termination.check` uses `spot / oracle_price − 1` instead of `peg_deviation`, where `spot` comes from a new `PegView.spot_price` property and `oracle_price` from a new `ReferenceView` Protocol (**`published_price: float | None`**, amended 2026-10-04 — `reference_price` already means the raw pass-through per Story 1.5 AC 8) in `kernel/interfaces.py`, implemented by the Oracle as an alias of its existing `price`; before the first oracle publish the step counts as out of band; the kernel still reads only Protocol views (no import of `protocol/`); `PHASE_ORDER_VERSION` stays 1
 2. `steps_to_first_band_entry` and `steps_to_sustained_recovery` in `summarize` follow the same criterion (document in the summary docstring which deviation they use); the manifest's resolved config already records `reference`
 3. Tests: par behaviour byte-identical on `soros-baseline` (run-vs-rerun fixtures untouched); with `oracle` on a synthetic run where the reference drifts +50 bps and the AMM tracks it, `par` → `max_steps` and `oracle` → `peg_recovered`; before first publish → out of band
 4. `sweeps/threshold-surface-ref-mc.yaml`: identical to `threshold-surface-mc.yaml` plus `overrides: {termination.peg_recovered.reference: oracle}`; run with `--mc`; `plot_threshold_surface` reads the criterion from the manifest's `base_config` (after overrides) and puts it in the heading; the chart written as `threshold_surface.png` in that sweep's directory
@@ -145,6 +145,21 @@ written:
 
 **State.** Only the status lines changed. No code written.
 
+## Rulings
+
+**2026-10-04 (dev manager), on the Blockers above.**
+
+1. **Option (a).** `ReferenceView.published_price`, the Oracle exposing it as an alias of
+   `price`. `Oracle.reference_price` keeps its Story 1.5 meaning and its three tests. The
+   name collision was mine. AC 1 and the context XML amended.
+2. **`tests/kernel_stubs.py` gains `spot_price`** — accepted.
+3. **Sweep manifest `base_config` = config after overrides** — accepted; note the hash
+   consequence in the ADR as you proposed.
+4. **Summary metrics from the timeseries `amm_price` / `oracle_price` columns** — accepted;
+   `oracle_price` NaN before first publish is exactly "out of band until published".
+
+Resume at the Criterion option task.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -176,3 +191,4 @@ _(include: the two-surface crossing table; budget × depth crossings and slope; 
   collides with the existing `Oracle.reference_price` (raw source pass-through, Story 1.5
   AC 8, pinned by three tests). Options (a) rename the Protocol attribute, (b) repurpose
   the Oracle property. Status: blocked.
+- 2026-10-04: Dev manager ruled on Blockers: ReferenceView.published_price (option a); three implementation notes accepted; Status back to in-progress
