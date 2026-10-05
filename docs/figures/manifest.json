@@ -1,0 +1,72 @@
+{
+  "budget_depth": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "budget_depth.png",
+    "function": "depeg_sim.analysis.charts.plot_budget_depth",
+    "source": "sweeps/budget-x-depth-mc.yaml",
+    "source_hash": "b3359c3fbb148ebbf45d300bf3e01285a2cf55bb7a8ffa86b190814628ef9a6c"
+  },
+  "oracle_sensitivity": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "oracle_sensitivity.png",
+    "function": "depeg_sim.analysis.charts.plot_oracle_sensitivity",
+    "source": "sweeps/oracle-lag-mc.yaml",
+    "source_hash": "18c9c46f05fe9212bab2f4bb21cc402e01ecda6e7d046ce546b97cf7cfc56a68"
+  },
+  "peg_trajectory_1992": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "peg_trajectory_1992.png",
+    "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
+    "source": "scenarios/soros-1992.yaml",
+    "source_hash": "f4e26ae664407d5e53b761d54bfd3b0d29e7b773c8af4a0253753f95cce86270"
+  },
+  "peg_trajectory_1992_no_defense": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "peg_trajectory_1992_no_defense.png",
+    "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
+    "source": "scenarios/soros-1992-no-defense.yaml",
+    "source_hash": "516edaef47958a1c24474d75ff18ef9a56a749570c860efd362564d05bffc02b"
+  },
+  "peg_trajectory_baseline": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "peg_trajectory_baseline.png",
+    "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
+    "source": "scenarios/soros-baseline.yaml",
+    "source_hash": "2e09f431ce748e725a3ab84c123711b08b16e276b6af05ee506caa7daac5dd85"
+  },
+  "peg_trajectory_calibrated": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "peg_trajectory_calibrated.png",
+    "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
+    "source": "scenarios/calibrated-baseline.yaml",
+    "source_hash": "44ac03c60e5f561cc88e9d2a3e00a11dfccf3893ef95e326c2348195ec1c9d4a"
+  },
+  "threshold_surface": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "threshold_surface.png",
+    "function": "depeg_sim.analysis.charts.plot_threshold_surface",
+    "source": "sweeps/threshold-surface-ref-mc.yaml",
+    "source_hash": "8ade9cb3fee88b376505e13eb5cbc7dc21898ab3ab5f46207f7bec7c7f69bfed"
+  },
+  "threshold_surface_par": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "threshold_surface_par.png",
+    "function": "depeg_sim.analysis.charts.plot_threshold_surface",
+    "source": "sweeps/threshold-surface-mc.yaml",
+    "source_hash": "74cb63b6a965327295148dc5ac709271197346e025a5f87533c60134cdbd3203"
+  },
+  "time_to_parity": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "time_to_parity.png",
+    "function": "depeg_sim.analysis.charts.plot_time_to_parity",
+    "source": "sweeps/threshold-surface-ref-mc.yaml",
+    "source_hash": "8ade9cb3fee88b376505e13eb5cbc7dc21898ab3ab5f46207f7bec7c7f69bfed"
+  },
+  "validation_overlay_usdc_2023": {
+    "commit": "c7185dc1f0be3fefc4ee00111837a67512f388b7",
+    "file": "validation_overlay_usdc_2023.png",
+    "function": "depeg_sim.analysis.charts.plot_validation_overlay",
+    "source": "scenarios/usdc-2023.yaml",
+    "source_hash": "2c3aeaa9825d0c04a937ba6b1c97087bc59547b2ccf5e9b344e83b6dc3871531"
+  }
+}

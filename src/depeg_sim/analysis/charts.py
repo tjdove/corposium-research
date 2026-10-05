@@ -26,6 +26,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from depeg_sim.experiments.writer import EVENTS, MANIFEST, TIMESERIES  # noqa: E402
@@ -228,6 +229,21 @@ def validation_comparison(run_dir: Path) -> dict:
     return out
 
 
+def _include_texts(fig, ax, texts, pad: float = 0.03) -> None:
+    """Lower the y-axis bottom until every text box sits inside the axes (Story 2.9: the
+    2.6 overlay clipped the observed-trough label). Offsets are in points, so lowering the
+    limit moves the anchor up relative to the axes; two passes settle it."""
+    for _ in range(2):
+        fig.canvas.draw()
+        to_axes = ax.transAxes.inverted()
+        lowest = min(to_axes.transform(t.get_window_extent())[0, 1] for t in texts)
+        if lowest >= pad:
+            return
+        lo, hi = ax.get_ylim()
+        # bottom at fraction ``lowest`` must move to ``pad``: grow the span accordingly
+        ax.set_ylim(lo - (pad - lowest) * (hi - lo) / (1 - pad), hi)
+
+
 def plot_validation_overlay(run_dir: Path) -> Path:
     """One panel: observed reference (the manifest's CSV, re-read) and simulated AMM
     price, both in bps from peg, x in elapsed hours from the series start."""
@@ -277,17 +293,21 @@ def plot_validation_overlay(run_dir: Path) -> Path:
                 color=GREY,
                 ha=ha,
             )
+    labels = []
     for who, color, dy in (("observed", BLUE, -30), ("simulated", DARK, 8)):
         h, v = cmp[f"{who}_trough_h"], cmp[f"{who}_trough_bps"]
-        ax.annotate(
-            f"{who} trough {v:,.0f} bps at {h:.1f} h",
-            xy=(h, v),
-            xytext=(40, dy),
-            textcoords="offset points",
-            fontsize=8,
-            color=color,
-            arrowprops={"arrowstyle": "-", "color": color, "lw": 0.8},
+        labels.append(
+            ax.annotate(
+                f"{who} trough {v:,.0f} bps at {h:.1f} h",
+                xy=(h, v),
+                xytext=(40, dy),
+                textcoords="offset points",
+                fontsize=8,
+                color=color,
+                arrowprops={"arrowstyle": "-", "color": color, "lw": 0.8},
+            )
         )
+    _include_texts(fig, ax, labels)
     ax.set_xlabel("elapsed time from series start (hours)")
     ax.set_ylabel("deviation from peg (bps)")
     ax.legend(loc="lower right", fontsize=8, frameon=False)
@@ -316,8 +336,9 @@ def plot_validation_overlay(run_dir: Path) -> Path:
 #
 # Both read only ``mc.parquet`` and the sweep ``manifest.json`` (axes, seeds, the resolved
 # ``base_config``; ADR-0014 pattern). Each panel is 10x6 in; footer
-# ``sweep=<name> base_hash=<12>``. Categorical series use a validated colour-blind-safe
-# order and always carry a distinct marker as well, so identity is never colour alone.
+# ``sweep=<name> spec_hash=<12> base_hash=<12>``. Categorical series use a validated
+# colour-blind-safe order and always carry a distinct marker as well, so identity is never
+# colour alone.
 
 THRESHOLD_SURFACE = "threshold_surface.png"
 ORACLE_SENSITIVITY = "oracle_sensitivity.png"
@@ -375,10 +396,15 @@ def _against(rec: dict) -> str:
 
 
 def _sweep_footer(fig, manifest: dict) -> None:
+    """``sweep=<name> spec_hash=<12> base_hash=<12>``; ``spec_hash`` (``sweep_spec_hash``,
+    the number ``docs/figures/manifest.json`` records) is absent in pre-2.9 manifests."""
+    spec = f" spec_hash={manifest['spec_hash'][:12]}" if manifest.get("spec_hash") else ""
+    # reserve a bottom strip so the (now longer) footer never overlaps the x label
+    fig.get_layout_engine().set(rect=(0, 0.025, 1, 0.975))
     fig.text(
         0.995,
         0.002,
-        f"sweep={manifest['sweep_name']} base_hash={manifest['base_scenario_hash'][:12]}",
+        f"sweep={manifest['sweep_name']}{spec} base_hash={manifest['base_scenario_hash'][:12]}",
         ha="right",
         va="bottom",
         fontsize=7,
@@ -778,6 +804,163 @@ def plot_budget_depth(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Pa
     )
     _sweep_footer(fig, manifest)
     out = sweep_dir / BUDGET_DEPTH
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+# -- time to parity (Story 2.9) -------------------------------------------------------------
+
+TIME_TO_PARITY = "time_to_parity.png"
+
+
+def _tick_labels(manifest: dict, axis: dict, values: list, usd_per_unit: float) -> list[str]:
+    """Tick labels for a sweep axis: depth as × D*, capital as × resources, else raw."""
+    base = manifest["base_config"]
+    if DEPTH_PATH in axis["paths"]:
+        d_star = base["amm"]["reserve_stable"]
+        return [f"{v / d_star:.3g}× D*\n{_usd(v, usd_per_unit)}" for v in values]
+    if CAPITAL_PATH in axis["paths"]:
+        defender = next(a for a in base["agents"] if a["type"] == "defender")
+        resources = defender["budget"] + base["redemption"]["reserves"]
+        return [f"{v / resources:.2g}×\n{_usd(v, usd_per_unit)}" for v in values]
+    return [f"{v:g}" for v in values]
+
+
+def _axis_label(axis: dict) -> str:
+    if DEPTH_PATH in axis["paths"]:
+        return "pool depth per side (× D*; $)"
+    if CAPITAL_PATH in axis["paths"]:
+        return "attacker capital (× defender budget + redemption reserves; $)"
+    return axis["name"]
+
+
+def time_to_parity_hours(mc: pd.DataFrame, interval_seconds: float) -> pd.Series:
+    """Median hours from run start to first re-entry per cell:
+    ``(step_of_max_depeg + steps_to_first_band_entry) × interval / 3600``.
+
+    ``steps_to_first_band_entry`` is counted from the trough, so the trough step is added
+    back. The median of the sum equals the trough step plus the median entry only when the
+    trough step is the same for every seed in the cell; raises ``ValueError`` naming the
+    cells where it is not. NaN where fewer than half the seeds ever re-enter ("never")."""
+    spread = (mc["step_of_max_depeg_p05"] != mc["step_of_max_depeg_p95"]) | (
+        mc["step_of_max_depeg_std"].fillna(0) > 0
+    )
+    if spread.any():
+        bad = mc.index[spread].tolist()
+        raise ValueError(
+            f"trough step differs across seeds in cell rows {bad}: time from run start "
+            "cannot be taken as trough step + median steps to first band entry"
+        )
+    hours = (
+        (mc["step_of_max_depeg_p50"] + mc["steps_to_first_band_entry_p50"])
+        * interval_seconds
+        / 3600
+    )
+    never = mc["steps_to_first_band_entry_n"] < mc["n"] / 2
+    return hours.where(~never)
+
+
+def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Heatmap over the sweep's two axes of the median hours from run start to the first
+    re-entry into the recovery band (``time_to_parity_hours``). Cells where fewer than half
+    the seeds ever re-enter are hatched and labelled "never" (the price is lost). A dashed
+    contour marks the latest start that can still hold ``for_steps`` by ``max_steps``:
+    finite cells beyond it are lost on the clock. Reads only ``mc.parquet`` + manifest."""
+    from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.patches import Rectangle
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    if len(manifest["axes"]) != 2:
+        raise ValueError(f"sweep {manifest['sweep_name']!r} needs exactly two axes")
+    y_axis, x_axis = manifest["axes"]
+    y_col, x_col = y_axis["name"], x_axis["name"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.sort_values([y_col, x_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    ys = sorted(mc[y_col].unique())
+    xs = sorted(mc[x_col].unique())
+    grid = mc.pivot(index=y_col, columns=x_col, values="hours").loc[ys, xs].to_numpy()
+    never = pd.isna(grid)
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
+    im = ax.imshow(grid, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=horizon_h)
+    # The deadline boundary follows cell edges: a segment wherever a cell that first
+    # re-enters before the deadline meets one that re-enters after it or never.
+    late = never | (np.nan_to_num(grid, nan=horizon_h) >= deadline_h)
+    for i in range(len(ys)):
+        for j in range(len(xs)):
+            if j + 1 < len(xs) and late[i, j] != late[i, j + 1]:
+                ax.plot([j + 0.5] * 2, [i - 0.5, i + 0.5], color=ORANGE, lw=2.2, ls="--")
+            if i + 1 < len(ys) and late[i, j] != late[i + 1, j]:
+                ax.plot([j - 0.5, j + 0.5], [i + 0.5] * 2, color=ORANGE, lw=2.2, ls="--")
+    for i in range(len(ys)):
+        for j in range(len(xs)):
+            if never[i, j]:
+                ax.add_patch(
+                    Rectangle(
+                        (j - 0.5, i - 0.5),
+                        1,
+                        1,
+                        facecolor="white",
+                        edgecolor=GREY,
+                        hatch="///",
+                        lw=0.0,
+                    )
+                )
+                ax.text(
+                    j,
+                    i,
+                    "never",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color=DARK,
+                    bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.0},
+                )
+                continue
+            v = grid[i, j]
+            tag = "\nclock" if v >= deadline_h else ""
+            ax.text(
+                j,
+                i,
+                f"{v:.1f} h{tag}",
+                ha="center",
+                va="center",
+                fontsize=7,
+                color="white" if v >= 0.55 * horizon_h else DARK,
+            )
+    ax.set_xticks(range(len(xs)))
+    ax.set_xticklabels(_tick_labels(manifest, x_axis, xs, usd_per_unit), fontsize=8)
+    ax.set_yticks(range(len(ys)))
+    ax.set_yticklabels(_tick_labels(manifest, y_axis, ys, usd_per_unit), fontsize=8)
+    ax.set_xlabel(_axis_label(x_axis))
+    ax.set_ylabel(_axis_label(y_axis))
+    ax.set_title(
+        f"orange dashed = {deadline_h:.0f} h, the latest first re-entry that can still hold "
+        f"{rec['for_steps']:,} steps by step {horizon:,}; hatched = never re-enters",
+        fontsize=9,
+    )
+    fig.colorbar(im, ax=ax, label="median hours from run start to first re-entry", shrink=0.9)
+    fig.suptitle(
+        f"{manifest['sweep_name']}: time to parity, criterion {_criterion(rec)} "
+        f"({len(manifest['seeds'])} seeds per cell)\n"
+        f"median hours from run start (trough step + steps to first band entry) to first "
+        f"re-entry within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}\n"
+        f"clock = re-enters, but after {deadline_h:.0f} h; price = never re-enters by step "
+        f"{horizon:,} ({horizon_h:.0f} h)",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / TIME_TO_PARITY
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
