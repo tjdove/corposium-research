@@ -576,8 +576,8 @@ is not supported.** Attacker fixed at ratio 1.0 (179,454,391 = $42.1B), oracle c
   rows go from 0/16 at 0.6 to 16/16 at 0.8. The `p_stays_broken` crossings are 0.54 and
   0.69.
 - **Y = 1.** Only the 2× and 4× D\* rows lose the price. At 1× D\* `p_stays_broken`
-  crosses at 0.68, but that is the clock: the price is back within 31 bps of the market
-  by the end, in 16/16 runs.
+  crosses at 0.68, but that is the clock: every run there re-enters the oracle band
+  (0 of 128 never do), just after step 11,100.
 - **Z: not supported.** Budget/depth at the crossing is 3.90 → 2.23 → 1.86, the slope
   is 0.47, the same ratio gives opposite outcomes at 2× and 4× D\*, and the budget sweep
   has one attack, not "any attack in the grid".
