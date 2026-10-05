@@ -1,6 +1,6 @@
 # Story 2.9: Committed Figures, Time-to-Parity, and `make figures`
 
-Status: ready-for-dev
+Status: blocked
 
 ## Story
 
@@ -83,6 +83,59 @@ figure's footer hash equal to the manifest's source hash so a reader can match t
 - [Source: docs/adr/0014-manifest-embeds-resolved-config.md]
 - [Source: docs/stories/2-6-holder-agent.md#Senior-Developer-Review] — ruling 4 (overlay clip)
 
+## Blockers
+
+**AC 1 measures time-to-parity from the trough; its 37 h contour and the Dev Notes measure
+it from step 0.**
+
+- AC 1 plots `steps_to_first_band_entry_p50 × interval / 3600` and draws the clock
+  boundary at `(max_steps − for_steps) × interval / 3600` = 37 h. The Dev Notes describe
+  the metric as "the first step the AMM is within 31 bps of the published oracle price"
+  and the 37 h line as the latest re-entry from which `peg_recovered` can still finish.
+- The code disagrees with the Dev Notes: `src/depeg_sim/analysis/summary.py:9` defines
+  `steps_to_first_band_entry` as steps **from `step_of_max_depeg`** to the first later
+  in-band step (`summary.py:118`: `first_entry = int(after.iloc[0]) - step_of_max`).
+  The 37 h deadline is in absolute steps (11,100 = 18,000 − 6,900). So the AC's quantity
+  and the AC's contour have different origins. FINDINGS' F-11 refinement already adds the
+  trough step: its "step 12,560–16,943" at D\* is `step_of_max_depeg_p50` (82–85) +
+  `steps_to_first_band_entry_p50` (12,475–16,861).
+- Size, on `output/threshold-surface-ref-mc` (real output): `step_of_max_depeg` is 50–85
+  steps (0.17–0.28 h) with zero seed spread (`p05 == p95` in all 40 cells). No cell's
+  from-trough median lies within 85 steps of 11,100 (nearest 9,100.5 below, 12,475 above),
+  so **no cell changes clock/not-clock either way on this sweep**. The choice matters for
+  what the axis is labelled and for any future sweep with a later trough.
+
+**Options** (I have not chosen):
+
+- **(a) Absolute time** (recommended): plot
+  `(step_of_max_depeg_p50 + steps_to_first_band_entry_p50) × interval / 3600`, "hours from
+  run start to first re-entry", contour at 37 h. Consistent with the Dev Notes, the
+  contour and the F-11 refinement's numbers. The sum of medians equals the median of the
+  sum only when the trough step has no seed spread; the function would check
+  `step_of_max_depeg_p05 == step_of_max_depeg_p95` per cell and raise (or footnote) if
+  not. Reads only `mc.parquet` + manifest, as AC 1 requires.
+- **(b) AC 1 literally:** plot from-trough hours, label the axis "hours after the trough",
+  draw the contour at 37 h, and state in the caption that the line is approximate by the
+  trough time (≤ 0.28 h here).
+- **(c) From-trough hours with a per-cell deadline:** contour at
+  `37 h − trough time`. Exact, but a contour of a varying level is harder to read.
+
+**Two smaller points; I will do as stated unless the ruling says otherwise:**
+
+1. AC 2's `--quick` writes a `quick-ok` marker into `docs/figures/`, while the context's
+   constraint says `docs/figures/` holds PNGs, `manifest.json` and `README.md` only. I
+   will gitignore `docs/figures/quick-ok`, so the committed directory meets the
+   constraint.
+2. "Keep every figure's footer hash equal to the manifest's source hash": the sweep
+   charts' footers print `base_hash` (the base scenario's `content_hash()`), but the
+   manifest's sweep source hash is `sweep_spec_hash(spec)`, a different number, and
+   the sweep's own `manifest.json` does not record the spec bytes. I will have
+   `run_sweep` write `spec_hash` (= `sweep_spec_hash`) into the sweep manifest, have
+   `_sweep_footer` print `sweep=<name> spec_hash=<12> base_hash=<12>`, and have
+   `make_figures.py` refuse to plot a sweep directory whose `spec_hash` differs from the
+   spec on disk. That changes the footer of all four sweep figures. Scenario footers
+   already print `content_hash()[:12]`.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -110,3 +163,4 @@ _(include: time-to-parity chart description — which cells are clock and which 
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.8 review; time-to-parity chart added per review ruling 3
+- 2026-10-04: Blocked by builder (Claude Code, Opus 5.5) before Task 1: time-to-parity origin (trough vs step 0) contradicts the 37 h contour; see Blockers
