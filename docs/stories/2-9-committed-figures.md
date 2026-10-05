@@ -1,6 +1,6 @@
 # Story 2.9: Committed Figures, Time-to-Parity, and `make figures`
 
-Status: review
+Status: done
 
 ## Story
 
@@ -371,9 +371,72 @@ The README's Layout block also gains `sweeps/`, `scripts/` and `docs/figures/`, 
 - `README.md` ("Results so far", Layout, figures sentence)
 - `docs/stories/2-9-committed-figures.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-05
+**Outcome:** **APPROVE** ✅ — Epic 2 closes. The time-to-parity chart is the note's figure 2.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `552 passed in
+36.44s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `87 files already
+formatted`. `make figures-check` → `ok, 10 figures match their sources`. **Guard proven
+independently:** tolerance 0.0031 → 0.0035 on `calibrated-baseline.yaml` makes the guard
+exit 1 naming five figures (`peg_trajectory_calibrated`, `threshold_surface`,
+`threshold_surface_par`, `time_to_parity`, `budget_depth`), each with the manifest hash and
+the new hash; restored, it passes. `make figures-quick` → 8m03s on 2 workers, clean. Both
+CI jobs green on cc90853 by inspection. Both headline figures opened and read.
+
+### Rulings
+
+1. **Ten figures, not nine → accepted.** My bullet list named two files on one line.
+2. **Extra commits → accepted.** Three working commits between the two named ones, each
+   with a clear message; the manifest's commit points at the code that drew the figures,
+   which is the property that matters.
+3. **1992 no-defense listed as a counterfactual, not a finding → correct.**
+4. **No ADR → correct.** Nothing here binds a later story; the guard design was in the
+   story, and the time-to-parity origin ruling is in the Rulings section.
+5. **37 h line drawn along cell edges → accepted**; it reads better than a smooth contour
+   through a 5×8 grid.
+6. **`PYTHON ?= python` in the Makefile.** Fine on Seoul; on a box where `python` is not
+   the venv, every target fails with `ModuleNotFoundError` (I hit this). Story 3.5 adds
+   one line to the README's make section: `make PYTHON=.venv/bin/python …`, or the
+   Makefile prefers `.venv/bin/python` when present. Noted for 3.5, not blocking.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `plot_time_to_parity`; from run start per Rulings; same-trough check; hatched "never"; 37 h line; synthetic test |
+| 2 | ✅ | `make_figures.py`, manifest with `sweep_spec_hash`; `--quick` to temp dir; overlay y-limits fixed (−1,587 bps) |
+| 3 | ✅ | Makefile targets present and run |
+| 4 | ✅ | `check_figures.py`; CI `figures-check` + separate `figures-quick` job; no sweeps, no pixels |
+| 5 | ✅ | ten PNGs + manifest + README committed; captions name price vs clock |
+| 6 | ✅ | README "Results so far": overlay + "Price or clock" with captions and FINDINGS links |
+| 7 | ✅ | 552 passed; ruff clean; CI both jobs; guard failure shown (and reproduced here) |
+
+**7 of 7 ACs met.**
+
+### Key Findings
+
+No new finding; the chart makes F-03, F-06 and F-11 one picture. Reading it by row: ≤ 0.5×
+D\* back within 0.4–30.5 h at every attack; D\* back at 41.9–56.5 h from 0.8× (clock);
+2× D\* clock at 0.6× and never from 0.8×; 4× D\* never from 0.8×. The 37 h line separates
+"the defense won slowly" from "the defense won" and the hatching from "the defense lost".
+
+### Learnings for Epic 3
+
+- Every figure the note uses now has a source hash and a regenerating command; Epic 3
+  stories that change `C*` (3.1) or add scenarios must end with `make figures` and the
+  guard green.
+- Time-to-parity is the metric the note leads with for the surface; policy comparison
+  (3.2) and budget vs attack (3.4) report it, not `p_stays_broken` alone.
+
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.8 review; time-to-parity chart added per review ruling 3
 - 2026-10-04: Blocked by builder (Claude Code, Opus 5.5) before Task 1: time-to-parity origin (trough vs step 0) contradicts the 37 h contour; see Blockers
 - 2026-10-05: Dev manager ruled on Blockers: time-to-parity from run start (option a); marker gitignored; sweep hash in manifest and footer. Status back to in-progress
 - 2026-10-05: Implemented by builder (Claude Code, Opus 5.5): time-to-parity chart, make_figures/check_figures, Makefile, CI figures jobs, ten figures regenerated in full and committed. Status review
+- 2026-10-05: Senior review APPROVE; Status done; Epic 2 closed

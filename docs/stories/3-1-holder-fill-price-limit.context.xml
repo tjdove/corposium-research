@@ -1,0 +1,49 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.1</storyId><title>Holder Fill-Price Limit</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-05</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-1-holder-fill-price-limit.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>the holder to stop buying when its own fill would lift the venue price above its entry price</iWant>
+    <soThat>figure 1 shows the market, not an artefact, and C* is fitted on a buyer that behaves like one</soThat>
+    <tasks>- Fill rule (AC: 1, 2) - Re-fit and replay (AC: 3) - Propagate and figures (AC: 4, 5) - ADR, close out (AC: 6, 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–7. The fill rule in AC 1 is normative; reuse the arbitrageur's sizing.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-1-holder-fill-price-limit.md" section="Dev Notes">Why C* moves; predictions.</doc>
+      <doc path="docs/adr/0021-par-expecting-holder.md" section="Consequences, Alternatives">The sawtooth and the proposed price limit.</doc>
+      <doc path="docs/retrospectives/epic-2-retro.md">Carry-overs; make figures rule.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/agents/holder.py" symbol="Holder.decide" reason="Cap the buy."/>
+      <existing path="src/depeg_sim/agents/arbitrageur.py" reason="Closed-form sizing to a target price; reuse."/>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="quote, spot_price, fee_bps" reason="Constant-product with fee on input."/>
+      <existing path="scripts/fit_holder.py" reason="Re-run unchanged."/>
+      <existing path="scenarios/usdc-2023.yaml, calibrated-*.yaml, soros-1992*.yaml" reason="Holder capital updates."/>
+      <existing path="docs/calibration/VALIDATION.md" reason="3.1 row."/>
+      <existing path="Makefile, scripts/make_figures.py" reason="Regenerate; guard."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes; PHASE_ORDER_VERSION stays 1; HolderConfig unchanged; every scenario hash unchanged until the capital values are edited (then only those).
+    - No hand-picked C*; two-pass rule as in 2.6 Rulings.
+    - make figures and figures-check green at the final commit.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="Holder.decide" kind="method" path="src/depeg_sim/agents/holder.py">buy amount = min(pace × reference, amount_in to reach entry_price)</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; real AMM, manual phases per 1.7; hash test over scenarios/; fit_holder dry-run test unchanged.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="pool 1M/1M fee 1bp, entry 0.98, spot 0.95, holder reference 1M, pace 0.5: buy is capped and post-trade spot ≤ 0.98 (1e-9)"/>
+      <test ac="1" idea="same but spot 0.979 and tiny reference: cap ≤ DUST → hold_wait"/>
+      <test ac="2" idea="two steps with attacker dump between: deviation never exceeds +0 after a holder buy"/>
+    </ideas>
+  </tests>
+</story-context>

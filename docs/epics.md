@@ -416,7 +416,7 @@ Dates: **Oct 6–20**. Feature freeze **Oct 21** unchanged.
 **Delivers:** defense-policy comparison chart (charter chart 5); the 1992 switch-sides
 result; the budget-vs-attack result; a repo a stranger can run and audit.
 
-**Story Count:** 5 core + 3 stretch (ordered; stretch only if core is done by Oct 17)
+**Story Count:** 5 core + 3 stretch (ordered; stretch only if core is done by Oct 17). Story files are drafted one at a time; 3.1 drafted 2026-10-05.
 
 ---
 
