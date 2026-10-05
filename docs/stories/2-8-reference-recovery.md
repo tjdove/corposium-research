@@ -1,6 +1,6 @@
 # Story 2.8: Reference-Relative Recovery and the Budget × Depth Boundary
 
-Status: review
+Status: done
 
 ## Story
 
@@ -653,6 +653,88 @@ is not supported.** Attacker fixed at ratio 1.0 (179,454,391 = $42.1B), oracle c
 - `docs/calibration/VALIDATION.md` (AC 7)
 - `docs/stories/2-8-reference-recovery.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-04
+**Outcome:** **APPROVE** ✅ — criterion built cleanly through Protocol views; both
+predictions in the Dev Notes tested and one falsified; the F-11 hypothesis not supported
+and said so.
+
+### Summary
+
+Independent reproduction (Python 3.13.15, fresh install): `pytest` → `537 passed in
+25.53s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `84 files already
+formatted`. **Budget × depth sweep re-run in full** (200 runs, 2 workers, 6m10s): all 25
+cells match; the 0.5-crossing budgets 1.57× / 1.80× / 3.00× and the two "not reached" rows
+reproduce exactly. **Oracle-criterion surface slice** (D\* and 2× D\* rows at ratio
+{0.6, 0.8, 1.0}, 96 runs, 3m48s): D\* row 0.1875 → 1.0 → 1.0 (consistent with the 0.68
+crossing), median first re-entry 8,967 / 12,475 / 14,366 steps (the late recoveries), 2×
+D\* never re-enters at ≥ 0.8. `budget_depth.png` regenerated and inspected. Scenario
+hashes unchanged; `usdc-2023` still `2c3aeaa9825d`; `kernel/` imports nothing from
+`protocol/`.
+
+### Rulings
+
+1. **ADR-0023 → Accepted (finding, amended).** Amendment: §4 and §5 are recorded as a
+   refinement of F-11, not a new finding; F-11's "budget against depth" clause is
+   withdrawn and replaced by what §5 shows. The "ADR-0007 extended, not amended" reading
+   is accepted — the AMM still owns `PegView`; the oracle is a `ReferenceView`, which is a
+   different thing.
+2. **The note uses the oracle-criterion surface**, with both causes of "stays broken"
+   named: price (≥ 2× D\*, attack ≥ 0.8× resources: never re-enters) and clock (D\*: price
+   back, median re-entry after step 11,100, too late to hold 6,900 steps).
+3. **Time-to-parity is the chart that separates the two causes**, and it needs no new
+   sweep: `steps_to_first_band_entry_p50` and `_n` are already in both `mc.parquet`
+   files. Story 2.9 gains `plot_time_to_parity(sweep_dir)` — a heatmap of median first
+   re-entry in hours with "never" cells hatched — as a figure next to the surface. L-9's
+   "time-to-parity as the headline metric" is ours now and this is it.
+4. **F-11's "budget scales with depth" → withdrawn.** Slope 0.47 on a coarse grid, and the
+   sharper fact: at 2× and 4× D\* the price fails in all 8 seeds at 1× calibrated budget
+   and holds in all 8 at 2×, while depth doubles. The operative quantity at this attack is
+   the budget itself. What survives of F-11: shallow pools (≤ 0.5× D\*) hold at every
+   budget tested because the dump crashes the price and is cheap to buy back. The next
+   hypothesis ("budget against the attack, once the pool is deep enough not to crash")
+   needs a second attack size; Epic 3 candidate, not now.
+5. **AC 6's Z → "not supported" accepted as the answer.** The sentence the note quotes is
+   the Completion Notes' supported replacement, with X stated as "between 0.6 and 0.8".
+6. **Follow-up commit e33ec5b without a CI record in the story** → I confirmed CI on the
+   final commit is green by looking; noted here.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `reference` field; `PegView.spot_price`; `ReferenceView.published_price`; kernel reads views only; hash test |
+| 2 | ✅ | summary metrics follow the criterion; docstring says so |
+| 3 | ✅ | soros-baseline byte-identical; synthetic drift test; unpublished → out of band |
+| 4 | ✅ | `threshold-surface-ref-mc.yaml`; heading carries `reference=oracle`; slice reproduced |
+| 5 | ✅ | `budget-x-depth-mc.yaml`; `plot_budget_depth`; full re-run matches |
+| 6 | ✅ | both tables; slope; sentence with Z "not supported" and a supported replacement |
+| 7 | ✅ | `usdc-2023.yaml` untouched; VALIDATION.md sentence |
+| 8 | ✅ | ADR-0023 |
+| 9 | ✅ | 537 passed; ruff clean; CI green |
+
+**9 of 9 ACs met.**
+
+### Key Findings
+
+- **F-11 refined:** against the market price, nothing at ≤ 0.5× D\* breaks; D\* breaks on
+  the clock (recovery lands after ~37 h and cannot hold 6,900 steps by 60 h); ≥ 2× D\*
+  loses the price outright at ≥ 0.8× resources. The defending budget does **not** scale
+  with depth (slope 0.47; same 1×–2× budget interval decides 2× and 4× D\*).
+- The surface's contour runs along capital above D\* and sits between 0.5× and 1× D\*
+  along depth. "Stays broken" has two causes and the note must name both.
+
+### Learnings for Story 2.9
+
+- Every chart that shows `p_stays_broken` needs its companion time-to-parity panel or
+  caption, or the reader will read clock as price.
+- The overlay's clipped annotation (2.6 review ruling 4) is still open; fix it here.
+- Committed figures are regenerated from sweep output that takes 17 min on 2 cores;
+  `figures-quick` must use a reduced grid, and the stale-figure guard must key on the
+  spec hash, not re-run the sweep in CI.
+
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.7 review (F-11); inserted into Epic 2; figures story renumbered to 2.9
@@ -665,3 +747,4 @@ is not supported.** Attacker fixed at ratio 1.0 (179,454,391 = $42.1B), oracle c
   surface (2m26.2s) and budget × depth (0m51.1s) sweeps; `plot_budget_depth`; ADR-0023
   (Proposed). Predictions missed at 1× D\* (clock) and on the budget slope (0.47, not 1).
   537 tests pass, ruff clean. Status: review.
+- 2026-10-04: Senior review APPROVE; ADR-0023 accepted (finding, amended); F-11 refined; Status done

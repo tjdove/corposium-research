@@ -380,16 +380,16 @@ So that the surface shows where the attack beats the defense (not where the refe
 
 ---
 
-### Story 2.9: Committed Figures and `make figures`
+### Story 2.9: Committed Figures, Time-to-Parity, and `make figures`
 
 As a **reader**,
 I want every chart in the note regenerable by one command and committed,
 So that the README and the note can show figures without running code.
 
 **Acceptance Criteria:**
-1. `scripts/make_figures.py` runs the named scenarios and sweeps and writes `docs/figures/<name>.png` for: baseline peg trajectory, calibrated baseline, 1992 analogue (+ no-defense), USDC overlay, threshold surface, oracle sensitivity
+1. `scripts/make_figures.py` writes `docs/figures/<name>.png` + `manifest.json` for: baseline peg trajectory, calibrated baseline, 1992 analogue (+ no-defense), USDC overlay, threshold surface (oracle criterion), **time-to-parity** (new chart, same sweep; separates price from clock, 2.8 review ruling 3), par surface (F-11 record), budget × depth, oracle sensitivity
 2. `Makefile` targets `figures` (full) and `figures-quick` (reduced seeds, for CI)
-3. CI runs `make figures-quick` and fails if any committed figure's footer hash no longer matches its scenario's `content_hash()` (stale-figure guard)
+3. Stale-figure guard keyed on source hashes in the manifest (no sweeps, no pixel comparison in CI); `figures-quick` is a 2-seed smoke test
 4. README gains a "Results so far" section embedding two figures with one-sentence captions
 5. `docs/figures/README.md` lists each figure, its scenario/sweep, and the command that regenerates it
 6. The validation overlay's y-limits include both trough annotations (the 2.6 overlay clipped the observed-trough label; review ruling 4); the surface figure is the 2.8 oracle-criterion one

@@ -1,0 +1,53 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.9</storyId>
+    <title>Committed Figures, Time-to-Parity, and make figures</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2026-10-04</generatedAt>
+    <generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/2-9-committed-figures.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader</asA>
+    <iWant>every chart regenerable by one command and committed, with a chart that separates lost-the-price from lost-the-clock</iWant>
+    <soThat>the README and note show figures without running code and no figure goes stale silently</soThat>
+    <tasks>
+      - Time-to-parity chart (AC: 1)
+      - Figure script and manifest (AC: 2)
+      - Make targets, guard, CI (AC: 3, 4, 7)
+      - Regenerate, commit, document (AC: 5, 6)
+      - Close out (AC: 7)
+    </tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–7. The guard design (source hashes, no pixel comparison, no sweeps in CI) is normative.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/2-9-committed-figures.md" section="Dev Notes">Guard rationale, time-to-parity semantics, conventions.</doc>
+      <doc path="docs/FINDINGS.md" section="F-11 refinement">What the captions must say.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/analysis/charts.py" reason="Add plot_time_to_parity; fix overlay y-limits."/>
+      <existing path="src/depeg_sim/experiments/sweep.py" reason="Add sweep_spec_hash."/>
+      <existing path=".github/workflows/ci.yml" reason="Add figures-check to the main job; figures-quick as a second job."/>
+      <existing path="output/threshold-surface-ref-mc, budget-x-depth-mc, oracle-lag-mc" reason="Sources on Seoul; regenerate if absent."/>
+    </code>
+    <dependencies><python>No new dependencies. GNU make.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes; every scenario hash unchanged.
+    - docs/figures/ holds PNGs + manifest.json + README.md only.
+    - CI never runs a full sweep; figures-quick uses 2 seeds into a temp dir.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="plot_time_to_parity" kind="function" path="src/depeg_sim/analysis/charts.py">plot_time_to_parity(sweep_dir: Path) -> Path</interface>
+    <interface name="sweep_spec_hash" kind="function" path="src/depeg_sim/experiments/sweep.py">sweep_spec_hash(spec_path: Path) -> str (sha256 hex of spec bytes + base content_hash)</interface>
+    <interface name="docs/figures/manifest.json" kind="file">{figure: {file, source, source_hash, function, commit}}</interface>
+    <interface name="scripts/check_figures.py" kind="script">exit 0 if every source_hash matches; else exit 1 listing stale figures</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; synthetic parquet for the chart; sweep_spec_hash changes when the spec or base changes; check_figures tested against a tmp manifest with one stale entry.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

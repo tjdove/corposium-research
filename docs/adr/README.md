@@ -29,6 +29,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0020](0020-episode-flow-replay-and-capacity-schedule.md) | Episode-flow attacker, re-fit D*, replay semantics; replay does not validate (F-08) | Accepted (amended; adds Story 2.6) | 2026-10-04 |
 | [0021](0021-par-expecting-holder.md) | Par-expecting holder: tranche redeem rule, C* = 9.17M ($2.15B), replay −5,769 → −1,138; depth bimodal in holder capital (F-09) | Accepted (finding, amended) | 2026-10-04 |
 | [0022](0022-threshold-surface-metric-and-oracle-lag.md) | Threshold surface: p_stays_broken, absorbed ratio, linked-axis scales; oracle lag does not matter (F-10); at calibrated depth "stays broken" is the clock (F-11) | Accepted (finding, amended; adds Story 2.8) | 2026-10-04 |
+| [0023](0023-reference-relative-recovery-and-budget-depth.md) | Reference-relative recovery via ReferenceView; oracle criterion removes the wander, not the clock; defending budget does not scale with depth | Accepted (finding, amended; refines F-11) | 2026-10-04 |
 
 ## Template
 
