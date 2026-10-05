@@ -1,5 +1,5 @@
 # Corposium Research — Soros/ERM Stablecoin Depeg Simulator
-## Project Charter (v0.3 — 2026-10-02)
+## Project Charter (v0.4 — 2026-10-05)
 
 Owner: Tim Dove · Dev manager: Claude · Business ops: Muse (Meta)
 
@@ -59,7 +59,7 @@ Ship Corposium Research's first real-world artifact: a documented, reproducible,
 ### Stretch (only if Epic 2 done by Oct 14)
 - LP withdrawal agent (single panic-threshold parameter) — reflexive liquidity flight, the core Soros dynamic
 - Holder panic agent
-- Anvil/Foundry replay of one scenario against a real Uniswap V2 pair; chart simulated vs on-chain execution price
+- ~~Anvil/Foundry replay~~ (dropped 2026-10-05: touches no finding; see decision log)
 
 ### Out until after Nov 1
 - Lending, collateral, liquidations, liquidator agent
@@ -90,12 +90,12 @@ Principle: credibility comes from grounded parameters and a validated trajectory
 ## 6. Timeline
 
 - **Oct 2–6 — Epic 1, Kernel.** One scenario end to end; first chart; first build-in-public post.
-- **Oct 7–13 — Epic 2, Finding.** Runner, sweeps, Monte Carlo, calibration sources documented, USDC validation run. Headline threshold identified.
-- **Oct 14 checkpoint:** if no clear finding, cut scope, not time (fall back to well-documented sensitivity study).
-- **Oct 14–20 — Epic 3, Depth.** Defender policy comparison. Stretch: LP agent, Anvil replay. Tests, README.
+- **Oct 7–13 — Epic 2, Finding.** Runner, sweeps, Monte Carlo, calibration sources documented, USDC validation run. Headline threshold identified. *(Actual: Oct 3–5, nine stories, eleven findings.)*
+- **Oct 14 checkpoint:** if no clear finding, cut scope, not time (fall back to well-documented sensitivity study). *(Met early, 2026-10-05: F-08 validated against USDC March 2023; F-03/F-11 mechanism; F-10.)*
+- **Oct 6–20 — Epic 3, What the model asked for** (re-planned 2026-10-05). Holder fill-price fix; defender policy comparison; 1992 switch-sides test; budget vs attack; test hardening and repo polish. Stretch: mean-reverting reference, multi-tranche holder, LP agent. Anvil dropped.
 - **Oct 21 — Feature freeze.**
-- **Oct 22–28 — Epic 4, Write-up.** Note, charts final, site page, one-pager, launch thread.
-- **Oct 29–31 — Buffer.** Outside reader review; schedule posts.
+- **Oct 22–28 — Epic 4, Write-up.** Note, charts final, site page, one-pager, launch thread. *(Note outline drafted from FINDINGS during Epic 3 so Epic 4 is editing, not writing.)*
+- **Oct 29–31 — Buffer.** Outside reader review (reader to be lined up by Oct 15 — Tim/Muse); schedule posts.
 - **Nov 1 — Publish.**
 
 Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per milestone.
@@ -171,3 +171,6 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-02 | New repo `corposium-research`, MIT license | Tim |
 | 2026-10-04 | Epic 2 gains Story 2.6 (par-expecting buyer) after the USDC replay failed validation (F-08); Epic 2 ends Oct 15; freeze stays Oct 21 | Tim (confirmed 2026-10-04: "Let the date slip. We need to address this issue.") |
 | 2026-10-04 | Epic 2 gains Story 2.8 (reference-relative recovery criterion + budget × depth probe) after the 2.7 surface measured recovery speed against a wandering reference, not the attack (F-11); figures move to 2.9; Epic 2 end Oct 15 and freeze Oct 21 unchanged | Claude; Tim to confirm at merge |
+| 2026-10-05 | Epic 2 closed eight days early. Epic 3 re-planned from the findings (fill-price fix, policy comparison, 1992 switch-sides test, budget vs attack, hardening; stretch OU reference, multi-tranche holder, LP agent); starts Oct 6; freeze Oct 21 and Nov 1 unchanged | Tim (agreed in Monday review 2026-10-05) |
+| 2026-10-05 | Anvil/Foundry replay dropped from stretch: no finding depends on it and it costs 2–3 days of plumbing | Claude, Tim agreed |
+| 2026-10-05 | Note outline (`docs/NOTE.md`) drafted during Epic 3, not after the freeze; outside reader to be secured by Oct 15 | Claude, Tim agreed |
