@@ -399,6 +399,8 @@ def _sweep_footer(fig, manifest: dict) -> None:
     """``sweep=<name> spec_hash=<12> base_hash=<12>``; ``spec_hash`` (``sweep_spec_hash``,
     the number ``docs/figures/manifest.json`` records) is absent in pre-2.9 manifests."""
     spec = f" spec_hash={manifest['spec_hash'][:12]}" if manifest.get("spec_hash") else ""
+    # reserve a bottom strip so the (now longer) footer never overlaps the x label
+    fig.get_layout_engine().set(rect=(0, 0.025, 1, 0.975))
     fig.text(
         0.995,
         0.002,
@@ -889,7 +891,6 @@ def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> 
     never = pd.isna(grid)
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
-    fig.get_layout_engine().set(rect=(0, 0.025, 1, 0.975))  # keep the footer off the x label
     cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
     im = ax.imshow(grid, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=horizon_h)
     # The deadline boundary follows cell edges: a segment wherever a cell that first
