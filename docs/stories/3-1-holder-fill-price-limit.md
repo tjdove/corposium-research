@@ -1,6 +1,6 @@
 # Story 3.1: Holder Fill-Price Limit
 
-Status: ready-for-dev
+Status: blocked
 
 ## Story
 
@@ -69,6 +69,70 @@ refinement (≤ 10%); if it moves more, say so.
 - [Source: docs/stories/1-7-agents.md] — arbitrageur closed-form sizing
 - [Source: docs/calibration/VALIDATION.md]
 
+## Blockers
+
+**AC 1 asks for a fee-aware closed form that reaches `entry_price` exactly, and also asks
+to reuse the arbitrageur's sizing helper, which ignores the fee.** No code written.
+
+- `src/depeg_sim/agents/arbitrageur.py:43` `_reference_to_reach(k, r, target)` returns
+  `sqrt(k·target) − R`, with the docstring "(fee ignored)". The module docstring says: "With
+  a fee the input is reduced before the curve, so spot slightly undershoots the target;
+  this is accepted, not solved iteratively". Story 1.7's Dev Notes (`1-7-agents.md:114–120`)
+  say the same: exact only at `fee_bps = 0`.
+- AC 1 wants "the `amount_in` that moves the AMM spot **exactly** to `entry_price`, closed
+  form on constant product **with the fee on input**", "computed the way `Arbitrageur`
+  sizes its trades (reuse or share that helper)". The Dev Notes ("the same computation")
+  and the prompt ("it already sizes a trade to a target price on constant product with
+  fee on input … do not write a second version") make the same assumption. The helper
+  cannot do both.
+- **Size.** Real AMM `quote`, target 0.98 (scratch calculation, not committed):
+
+  | pool / start spot / fee | helper `x` → spot after | fee-exact `x` → spot after |
+  |---|---|---|
+  | 1M-ish, 0.950, 1 bp | 14,883.4 → −0.0154 bps from 0.98 | 14,884.2 → −1e-12 bps |
+  | D\*, 0.943, 1 bp | 317,928.5 → −0.0193 bps | 317,944.4 → 0 |
+  | D\*, 0.826, 1 bp | 1,347,643.1 → −0.0817 bps | 1,347,710.5 → +2e-12 bps |
+  | 1M-ish, 0.950, 30 bp | 14,883.4 → −0.4628 bps | 14,905.8 → 0 |
+
+  Both satisfy AC 2's test (post-trade spot ≤ `entry_price` within 1e-9). The helper misses
+  "exactly" by at most ~0.08 bps at the calibrated 1 bp fee. The fee-exact form is the root
+  of `(1−f)x² + (2−f)R·x + R² − k·p = 0`:
+  `x = [−(2−f)R + sqrt(f²R² + 4(1−f)k·p)] / (2(1−f))`.
+
+**Options** (not chosen):
+
+- **(a) Reuse `_reference_to_reach` unchanged** (recommended). The holder's cap is
+  `_reference_to_reach(amm.k, amm.reserve_reference, entry_price)`, imported from
+  `arbitrageur.py` or moved to `agents/base.py` with the arbitrageur importing it. The
+  arbitrageur's behaviour does not change, and there is one helper. AC 1's "exactly"
+  becomes "to `entry_price`, fee ignored; spot undershoots by ≤ f·x/√(k·p) (≤ 0.1 bps
+  here)", the same accepted approximation as Story 1.7.
+- **(b) A fee-exact helper for the holder only.** Exact as written, but it is the "second
+  version" the prompt forbids, and the two agents then size the same thing two ways.
+- **(c) Make the shared helper fee-exact for both agents.** One exact helper, but every
+  arbitrageur trade changes, so every scenario's output moves (and every committed figure
+  with it, including `soros-baseline`). That is outside this story's scope ("every scenario
+  hash unchanged" still holds, but outputs do not).
+
+**Smaller points; I will do as stated unless the ruling says otherwise:**
+
+1. **"Old sawtooth test case" (AC 2).** `tests/test_holder.py` has no such test (19 tests,
+   none about overshoot). I will write a new two-step synthetic: real AMM at the context's
+   numbers, holder buy, attacker dump, holder buy. Under the old rule it shows spot above
+   par after a holder buy, and under the new rule it does not.
+2. **Which term is ≤ DUST, and which rule fires.** AC 1 checks only the cap term, and says
+   "does not buy that step (`hold_wait`)". The context test idea ("spot 0.979 and tiny
+   reference: cap ≤ DUST → `hold_wait`") makes the *pace* term tiny. At spot 0.979 on a 1M
+   pool the cap term is about 500 units, not ≤ DUST. I will skip the buy when
+   `min(pace × reference, cap) ≤ DUST` and fall through to the existing chain (redeem if
+   the tranche rule applies, else `hold_wait` if it holds stable, else `hold_done`). Rule
+   names are unchanged. That is "does not buy", and it does not invent a `hold_wait` for a
+   holder with nothing to wait on.
+3. **Figure count.** The Dev Notes say five figures regenerate. Every scenario except
+   `soros-baseline` carries the holder, including `calibrated-stress` (`oracle-lag-mc`)
+   and the calibrated and 1992 trajectories, so nine of ten source hashes change.
+   `make figures` regenerates all ten either way; the guard will name nine.
+
 ## Dev Agent Record
 
 ### Context Reference
@@ -96,3 +160,4 @@ _(include: C* three units before/after; VALIDATION.md row; sawtooth amplitude be
 ## Change Log
 
 - 2026-10-05: Story drafted by dev manager at the Epic 2 retro
+- 2026-10-05: Blocked by builder (Claude Code, Opus 5.5) before Task 1: the arbitrageur's sizing helper ignores the fee, AC 1 asks for fee-exact; see Blockers
