@@ -99,6 +99,10 @@ class PegStub(Subsystem):
     def peg_deviation(self) -> float:
         return self.deviations[min(self._step, len(self.deviations) - 1)]
 
+    @property
+    def spot_price(self) -> float:  # Story 2.8: PegView gained spot_price; peg 1.0
+        return 1.0 + self.peg_deviation
+
 
 class SourceStub(Subsystem):
     """ActionSource: one action per step to ``target``. By default a ``ping`` with

@@ -9,8 +9,9 @@ objects by ``target`` name without knowing what they mean.
 ``{}``. A purely structural implementer must define it, because ``Registry``
 checks ``isinstance(sub, Subsystem)`` on registration.
 
-``ReservesView`` and ``PegView`` are the two read-only accessors the termination
-check consumes; a subsystem that can answer them simply exposes the property.
+``ReservesView``, ``PegView`` and ``ReferenceView`` are the read-only accessors the
+termination check consumes; a subsystem that can answer them simply exposes the
+property.
 """
 
 from __future__ import annotations
@@ -74,3 +75,16 @@ class ReservesView(Protocol):
 class PegView(Protocol):
     @property
     def peg_deviation(self) -> float: ...  # fraction; 0.0 = at peg
+
+    @property
+    def spot_price(self) -> float: ...  # reference per unit stable
+
+
+@runtime_checkable
+class ReferenceView(Protocol):
+    """The market price a venue is judged against under ``peg_recovered.reference:
+    oracle`` (Story 2.8): the oracle's *published* price, ``None`` before its first
+    publish. ``Registry.find`` returns the first registered subsystem that has it."""
+
+    @property
+    def published_price(self) -> float | None: ...

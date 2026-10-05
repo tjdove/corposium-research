@@ -15,6 +15,13 @@ Recovery, per ADR-0013 (``tol = termination.peg_recovered.tolerance``):
   ended after holding the band for ``for_steps`` steps, so this counts steps from the trough
   to the start of that final in-band stretch. This is the number the research note quotes.
 
+Both recovery metrics use the criterion's own deviation (Story 2.8): with
+``peg_recovered.reference: par`` (default) the band test is on ``peg_deviation`` (AMM vs
+par); with ``oracle`` it is on ``amm_price / oracle_price - 1`` (AMM vs the published
+oracle price), where a step before the first publish (``oracle_price`` NaN) is out of
+band, as in ``termination.check``. ``max_depeg_bps``, ``step_of_max_depeg`` and
+``final_depeg_bps`` are always against par.
+
 Values are plain Python types (no numpy scalars, no NaN) so the summary serialises to
 strict JSON. Missing agents give ``None``.
 
@@ -96,7 +103,11 @@ def summarize(
         final = float(dev.dropna().iloc[-1]) * BPS
         rec = cfg.termination.peg_recovered
         if rec is not None:
-            after = metrics_df.loc[(steps > step_of_max) & (dev.abs() <= rec.tolerance), "step"]
+            crit = dev
+            if rec.reference == "oracle":
+                crit = metrics_df["amm_price"] / metrics_df["oracle_price"] - 1.0
+            in_band = crit.abs() <= rec.tolerance  # NaN (unpublished oracle) -> False
+            after = metrics_df.loc[(steps > step_of_max) & in_band, "step"]
             if not after.empty:
                 first_entry = int(after.iloc[0]) - step_of_max
             if result.terminated_by == "peg_recovered":

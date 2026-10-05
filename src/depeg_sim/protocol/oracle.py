@@ -90,6 +90,11 @@ class Oracle(Subsystem):
         return self._published_price
 
     @property
+    def published_price(self) -> float | None:
+        """Alias of ``price``: satisfies the kernel's ``ReferenceView`` (Story 2.8)."""
+        return self._published_price
+
+    @property
     def last_update_step(self) -> int | None:
         return self._last_update_step
 

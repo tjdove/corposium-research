@@ -121,8 +121,13 @@ class EnvironmentConfig(StrictModel):
 
 
 class PegRecoveredConfig(StrictModel):
+    """``reference`` picks what "in band" is measured against (Story 2.8): ``par`` (the
+    default) uses the AMM's ``peg_deviation``; ``oracle`` uses ``spot / published oracle
+    price - 1``, so a venue that tracks a wandering market price counts as recovered."""
+
     for_steps: int = Field(gt=0)
     tolerance: float = Field(gt=0)  # fraction, e.g. 0.001
+    reference: Literal["par", "oracle"] = "par"
 
 
 class TerminationConfig(StrictModel):
@@ -219,7 +224,8 @@ class ScenarioConfig(StrictModel):
 
         Story 2.5 fields enter only when used, so older scenarios keep their hash: an
         empty ``redemption.capacity_schedule`` and an absent ``price_series_path`` are
-        dropped. A set series enters as the file's sha256 (``price_series_sha256``), not
+        dropped, as is ``termination.peg_recovered.reference`` when it is ``par``
+        (Story 2.8). A set series enters as the file's sha256 (``price_series_sha256``), not
         its path, so the hash follows the data and does not depend on the machine."""
         data = self.model_dump(mode="json")
         env = data["environment"]
@@ -227,6 +233,9 @@ class ScenarioConfig(StrictModel):
             env["price_series_sha256"] = self.environment.price_series_sha256
         if not data["redemption"]["capacity_schedule"]:
             del data["redemption"]["capacity_schedule"]
+        rec = data["termination"]["peg_recovered"]
+        if rec is not None and rec["reference"] == "par":
+            del rec["reference"]  # Story 2.8: the default leaves older hashes unchanged
         payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 

@@ -2,14 +2,30 @@
 
 Conditions are checked in fixed precedence order ``reserves_exhausted``,
 ``peg_recovered``, ``max_steps``; the first that fires is returned. The kernel
-reads domain state only through the ``ReservesView`` / ``PegView`` accessors; a
-condition whose view no subsystem provides is skipped.
+reads domain state only through the ``ReservesView`` / ``PegView`` /
+``ReferenceView`` accessors; a condition whose view no subsystem provides is skipped.
+
+``peg_recovered`` measures the venue against ``reference`` (Story 2.8): ``par`` uses
+``PegView.peg_deviation``; ``oracle`` uses ``PegView.spot_price /
+ReferenceView.published_price - 1``. Under ``oracle`` a step with no published price
+yet, or with no ``ReferenceView`` registered, counts as out of band.
 """
 
 from __future__ import annotations
 
 from depeg_sim.kernel.context import RunContext
-from depeg_sim.kernel.interfaces import PegView, ReservesView
+from depeg_sim.kernel.interfaces import PegView, ReferenceView, ReservesView
+
+
+def _in_band(ctx: RunContext, peg: PegView) -> bool:
+    rec = ctx.config.termination.peg_recovered
+    if rec.reference == "par":
+        return abs(peg.peg_deviation) <= rec.tolerance
+    ref = ctx.registry.find(ReferenceView)
+    published = None if ref is None else ref.published_price
+    if not published:  # None (not yet published) or 0
+        return False
+    return abs(peg.spot_price / published - 1.0) <= rec.tolerance
 
 
 def check(ctx: RunContext) -> str | None:
@@ -24,7 +40,7 @@ def check(ctx: RunContext) -> str | None:
         view = ctx.registry.find(PegView)
         if view is not None:
             tracker = ctx.term_state
-            if abs(view.peg_deviation) <= term.peg_recovered.tolerance:
+            if _in_band(ctx, view):
                 tracker.consecutive_in_band += 1
             else:
                 tracker.consecutive_in_band = 0
