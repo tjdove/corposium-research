@@ -24,6 +24,7 @@ Read order for a cold start: `CHARTER.md` → `epics.md` → this file → `adr/
 | Tim's 1992 research and the analogy map | `docs/BACKGROUND.md` | Tim |
 | Calibration provenance and validation result | `docs/calibration/SOURCES.md`, `VALIDATION.md`, `data/` | builder, reviewed |
 | Per-epic retro | `docs/retrospectives/epic-N-retro.md` | dev manager |
+| Outside literature and event leads, with verification status | `docs/LITERATURE.md` | dev manager; Muse relays via Open Brain |
 | Builder's standing rules | `CLAUDE.md` (repo root) | dev manager |
 | Business ops, time logs, comms | Open Brain (`[muse-ops]` tag), email | Muse |
 | Build reports for ops | Open Brain (`[claude]` tag) | dev manager |
@@ -221,6 +222,12 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
   said the redeem-rule change "should not move the trough"; it moved it by 800 bps at
   10M. The builder reported the falsification with its cause and carried on. Write
   expectations into rulings so they can be checked, and treat a miss as a result.
+- **L-16 — Check Open Brain at every review.** Muse relays research leads under
+  `[muse-ops]` ("For Claude, relayed at Tim's direction"). Two such relays (2026-10-02 USDe
+  validation candidate, 2026-10-04 literature briefing) sat unread for up to two days.
+  At each review: `list_thoughts` for the last few days, log any lead in
+  `docs/LITERATURE.md` with its verification status, and never cite a relayed source
+  until it is verified against the primary.
 
 ---
 
