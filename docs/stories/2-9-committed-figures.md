@@ -1,6 +1,6 @@
 # Story 2.9: Committed Figures, Time-to-Parity, and `make figures`
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -35,12 +35,12 @@ so that the README and the note show figures without running code, and no figure
   - [x] Commit separately: `story 2.9: time-to-parity chart`
 - [x] Figure script and manifest (AC: 2)
   - [x] `sweep_spec_hash`; `make_figures.py`; overlay y-limit fix; `--quick`
-- [ ] Make targets, guard, CI (AC: 3, 4, 7)
-- [ ] Regenerate, commit, document (AC: 5, 6)
-- [ ] Close out (AC: 7)
-  - [ ] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 2.9: committed figures and make figures`, push to `main`
+- [x] Make targets, guard, CI (AC: 3, 4, 7)
+- [x] Regenerate, commit, document (AC: 5, 6)
+- [x] Close out (AC: 7)
+  - [x] `pytest`, `ruff check .`, `ruff format --check .` with `exit=N`
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 2.9: committed figures and make figures`, push to `main`
 
 ## Dev Notes
 
@@ -165,24 +165,215 @@ Resume at Task 1.
 
 ### Agent Model Used
 
-_(fill in)_
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul.
 
 ### Debug Log References
 
-_(real command output: `make figures` wall time, the guard failing on the scratch edit, CI job results, tests, lint)_
+Full regeneration (`make figures` on the committed code, commit `c7185dc`; 12 workers):
+
+```
+sweep: threshold-surface-ref-mc cells=640 workers=12
+wrote: output/threshold-surface-ref-mc/mc.parquet
+sweep: threshold-surface-mc cells=640 workers=12
+wrote: output/threshold-surface-mc/mc.parquet
+sweep: budget-x-depth-mc cells=200 workers=12
+wrote: output/budget-x-depth-mc/mc.parquet
+sweep: oracle-lag-mc cells=640 workers=12
+wrote: output/oracle-lag-mc/mc.parquet
+wrote: 10 figures and docs/figures/manifest.json (commit c7185dc1f0be)
+make figures: wall time 443 s (12 workers)
+```
+
+(An earlier full run on `06682a1` took 435 s; it was redone after the footer fix below so
+that the manifest's commit is the code that drew the figures.)
+
+`make figures-quick` (12 workers, before the full run):
+
+```
+quick sweep: budget-x-depth-mc (13 s)
+quick sweep: oracle-lag-mc (7 s)
+quick sweep: threshold-surface-mc (18 s)
+quick sweep: threshold-surface-ref-mc (18 s)
+quick: ok, 10 figures drawn; wrote docs/figures/quick-ok only
+make figures-quick: wall time 63 s (12 workers)
+```
+
+Guard on a scratch branch (`scratch/guard-proof`, one commit changing
+`scenarios/calibrated-baseline.yaml` `tolerance: 0.0031` → `0.0035`; branch deleted after):
+
+```
+$ make figures-check
+python scripts/check_figures.py
+figures-check: budget_depth: STALE, sweeps/budget-x-depth-mc.yaml or its base scenario changed (manifest b3359c3fbb14, now 8adc04dbca22); regenerate with `make figures`
+figures-check: peg_trajectory_calibrated: STALE, scenarios/calibrated-baseline.yaml changed (manifest 44ac03c60e5f, now 644723327c6b); regenerate with `make figures`
+figures-check: threshold_surface: STALE, sweeps/threshold-surface-ref-mc.yaml or its base scenario changed (manifest 8ade9cb3fee8, now 4dce1e792071); regenerate with `make figures`
+figures-check: threshold_surface_par: STALE, sweeps/threshold-surface-mc.yaml or its base scenario changed (manifest 74cb63b6a965, now 622b9f16a4d9); regenerate with `make figures`
+figures-check: time_to_parity: STALE, sweeps/threshold-surface-ref-mc.yaml or its base scenario changed (manifest 8ade9cb3fee8, now 4dce1e792071); regenerate with `make figures`
+figures-check: FAIL, 5 problem(s) in 10 figures
+make: *** [Makefile:28: figures-check] Error 1
+exit=2
+$ git checkout main && git branch -D scratch/guard-proof && make figures-check
+figures-check: ok, 10 figures match their sources
+```
+
+The five stale figures are exactly those built on `calibrated-baseline`; the four
+untouched (`soros-baseline`, both 1992, `usdc-2023`, `oracle-lag-mc` on `calibrated-stress`)
+pass. (make's exit 2 wraps the script's exit 1.)
+
+Close-out on `main` with the figures in the tree:
+
+```
+$ pytest -o addopts="" -q
+552 passed in 8.61s
+exit=0
+$ ruff check .
+All checks passed!
+exit=0
+$ ruff format --check .
+87 files already formatted
+exit=0
+$ make figures-check
+figures-check: ok, 10 figures match their sources
+exit=0
+```
+
+537 tests passed at `829156d` (story start); +15 here (5 charts, 3 sweep, 7 figures).
+
+CI, GitHub run 37317017478 on this commit's tree (pushed to the scratch branch
+`story/2-9-ci` before `main`, since deleted):
+
+```
+test: success (2026-10-05T13:28:09Z → 2026-10-05T13:29:04Z)
+  All checks passed!
+  87 files already formatted
+  552 passed in 23.90s
+  figures-check: ok, 10 figures match their sources
+figures-quick: success (2026-10-05T13:28:10Z → 2026-10-05T13:34:32Z)
+  quick sweep: budget-x-depth-mc (74 s)
+  quick sweep: oracle-lag-mc (44 s)
+  quick sweep: threshold-surface-mc (106 s)
+  quick sweep: threshold-surface-ref-mc (111 s)
+  quick: ok, 10 figures drawn; wrote docs/figures/quick-ok only
+  make figures-quick: wall time 350 s (4 workers)
+```
 
 ### Completion Notes List
 
-_(include: time-to-parity chart description — which cells are clock and which are price; any figure whose look changed; README section text)_
+**Time-to-parity chart (AC 1).** `plot_time_to_parity` plots
+`(step_of_max_depeg_p50 + steps_to_first_band_entry_p50) × 12 / 3600` per cell, via
+`time_to_parity_hours`, which raises if any cell's trough step varies across seeds
+(`p05 != p95` or `std > 0`). On `threshold-surface-ref-mc` the trough step is identical
+across seeds in all 40 cells (50–85 steps, 0.17–0.28 h), and every cell has
+`steps_to_first_band_entry_n` of 0 or 16, so the median over re-entering seeds that
+`mc.parquet` stores is also the all-seed median. **No cell switches category against the
+from-trough reading** (Rulings 1). The 37 h boundary is drawn along cell edges, not as an
+interpolated contour (a smooth contour cut through cells and read worse); "never" counts
+as beyond it.
+
+What it shows, row by row (columns are attacker capital 0.3×–1.5× nominal resources):
+
+- **0.25× D\***: 0.4 h everywhere up to 1×, then 6.8 h and 12.2 h. All price-safe, no clock.
+- **0.5× D\***: 0.4 h up to 0.5×, then 8.6, 20.9, 25.5, 28.1, 30.5 h. Slower with capital
+  but all inside 37 h; no clock, no price.
+- **1× D\***: 0.3–30.1 h up to 0.6×; at ≥ 0.8× the four cells are **clock** (41.9, 48.2,
+  52.2, 56.5 h): back in the band, too late to hold it.
+- **2× D\***: 0.3, 1.9, 23.9 h up to 0.5×; 0.6× is **clock** (42.6 h); ≥ 0.8× are
+  **price** ("never", all 16 seeds).
+- **4× D\***: 0.2, 0.2, 3.5, 26.2 h up to 0.6×; ≥ 0.8× are **price** ("never").
+
+So the boundary is clock at 1× D\* and one cell at 2×; price at 2× and 4× D\* above 0.6×,
+as the F-11 refinement says.
+
+**Ten PNGs, nine figure bullets.** AC 2's third bullet names two files (1992 with and
+without defense), so `docs/figures/` has ten PNGs; "all nine figures" in the prompt counts
+bullets.
+
+**Manifest format.** `docs/figures/manifest.json` is `{figure: {file, source, source_hash,
+function, commit}}` as in the context interface, keyed by file stem. `commit` is HEAD at
+draw time (`c7185dc`, the code that drew them), with a `-dirty` suffix if `src`,
+`scenarios`, `sweeps`, `scripts`, `data` or `pyproject.toml` differ from HEAD; it is not
+the commit that adds the PNGs, which cannot know its own hash. `f243c0d` after it changes
+only the guard's message wording.
+
+**Sweep hash (Rulings 3).** `run_sweep(..., spec_path=)` records
+`spec_hash = sweep_spec_hash(spec_path)` in the sweep manifest (`null` when a sweep is
+built in code without a file, e.g. `scripts/probe_boundary.py`); the CLI passes it.
+`make_figures.py` refuses a sweep directory whose `spec_hash` is missing or differs,
+before writing anything. The guard's source hash and every footer now agree.
+
+**Figures whose look changed.**
+
+- All four sweep figures: footer now `sweep=<name> spec_hash=<12> base_hash=<12>`, and a
+  2.5% bottom strip is reserved so the longer footer clears the x label (it overlapped
+  on `oracle_sensitivity` and on the 10-wide time-to-parity panel). Content unchanged:
+  the regenerated sweeps reproduce the FINDINGS numbers (F-10 trough range −1,253.2 …
+  −1,242.5 bps; budget log–log slope 0.47; threshold-surface cells as in the F-11
+  refinement).
+- `validation_overlay_usdc_2023.png`: y-axis bottom lowered from the autoscaled ≈ −1,460 to −1,587
+  bps so the observed-trough label (−1,373 bps at 31.0 h) is inside the axes
+  (2.6 review ruling 4). `_include_texts` lowers the limit until every annotation box
+  fits; tested.
+- The four peg trajectories: unchanged code; first time committed.
+
+**README section text (AC 6)**, as committed:
+
+> **Validation: USDC, March 2023.** Observed USDC/USD hourly closes (blue) and the
+> simulated AMM price (black), in bps from par. With one par-expecting buyer fitted to the
+> replay, the simulated trough is −1,138 bps against −1,373 bps observed, and from 35 h to
+> 49 h the two paths lie on each other. Without that buyer the model's trough is four times
+> too deep: the depth of a depeg is set by the attacker against everyone who believes the
+> promise. See F-08 and its confirmation.
+>
+> **Price or clock.** Median hours from run start until the pool is back within ±31 bps of
+> the oracle price, over pool depth (rows, × the fitted depth D\*) and attacker capital
+> (columns). Cells outside the dashed outline re-enter before 37 h, early enough that the
+> pool can still hold the band for the 23 h the criterion asks by the 60 h horizon. At
+> calibrated depth (1× D\*) large attacks are lost on the **clock**: the issuer wins the
+> price back, but after 41.9–56.5 h, too late. At 2× and 4× D\* they are lost on the
+> **price** (hatched, "never"): no seed gets back within the band. Pools at or below half
+> of D\* re-enter within 31 h at every attack tested, and at least 12 of 16 seeds recover.
+> See F-11 and its refinement.
+
+The README's Layout block also gains `sweeps/`, `scripts/` and `docs/figures/`, and the
+"every chart is reproduced by `run.py`" sentence now points at `make figures`.
+
+**Other judgment calls (no ADR; none constrains later stories beyond what Rulings 3 fixed):**
+
+- `make lint` runs `ruff check .` and `ruff format --check .`; CI's main job runs
+  `make lint test figures-check` (so CI now also enforces formatting; the tree was clean).
+- `make figures` uses `nproc` workers (`WORKERS=` overrides).
+- `soros-1992-no-defense` supports no finding of its own; its README row says it is the
+  counterfactual to `soros-1992` (ADR-0019, ADR-0021) rather than inventing one.
+- `make_figures.py` exits via `os._exit` after flushing, as `depeg_sim.sweep`/`mc` do
+  (pyarrow teardown abort on CI runners).
 
 ### File List
 
 **Created:**
 
+- `Makefile`
+- `scripts/make_figures.py`
+- `scripts/check_figures.py`
+- `tests/test_figures.py`
+- `docs/figures/README.md`, `docs/figures/manifest.json`
+- `docs/figures/{peg_trajectory_baseline, peg_trajectory_calibrated, peg_trajectory_1992, peg_trajectory_1992_no_defense, validation_overlay_usdc_2023, threshold_surface, time_to_parity, threshold_surface_par, budget_depth, oracle_sensitivity}.png`
+
 **Modified:**
+
+- `src/depeg_sim/analysis/charts.py` (`plot_time_to_parity`, `time_to_parity_hours`,
+  `_include_texts` for the overlay, sweep footer with `spec_hash` and bottom strip)
+- `src/depeg_sim/experiments/sweep.py` (`sweep_spec_hash`; `run_sweep(spec_path=)` writes
+  `spec_hash`; CLI passes it)
+- `tests/test_charts.py`, `tests/test_sweep.py`
+- `.github/workflows/ci.yml` (main job `make lint test figures-check`; new
+  `figures-quick` job)
+- `.gitignore` (`docs/figures/quick-ok`)
+- `README.md` ("Results so far", Layout, figures sentence)
+- `docs/stories/2-9-committed-figures.md`
 
 ## Change Log
 
 - 2026-10-04: Story drafted by dev manager after Story 2.8 review; time-to-parity chart added per review ruling 3
 - 2026-10-04: Blocked by builder (Claude Code, Opus 5.5) before Task 1: time-to-parity origin (trough vs step 0) contradicts the 37 h contour; see Blockers
 - 2026-10-05: Dev manager ruled on Blockers: time-to-parity from run start (option a); marker gitignored; sweep hash in manifest and footer. Status back to in-progress
+- 2026-10-05: Implemented by builder (Claude Code, Opus 5.5): time-to-parity chart, make_figures/check_figures, Makefile, CI figures jobs, ten figures regenerated in full and committed. Status review
