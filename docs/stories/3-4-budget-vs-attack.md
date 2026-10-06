@@ -1,6 +1,6 @@
 # Story 3.4: Budget Against Attack at a Deep Pool, and Pace Against Trigger
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 

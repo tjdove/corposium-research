@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the six sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
+make figures         # runs the seven sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
@@ -27,6 +27,7 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | [`budget_depth.png`](budget_depth.png) | `sweeps/budget-x-depth-mc.yaml` | F-11 refinement |
 | [`oracle_sensitivity.png`](oracle_sensitivity.png) | `sweeps/oracle-lag-mc.yaml` | F-10, F-04 |
 | [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | ADR-0026 candidate (F-12, F-07) |
+| [`budget_attack.png`](budget_attack.png) | `sweeps/budget-x-attack-mc.yaml` | ADR-0027 candidate (F-11 refinement) |
 | [`policy_comparison.png`](policy_comparison.png) | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | ADR-0025 candidates (F-07, F-11, F-12) |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | `scenarios/soros-1992.yaml` | F-07 (+ refinement) |
@@ -70,6 +71,13 @@ clock, the price, and the calm reference wandering more than the band away from 
 of 1.0× nominal resources (left), and each depth's 0.5-crossing budget against depth on
 log–log axes (right): the crossing rises with slope 0.47, not 1. Pools ≤ 0.5× D\* hold
 at every budget; at 2× and 4× D\* the price fails at 1× budget and holds at 2×.
+
+**`budget_attack.png`.** At 2× D\* (oracle criterion, 8 seeds per cell), p(never
+re-enters) over defender budget × attack size (left) is 0 or 1 in every cell: the price is
+either held or lost in every seed. The 0.5-crossing budget (right) is 1.25×, 1.75× and
+2.5× the calibrated budget at attacks of 0.8×, 1.0× and 1.5× resources (log–log slope
+1.08, on the slope-1 line): the budget that holds the price is about 0.38× the attack.
+The 0.5× attack holds at every budget; at 2× no budget in the grid (≤ 3×) holds.
 
 **`oracle_sensitivity.png`.** Mean trough (top) and p(stays broken) (bottom) against oracle
 heartbeat, one line per deviation threshold, on the stress base: the mean trough moves

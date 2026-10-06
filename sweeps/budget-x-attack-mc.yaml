@@ -1,0 +1,42 @@
+# Budget x attack at 2x D* under the reference-relative recovery criterion (Story 3.4 AC 1).
+# F-11 refinement (Story 2.8): at a fixed attack of 1.0x resources, the budget interval
+# that decides 2x and 4x D* is the same, so the operative quantity at that attack is the
+# budget itself. This sweep holds the pool at a depth where the price, not the clock, is
+# lost, and varies the attack, to see what the crossing budget has to match.
+# Why 2x D*: the F-11 refinement found D* breaks on the clock (every run re-enters, late)
+# and 2x D* on the price (no seed re-enters at ratio >= 0.8). At 2x D* the price-loss
+# metric below is not contaminated by the clock; at D* it would be empty.
+# Base: scenarios/calibrated-baseline.yaml (calm volatility 3.086e-05/step, per F-04),
+# holder present. Numbers and their origins:
+#   reference = oracle (override): "recovered" = AMM within 31 bps of the oracle's
+#        published price for 6,900 steps (Story 2.8, ADR-0023), not of par.
+#   D* = 16,666,667 model units per side (fitted, ADR-0019 amendment, Story 2.5);
+#        depth 2x D* = 33,333,334 on both AMM reserves (as the 2x D* row of
+#        sweeps/budget-x-depth-mc.yaml), holder capital 0.55 x 33,333,334 = 18,333,334
+#        (C*/D* = 9,166,667 / 16,666,667, ADR-0021: the holder keeps the replay's
+#        capital-to-depth ratio).
+#   defender budget = 41,346,974 x {0.5, 1, 1.5, 2, 3}, rounded: the calibrated budget
+#        (Circle's cash share, SOURCES.md#defender) scaled. 1x and 2x bracket the 2x D*
+#        crossing at ratio 1.0 (F-11 refinement: fails at 1x, holds at 2x).
+#   attacker capital = ratio x (calibrated defender budget + redemption reserves)
+#        = ratio x (41,346,974 + 138,107,417) = ratio x 179,454,391
+#        (scripts/probe_boundary.py `resources`), ratio in {0.5, 0.8, 1.0, 1.5, 2.0},
+#        rounded. The same resources figure in every cell, so a column is one attack.
+#   seeds 1000..1007 (8 per grid point); max_steps 18,000 = the ~60 h horizon.
+# Metric (AC 2): p(never re-enters) = 1 - steps_to_first_band_entry_n / n, the price-loss
+# probability; not p_stays_broken, which also counts late re-entry (the clock).
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 5 x 5 = 25 grid points x 8 seeds = 200 runs.
+version: 1
+name: budget-x-attack-mc
+base: scenarios/calibrated-baseline.yaml
+axes:
+  agents[type=defender].budget: [20673487, 41346974, 62020461, 82693948, 124040922]
+  agents[type=attacker].capital: [89727196, 143563513, 179454391, 269181586, 358908782]
+overrides:
+  termination.peg_recovered.reference: oracle
+  amm.reserve_stable: 33333334
+  amm.reserve_reference: 33333334
+  agents[type=holder].capital: 18333334
+seeds: { count: 8, start: 1000 }
+max_steps: 18000

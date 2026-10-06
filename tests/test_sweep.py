@@ -487,3 +487,22 @@ def test_holder_exit_sweep_null_cells_equal_the_base_with_capital_set():
         == set_path(set_path(base, "seed", 1000), "name", first.config.name).content_hash()
     )  # C*, never sells, seed 1000 is the committed scenario re-seeded
     assert {c.config.agents[3].exit_discount_pct for c in cells} == {None, 5, 10, 20, 40}
+
+
+# Story 3.4 -----------------------------------------------------------------------------
+
+
+def test_budget_x_attack_spec_expands():
+    cells = expand(load_sweep("sweeps/budget-x-attack-mc.yaml"))
+    assert len(cells) == 200
+    budgets = sorted({c.axis_values["agents[type=defender].budget"] for c in cells})
+    assert budgets == [round(41_346_974 * m) for m in (0.5, 1, 1.5, 2, 3)]
+    caps = sorted({c.axis_values["agents[type=attacker].capital"] for c in cells})
+    assert caps == [round(179_454_391 * r) for r in (0.5, 0.8, 1.0, 1.5, 2.0)]
+    for c in cells:
+        assert c.config.amm.reserve_stable == c.config.amm.reserve_reference == 33_333_334
+        holder = next(a for a in c.config.agents if a.type == "holder")
+        assert holder.capital == 18_333_334
+        assert c.config.termination.peg_recovered.reference == "oracle"
+        assert c.config.steps.max_steps == 18_000
+    assert {c.seed for c in cells} == set(range(1000, 1008))

@@ -377,3 +377,61 @@ def test_holder_exit_needs_its_axes(tmp_path):
     (d / "manifest.json").write_text(json.dumps(m))
     with pytest.raises(ValueError, match="no axis setting"):
         plot_holder_exit(d)
+
+
+# Story 3.4: budget x attack ----------------------------------------------------------------
+
+
+def _budget_attack_dir(tmp_path, never):
+    """3 budgets x 3 attacks at 2x D*; ``never[i][j]`` = seeds (of 8) that never re-enter."""
+    d = tmp_path / "budatk"
+    d.mkdir()
+    budgets, caps = [20_673_487, 41_346_974, 82_693_948], [89_727_196, 179_454_391, 358_908_782]
+    rows = [
+        {BUD: b, ATK: c, "n": 8, "steps_to_first_band_entry_n": 8 - never[i][j]}
+        for i, b in enumerate(budgets)
+        for j, c in enumerate(caps)
+    ]
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": BUD, "paths": [BUD], "values": budgets},
+        {"name": ATK, "paths": [ATK], "values": caps},
+    ]
+    _manifest(d, "budatk", "scenarios/calibrated-baseline.yaml", axes, seeds=8)
+    return d
+
+
+def test_p_never_reenters_counts_only_seeds_that_never_reenter():
+    from depeg_sim.analysis.charts import p_never_reenters
+
+    mc = pd.DataFrame({"n": [8, 8, 8], "steps_to_first_band_entry_n": [8, 3, 0]})
+    p, lo, hi = p_never_reenters(mc)
+    assert p.tolist() == [0.0, 0.625, 1.0]
+    assert (lo <= p).all() and (p <= hi).all() and lo[0] == 0.0 and hi[2] == 1.0
+
+
+def test_loglog_slope():
+    from depeg_sim.analysis.charts import loglog_slope
+
+    assert loglog_slope([(1, 3), (2, 6), (4, 12)]) == pytest.approx(1.0)
+    assert loglog_slope([(1, 5), (10, 5)]) == pytest.approx(0.0)
+
+
+def test_budget_attack_png_monotone_crossing(tmp_path):
+    from depeg_sim.analysis.charts import plot_budget_attack
+
+    # crossing budget rises with attack: one crossing per attack column -> three points
+    never = [[4, 8, 8], [0, 8, 8], [0, 0, 6]]
+    png = plot_budget_attack(_budget_attack_dir(tmp_path, never))
+    assert png.name == "budget_attack.png" and png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 3000)
+    assert plt.get_fignums() == []
+
+
+def test_budget_attack_with_bounds(tmp_path):
+    from depeg_sim.analysis.charts import plot_budget_attack
+
+    # one column holds everywhere (below), one never holds (above), one crossing
+    never = [[0, 8, 8], [0, 0, 8], [0, 0, 8]]
+    assert plot_budget_attack(_budget_attack_dir(tmp_path, never)).is_file()
+    assert plt.get_fignums() == []
