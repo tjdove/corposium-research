@@ -1,0 +1,45 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.2</storyId><title>Defender Policy Comparison</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-05</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-2-defender-policy-comparison.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>four defender policies compared under the same attacks at calibrated scale</iWant>
+    <soThat>the note can say which defense survives, at what cost, and how fast</soThat>
+    <tasks>- Config and defender (AC: 1) - Policy scenarios and sweep (AC: 2, 3) - Chart (AC: 4) - Results, ADR, figures, close out (AC: 5–8)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–8. The five-sub-sweep design is the default; a `base` axis is an allowed alternative if proposed in the ADR and existing specs expand identically. Build one, not both.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-2-defender-policy-comparison.md" section="Dev Notes">Design choices and predictions.</doc>
+      <doc path="docs/FINDINGS.md" section="F-07, F-11 refinement, F-12">What the comparison is testing.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="DefenderConfig" reason="Add buy, max_spread_bps with defaults that keep hashes."/>
+      <existing path="src/depeg_sim/agents/defender.py" symbol="Defender.decide, MAX_SPREAD_BPS" reason="Honour buy=False and the cap."/>
+      <existing path="src/depeg_sim/experiments/sweep.py" reason="Sub-sweeps or a base axis."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_time_to_parity, plot_budget_depth" reason="Conventions; time-to-parity computation to reuse."/>
+      <existing path="scripts/make_figures.py, docs/figures/README.md" reason="Register the new figure."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes; PHASE_ORDER_VERSION stays 1; every existing scenario hash unchanged.
+    - Policy files differ from calibrated-baseline only in the defender block (diff them in the Debug Log).
+    - Charts read parquet + manifest only; no hand-tuned axes.
+    - 1992 not re-run (3.3).
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="DefenderConfig.buy" kind="field" path="src/depeg_sim/kernel/config.py">bool = True</interface>
+    <interface name="DefenderConfig.max_spread_bps" kind="field" path="src/depeg_sim/kernel/config.py">int | None = None</interface>
+    <interface name="scripts/run_policy_comparison.py" kind="script">runs five sweeps; writes policies.parquet + manifest</interface>
+    <interface name="plot_policy_comparison" kind="function" path="src/depeg_sim/analysis/charts.py">plot_policy_comparison(sweep_dir: Path) -> Path</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; defender buy=False never emits defend_buy (manual phases per 1.7); hash test; synthetic policies.parquet for the chart; policy files load and differ only in the defender block (test diffs the dumped configs).</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

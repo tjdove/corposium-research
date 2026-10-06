@@ -498,6 +498,41 @@ it loses the price unless it roughly doubles its budget."
 
 ---
 
+## F-12 · A believer who overpays is an accidental defender; a disciplined believer is a redeemer in waiting
+
+**Date:** 2026-10-05 · **ADR:** [0024](adr/0024-holder-fill-price-limit.md) · **Story:** 3.1
+**Reproduce:** `python run.py scenarios/soros-1992.yaml` (exhausts at 9553) and the multiple
+scan 5.0–5.7 (ADR-0024 table); diagnostic at 5.5 in the ADR.
+
+**Expected.** Capping the holder's fills at its entry price would remove the replay's
+sawtooth and leave the 1992 flip at 5.7× Quantum.
+
+**Observed.** The sawtooth is gone (plateau amplitude 265 → 10 bps; nothing above par).
+The 1992 flip moved: every multiple from **5.2× (ratio 1.100)** now exhausts reserves,
+where before only 5.7× (1.206) and up did. In the calibrated baseline the outcome is
+unchanged but the defender spends 27% more (6.05M → 7.70M).
+
+**Why.** Under the old rule the holder's 5%-of-reference buys overshot par, holding the AMM
+at or above the $0.98 redemption payout for 70% of the post-attack steps. Above the payout
+the arbitrageur does not redeem, so reserves lasted to the horizon — and the holder lost
+money (−238k at 5.5×) doing it. It was a second, loss-making defender. Capped, it spends
+about its own capital, the price stays below the payout, the arbitrageur redeems 91.5M
+instead of 81.7M, and reserves run out. The same mechanism in the calibrated baseline:
+the holder absorbs 2.9M instead of 4.7M, and the defender makes up the difference.
+
+**What it changed.** ADR-0021's "defender spend falls 41% with the holder" is now 25%.
+F-07's flip ratio is 1.10, not 1.21 — closer to the F-06 formula's 1.0, which said the
+boundary is capital against budget plus deliverable reserves. Story 3.3 (holder sell rule)
+starts from the capped holder.
+
+**For the note.** Belief helps the issuer only when it is undisciplined: a buyer who pays
+above the redemption price is defending the peg with its own losses. A disciplined
+believer — one who buys only below par and redeems whenever it can — is a redeemer in
+waiting, and at scale it drains the same reserves the attacker does. That is the
+convergence trade seen from the issuer's side.
+
+---
+
 ## Headline candidates (ranked, 2026-10-04, revised after 2.7)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
@@ -516,6 +551,8 @@ it loses the price unless it roughly doubles its budget."
    (F-01, F-07) — methods.
 6. **"One believer gives a cliff; many believers at different prices give a curve."**
    (F-09) — limitations.
+7. **"A disciplined believer is a redeemer in waiting."** (F-12) — the 1992 section's
+   bridge to the switch-sides test (3.3).
 
 The note leads with 1 (overlay as figure 1), gives 2 and 3 as the two mechanisms with the
 2.8 surface, states 4 in one paragraph with its chart, uses 5 in methods and closes on 6

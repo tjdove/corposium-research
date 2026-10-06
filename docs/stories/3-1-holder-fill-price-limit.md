@@ -1,6 +1,6 @@
 # Story 3.1: Holder Fill-Price Limit
 
-Status: review
+Status: done
 
 ## Story
 
@@ -456,9 +456,84 @@ and the 1992 flip as a finding candidate. Index not edited.
 - `docs/figures/*.png` (7 changed), `docs/figures/manifest.json`, `docs/figures/README.md`
 - `docs/stories/3-1-holder-fill-price-limit.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-05
+**Outcome:** **APPROVE** ✅ — the artefact is gone where it matters, C\* did not move, and
+the 1992 flip moving is a finding.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `559 passed in
+36.46s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `87 files already
+formatted`; `make figures-check` → ok. Replay: −1,137.8 at `max_steps`; calibrated
+baseline: −1,253.2, `peg_recovered` at 7024, defender spent 7,699,787; soros-1992 at 6×:
+exhausted at `steps_run` 9553, holder PnL +126,437. Sawtooth amplitude from the committed
+timeseries: **384.5 bps** over steps 8,100–9,150 (max −27.6, nothing above zero), **10.2 bps**
+over the 8,400–9,000 plateau. **1992 re-scan slice** at {5.1, 5.2, 5.6, 5.7} × Quantum on
+current code: 5.1 `max_steps`, 5.2 exhausted at 10,506, 5.6 at 13,965, 5.7 at 9,663 —
+the flip at 5.2 reproduces.
+
+### Rulings
+
+1. **ADR-0024 → Accepted (finding, amended).** The 1992 section becomes **F-12**; the
+   "defender spend falls 41%" figure in ADR-0021 is corrected there to 25% by reference.
+2. **Sawtooth prediction "≤ 60 bps" → missed as defined, held as meant.** My window
+   (8,100–9,150) included the attack's first steps and the start of the fall, which no
+   fill rule can touch. The plateau is 10.2 bps against a 31 bps band; at whole hours the
+   residual is unreadable in the series. The artefact is gone. Future amplitude metrics
+   are defined over the stretch the agent actually controls.
+3. **AC 6's "10% of remaining" → my error**; the replay attacker's pace is 0.002. The ADR
+   uses the real figure. Noted.
+4. **The stale-figure guard cannot see agent-code changes** — the builder's observation,
+   and it is right: this story changed seven figures without any source hash moving. Story
+   3.5 adds a `code_hash` (sha256 over `src/depeg_sim/**/*.py`) to the manifest;
+   `figures-check` **warns** on a code-hash mismatch and **fails** on a source mismatch,
+   and `make figures` is a mandatory step on the freeze checklist. Added to 3.5's ACs.
+5. **C\* unchanged by a different search path → accepted.** The rule is deterministic given
+   the model; the model changed, the path changed, the point did not. Recorded.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | cap via `_reference_to_reach`, reused; fall-through on ≤ DUST; hashes unchanged |
+| 2 | ✅ | cap test; uncapped test; new two-step sawtooth test |
+| 3 | ✅ | fit re-run; C\* same; VALIDATION.md 3.1 row; amplitude as defined and on the plateau |
+| 4 | ✅ | four scenarios re-run; before/after table; 1992 re-scanned in full (and sliced here) |
+| 5 | ✅ | `make figures` 433 s; guard ok; overlay first 3.5 h described before/after |
+| 6 | ✅ | ADR-0024 with the undershoot stated and the residual explained |
+| 7 | ✅ | 559 passed; ruff clean; both CI jobs green |
+
+**7 of 7 ACs met.**
+
+### Key Findings
+
+- **F-12 (new): a believer who overpays is an accidental defender.** Under the 2.6 rule
+  the holder's overshoots held the AMM at or above the $0.98 redemption payout for 70% of
+  the steps after the attack, so the arbitrageur stopped redeeming and reserves lasted to
+  the horizon; the holder lost money doing it. Capped, the holder spends its own capital
+  and no more, the arbitrageur redeems 91.5M instead of 81.7M, and reserves exhaust. The
+  1992 flip moves from 5.7× to **5.2× Quantum (ratio 1.100)**, closer to the F-06
+  formula's 1.0. In the calibrated baseline the same change costs the defender 27% more.
+  For the note: belief only helps the issuer when it is *undisciplined*; a disciplined
+  believer is a redeemer in waiting.
+- The replay is unchanged at the trough and from 35 h on; figure 1 now has a clean first
+  three hours.
+
+### Learnings for Story 3.2
+
+- Define any amplitude or timing metric over the stretch the agent under test controls.
+- `make figures` after every agent change, guard or no guard, until 3.5 lands the code
+  hash.
+- Policy comparisons must report defender spend *and* who else absorbed the attack; 3.1
+  showed the holder and defender trade absorption one for one.
+
 ## Change Log
 
 - 2026-10-05: Story drafted by dev manager at the Epic 2 retro
 - 2026-10-05: Blocked by builder (Claude Code, Opus 5.5) before Task 1: the arbitrageur's sizing helper ignores the fee, AC 1 asks for fee-exact; see Blockers
 - 2026-10-05: Dev manager ruled on Blockers: reuse the arbitrageur helper unchanged (option a); three implementation notes accepted; AC 1, AC 2 and Dev Notes amended; Status back to in-progress
 - 2026-10-05: Implemented by builder (Claude Code, Opus 5.5): fill rule; C* re-fit (unchanged); replay, propagation, 1992 full re-scan (flip 5.7 → 5.2); figures regenerated; ADR-0024 Proposed. Status review
+- 2026-10-05: Senior review APPROVE; ADR-0024 accepted (finding, amended); F-12 added; Status done
