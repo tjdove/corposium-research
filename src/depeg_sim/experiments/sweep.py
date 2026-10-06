@@ -15,13 +15,21 @@ A sweep spec (``sweeps/<name>.yaml``) names a base scenario and the config paths
     seeds: [42]                                # or {count: 16, start: 1000} -> 1000..1015
     overrides: {}                              # fixed path -> value for every cell
     max_steps: 2000                            # optional steps.max_steps override
+    base_axis:                                 # optional (Story 3.2): the base file as an axis
+      name: policy                             # column name
+      bases: {calibrated: scenarios/calibrated-baseline.yaml, none: scenarios/x.yaml}
+
+``base_axis`` varies the scenario file itself (a value per label); ``base`` must be one of
+its files and stays the *reference* base: the manifest's ``base_config`` and
+``base_scenario_hash`` describe it. Without ``base_axis`` nothing below changes.
 
 Paths (``set_path``): ``a.b`` (attribute), ``a[0].b`` (list index) and
 ``agents[type=attacker].b`` (first list element whose ``type`` matches).
 
-Cells are the Cartesian product of linked axes (spec order), then ordinary axes (spec
-order), then seeds; ``index`` counts in that order from 0. Each cell's config is the base
-with ``overrides`` applied, then the axis values, then ``max_steps``, then ``seed``, and
+Cells are the Cartesian product of the base axis (label order), then linked axes (spec
+order), then ordinary axes (spec order), then seeds; ``index`` counts in that order from 0.
+Each cell's config is its base (the base axis's file, else ``base``) with ``overrides``
+applied, then the axis values, then ``max_steps``, then ``seed``, and
 ``name = f"{spec.name}/{index:04d}"``.
 
 ADR-0013 guard: varying ``amm.fee_bps`` or an arbitrageur ``min_profit_bps`` moves the
@@ -162,10 +170,28 @@ class SeedRange(_Strict):
     start: int = Field(default=0, ge=0)
 
 
+class BaseAxis(_Strict):
+    """The base scenario file as an axis (Story 3.2): ``bases`` maps each label (the
+    column value) to a scenario path. Labels expand in mapping order."""
+
+    name: str
+    bases: dict[str, Path] = Field(min_length=1)
+
+    def manifest_entry(self) -> dict:
+        """The axis as the sweep manifest lists it: no config paths, values are labels."""
+        return {
+            "name": self.name,
+            "paths": [],
+            "values": list(self.bases),
+            "bases": {k: str(v) for k, v in self.bases.items()},
+        }
+
+
 class SweepSpec(_Strict):
     version: Literal[1]
     name: str = Field(pattern=r"^[A-Za-z0-9_.-]+$")
     base: Path
+    base_axis: BaseAxis | None = None
     linked_axes: list[LinkedAxis] = Field(default_factory=list)
     axes: dict[str, list[Any]] = Field(default_factory=dict)
     seeds: list[int] | SeedRange
@@ -187,9 +213,24 @@ class SweepSpec(_Strict):
     max_steps: int | None = Field(default=None, gt=0)
 
     def axis_list(self) -> list[LinkedAxis]:
-        """Every axis in expansion order; an ordinary axis is a one-path linked axis."""
+        """Every config-path axis in expansion order; an ordinary axis is a one-path linked
+        axis. The base axis is not here (it sets no path); see ``manifest_axes``."""
         plain = [LinkedAxis(name=p, paths=[p], values=v) for p, v in self.axes.items()]
         return [*self.linked_axes, *plain]
+
+    def base_paths(self) -> dict[str | None, Path]:
+        """Label -> scenario path for each base cells start from; ``{None: base}`` without
+        a base axis."""
+        if self.base_axis is None:
+            return {None: self.base}
+        return dict(self.base_axis.bases)
+
+    def manifest_axes(self) -> list[dict]:
+        """Every axis as the manifest lists it, in expansion order (base axis first)."""
+        axes = [a.model_dump(mode="json", exclude_none=True) for a in self.axis_list()]
+        if self.base_axis is not None:
+            axes.insert(0, self.base_axis.manifest_entry())
+        return axes
 
 
 def load_sweep(path: Path) -> SweepSpec:
@@ -220,18 +261,35 @@ def _check_adr_0013(spec: SweepSpec, base: ScenarioConfig) -> None:
         )
 
 
-def resolved_base(spec: SweepSpec) -> ScenarioConfig:
-    """The base scenario with the spec's ``overrides`` applied: what every cell starts
-    from before its axis values."""
-    base = load_scenario(spec.base)
+def _with_overrides(spec: SweepSpec, base: ScenarioConfig) -> ScenarioConfig:
     for path, value in spec.overrides.items():
         base = set_path(base, path, value)
     return base
 
 
+def resolved_base(spec: SweepSpec) -> ScenarioConfig:
+    """The (reference) base scenario with the spec's ``overrides`` applied: what every
+    cell starts from before its axis values (with a base axis, each label's file instead)."""
+    return _with_overrides(spec, load_scenario(spec.base))
+
+
+def _check_base_axis(spec: SweepSpec) -> None:
+    if spec.base_axis is None:
+        return
+    if spec.base not in spec.base_axis.bases.values():
+        raise SweepSpecError(
+            f"sweep {spec.name!r}: base {spec.base} must be one of base_axis.bases (it is the "
+            "reference base the manifest describes)"
+        )
+    if spec.base_axis.name in {a.name for a in spec.axis_list()}:
+        raise SweepSpecError(f"sweep {spec.name!r}: base_axis name {spec.base_axis.name!r} repeats")
+
+
 def expand(spec: SweepSpec) -> list[SweepCell]:
-    base = load_scenario(spec.base)
-    _check_adr_0013(spec, base)
+    _check_base_axis(spec)
+    bases = {label: load_scenario(path) for label, path in spec.base_paths().items()}
+    for base in bases.values():
+        _check_adr_0013(spec, base)
     axes = spec.axis_list()
     names = [a.name for a in axes]
     if len(set(names)) != len(names):
@@ -243,12 +301,11 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
             )
         if a.scales is not None and not all(sc > 0 for sc in a.scales):
             raise SweepSpecError(f"linked axis {a.name!r}: scales must be > 0, got {a.scales}")
-    for path, value in spec.overrides.items():
-        base = set_path(base, path, value)
+    bases = {label: _with_overrides(spec, base) for label, base in bases.items()}
     cells = []
-    combos = itertools.product(*(a.values for a in axes), spec.seed_list())
-    for index, (*values, seed) in enumerate(combos):
-        cfg = base
+    combos = itertools.product(bases, *(a.values for a in axes), spec.seed_list())
+    for index, (label, *values, seed) in enumerate(combos):
+        cfg = bases[label]
         for axis, value in zip(axes, values, strict=True):
             for path, v in axis.path_values(value):
                 cfg = set_path(cfg, path, v)
@@ -256,18 +313,26 @@ def expand(spec: SweepSpec) -> list[SweepCell]:
             cfg = set_path(cfg, "steps.max_steps", spec.max_steps)
         cfg = set_path(cfg, "seed", seed)
         cfg = set_path(cfg, "name", f"{spec.name}/{index:04d}")
-        cells.append(SweepCell(index, seed, dict(zip(names, values, strict=True)), cfg))
+        axis_values = dict(zip(names, values, strict=True))
+        if spec.base_axis is not None:
+            axis_values = {spec.base_axis.name: label} | axis_values
+        cells.append(SweepCell(index, seed, axis_values, cfg))
     return cells
 
 
 def sweep_spec_hash(spec_path: Path) -> str:
     """sha256 hex of the spec file's bytes followed by the base scenario's
     ``content_hash()``: changes when the spec or the scenario it builds on changes. The
-    hash ``docs/figures/manifest.json`` records for a sweep figure (Story 2.9)."""
+    hash ``docs/figures/manifest.json`` records for a sweep figure (Story 2.9). With a base
+    axis, every label's ``content_hash()`` follows in label order (a spec without one
+    hashes exactly as before)."""
     raw = Path(spec_path).read_bytes()
     spec = SweepSpec.model_validate(yaml.safe_load(raw))
     h = hashlib.sha256(raw)
     h.update(load_scenario(spec.base).content_hash().encode("ascii"))
+    if spec.base_axis is not None:
+        for path in spec.base_axis.bases.values():
+            h.update(load_scenario(path).content_hash().encode("ascii"))
     return h.hexdigest()
 
 
@@ -323,7 +388,7 @@ def run_sweep(
         "base_scenario_hash": load_scenario(spec.base).content_hash(),
         "spec_hash": None if spec_path is None else sweep_spec_hash(spec_path),
         "base_config": resolved_base(spec).model_dump(mode="json"),
-        "axes": [a.model_dump(mode="json", exclude_none=True) for a in spec.axis_list()],
+        "axes": spec.manifest_axes(),
         "seeds": spec.seed_list(),
         "overrides": spec.overrides,
         "max_steps": spec.max_steps,
@@ -332,6 +397,11 @@ def run_sweep(
         "python_version": platform.python_version(),
         "created_utc": datetime.now(UTC).isoformat(timespec="seconds"),
     }
+    if spec.base_axis is not None:
+        manifest["base_hashes"] = {
+            label: load_scenario(path).content_hash()
+            for label, path in spec.base_axis.bases.items()
+        }
     text = json.dumps(manifest, sort_keys=True, indent=2) + "\n"
     (sweep_dir / SWEEP_MANIFEST).write_text(text, encoding="utf-8")
     return sweep_dir
@@ -352,8 +422,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         spec = load_sweep(args.spec)
-        if not spec.base.exists():
-            print(f"error: base scenario not found: {spec.base}", file=sys.stderr)
+        missing = [p for p in {spec.base, *spec.base_paths().values()} if not p.exists()]
+        if missing:
+            print(
+                f"error: base scenario not found: {sorted(map(str, missing))[0]}", file=sys.stderr
+            )
             return 2
         cells = expand(spec)
     except (ValidationError, yaml.YAMLError, SweepPathError, SweepSpecError) as exc:

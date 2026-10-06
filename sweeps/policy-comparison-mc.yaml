@@ -1,0 +1,39 @@
+# Defender policy comparison at calibrated scale (Story 3.2, charter chart 5).
+# Five defender policies under the same attacks. A policy is a different base file, not a
+# config path, so the policy is the sweep's `base_axis` (ADR-0025): every cell starts from
+# its policy's scenario file, then the shared override and axes below.
+# Base: scenarios/calibrated-baseline.yaml (calm volatility 3.086e-05/step, holder present)
+# is the reference base and the "calibrated" policy (1.0% trigger, pace 0.2, no spread).
+# The other four files differ from it only in `name` and the defender block:
+#   early-aggressive   threshold_pct 0.5, spend_pace 0.5
+#   late-conservative  threshold_pct 2.0, spend_pace 0.1
+#   spread-only        threshold_pct 1.0, spread_adjust_bps 200, buy false (never buys)
+#   no-defense         no defender (holder, arbitrageur and redemption remain)
+# Numbers and their origins:
+#   reference = oracle (override): "recovered" = AMM within 31 bps of the oracle's
+#        published price for 6,900 steps (Story 2.8, ADR-0023), not of par.
+#   attacker capital = ratio x (calibrated defender budget + redemption reserves)
+#        = ratio x (41,346,974 + 138,107,417) = ratio x 179,454,391, ratio in
+#        {0.5, 0.7, 1.0}, rounded (the same resources figure for every policy, including
+#        no-defense, so a column is one attack).
+#   seeds 1000..1015 (16 per grid point; the same seeds in every policy, so each policy
+#        meets the same reference paths); max_steps 18,000 = the ~60 h horizon.
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 5 policies x 3 ratios = 15 grid points x 16 seeds = 240 runs.
+version: 1
+name: policy-comparison-mc
+base: scenarios/calibrated-baseline.yaml
+base_axis:
+  name: policy
+  bases:
+    calibrated: scenarios/calibrated-baseline.yaml
+    early-aggressive: scenarios/policies/early-aggressive.yaml
+    late-conservative: scenarios/policies/late-conservative.yaml
+    spread-only: scenarios/policies/spread-only.yaml
+    no-defense: scenarios/policies/no-defense.yaml
+axes:
+  agents[type=attacker].capital: [89727196, 125618074, 179454391]
+seeds: { count: 16, start: 1000 }
+max_steps: 18000
+overrides:
+  termination.peg_recovered.reference: oracle

@@ -99,6 +99,11 @@ FIGURES = (
     ),
     Figure("budget_depth.png", "sweeps/budget-x-depth-mc.yaml", charts.plot_budget_depth),
     Figure("oracle_sensitivity.png", "sweeps/oracle-lag-mc.yaml", charts.plot_oracle_sensitivity),
+    Figure(
+        "policy_comparison.png",
+        "sweeps/policy-comparison-mc.yaml",
+        charts.plot_policy_comparison,
+    ),
 )
 
 

@@ -964,3 +964,188 @@ def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> 
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+POLICY_COMPARISON = "policy_comparison.png"
+REFERENCE_POLICY = "calibrated"
+
+
+def _base_axis(manifest: dict) -> dict:
+    """The manifest's base axis (the entry with ``bases``; ADR-0025)."""
+    for axis in manifest["axes"]:
+        if "bases" in axis:
+            return axis
+    raise ValueError(f"sweep {manifest['sweep_name']!r} has no base axis")
+
+
+def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Three panels over attacker capital (× the reference base's defender budget +
+    redemption reserves), one line per policy (the sweep's base axis), the reference
+    policy ``calibrated`` drawn heavier: (a) median hours from run start to first re-entry
+    into the recovery band (``time_to_parity_hours``), cells where fewer than half the
+    seeds re-enter drawn as "never" at the horizon with an open marker, plus the deadline
+    after which a re-entry cannot hold ``for_steps`` by ``max_steps``; (b) mean defender
+    spend with its p05–p95 band (no defender = 0); (c) ``p_stays_broken`` with Wilson 95%
+    bars. Points are dodged sideways per policy so coinciding series stay visible. Reads
+    only ``mc.parquet`` + manifest."""
+    from matplotlib.ticker import FuncFormatter
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    policy_col = _base_axis(manifest)["name"]
+    policies = list(_base_axis(manifest)["values"])
+    cap_col = _axis_named(manifest, CAPITAL_PATH)
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    budget = defender["budget"]
+    resources = budget + base["redemption"]["reserves"]
+
+    mc = mc.sort_values([policy_col, cap_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    mc["ratio"] = mc[cap_col] / resources
+    p, lo, hi = _p_broken(mc)
+    mc["p"], mc["p_lo"], mc["p_hi"] = p, lo, hi
+    ratios = sorted(mc["ratio"].unique())
+    # Policies often coincide (every buyer spends its whole budget; no-defense and
+    # spread-only share p = 1): dodge each policy sideways by a fixed share of the
+    # smallest ratio gap so every series stays visible. Tick labels stay on the true ratio.
+    gap = min(np.diff(ratios)) if len(ratios) > 1 else 1.0
+    dodge = {n: (i - (len(policies) - 1) / 2) * 0.08 * gap for i, n in enumerate(policies)}
+
+    others = iter(zip(SERIES, MARKERS, strict=False))
+    style = {}
+    for name in policies:
+        if name == REFERENCE_POLICY:
+            style[name] = {"color": DARK, "marker": "o", "lw": 3.0, "ms": 8, "zorder": 5}
+        else:
+            color, marker = next(others)
+            style[name] = {"color": color, "marker": marker, "lw": 1.6, "ms": 7, "zorder": 3}
+
+    fig, (ax_t, ax_s, ax_p) = plt.subplots(
+        1, 3, figsize=(15, 5.6), dpi=150, sharex=True, constrained_layout=True
+    )
+    for name in policies:
+        g = mc[mc[policy_col] == name].sort_values("ratio")
+        st = style[name]
+        line = {"color": st["color"], "lw": st["lw"], "zorder": st["zorder"]}
+        x = g["ratio"].to_numpy() + dodge[name]
+
+        # (a) time to parity; "never" at the horizon with an open marker
+        hours = g["hours"].to_numpy()
+        never = np.isnan(hours)
+        shown = np.where(never, horizon_h, hours)
+        ax_t.plot(x, shown, label=name, **line)
+        ax_t.plot(
+            x[~never],
+            shown[~never],
+            ls="none",
+            marker=st["marker"],
+            ms=st["ms"],
+            color=st["color"],
+            zorder=st["zorder"],
+        )
+        ax_t.plot(
+            x[never],
+            shown[never],
+            ls="none",
+            marker=st["marker"],
+            ms=st["ms"] + 2,
+            mfc="white",
+            mec=st["color"],
+            mew=2,
+            zorder=st["zorder"] + 1,
+        )
+
+        # (b) defender spend, mean with p05-p95 band; no defender = 0
+        mean = g["defender_spent_mean"].fillna(0).to_numpy()
+        ax_s.fill_between(
+            x,
+            g["defender_spent_p05"].fillna(0),
+            g["defender_spent_p95"].fillna(0),
+            color=st["color"],
+            alpha=0.15,
+            lw=0,
+        )
+        ax_s.plot(x, mean, marker=st["marker"], ms=st["ms"], **line)
+
+        # (c) p_stays_broken with Wilson bars
+        ax_p.errorbar(
+            x,
+            g["p"],
+            yerr=[g["p"] - g["p_lo"], g["p_hi"] - g["p"]],
+            marker=st["marker"],
+            ms=st["ms"],
+            capsize=3,
+            **line,
+        )
+
+    ax_t.axhline(deadline_h, color=ORANGE, ls="--", lw=1.4, zorder=1)
+    ax_t.text(
+        ratios[0],
+        deadline_h,
+        f" deadline {deadline_h:.0f} h",
+        va="bottom",
+        ha="left",
+        fontsize=8,
+        color=DARK,
+    )
+    ax_t.axhline(horizon_h, color=GREY, ls=":", lw=1.0, zorder=1)
+    ax_t.text(
+        ratios[0],
+        horizon_h,
+        f" never (horizon {horizon_h:.0f} h)",
+        va="bottom",
+        ha="left",
+        fontsize=8,
+        color=DARK,
+    )
+    ax_t.set_ylim(0, horizon_h * 1.08)
+    ax_t.set_ylabel("median hours from run start to first re-entry")
+    ax_t.set_title("(a) time to parity (open marker = never)", fontsize=10)
+
+    ax_s.axhline(budget, color=GREY, ls=":", lw=1.0, zorder=1)
+    ax_s.text(
+        ratios[0],
+        budget,
+        f" budget {_usd(budget, usd_per_unit)} (calibrated)",
+        va="bottom",
+        ha="left",
+        fontsize=8,
+        color=DARK,
+    )
+    ax_s.set_ylim(0, budget * 1.12)
+    ax_s.set_yticks([budget * q for q in (0, 0.25, 0.5, 0.75, 1.0)])
+    ax_s.yaxis.set_major_formatter(FuncFormatter(lambda v, _: _usd(v, usd_per_unit) if v else "0"))
+    ax_s.set_ylabel("defender spend ($; mean, p05–p95 band)")
+    ax_s.set_title("(b) defender spend", fontsize=10)
+
+    ax_p.set_ylim(-0.03, 1.03)
+    ax_p.set_ylabel("p(stays broken), Wilson 95%")
+    ax_p.set_title("(c) p(stays broken)", fontsize=10)
+
+    for ax in (ax_t, ax_s, ax_p):
+        ax.set_xticks(ratios)
+        ax.set_xticklabels(
+            [f"{r:.2g}×\n{_usd(r * resources, usd_per_unit)}" for r in ratios], fontsize=8
+        )
+        ax.set_xlabel("attacker capital (× defender budget + redemption reserves; $)")
+        ax.grid(axis="y", color=BAND, lw=0.6)
+        ax.set_axisbelow(True)
+    ax_t.legend(title="policy", fontsize=8, title_fontsize=8, loc="lower right")
+    fig.suptitle(
+        f"{manifest['sweep_name']}: defender policies, criterion {_criterion(rec)} "
+        f"({len(manifest['seeds'])} seeds per point)\n"
+        f"re-entry = first step within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}; "
+        f"recovered = held for {rec['for_steps']:,} steps by step {horizon:,}",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / POLICY_COMPARISON
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
