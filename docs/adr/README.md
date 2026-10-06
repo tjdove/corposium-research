@@ -31,6 +31,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0022](0022-threshold-surface-metric-and-oracle-lag.md) | Threshold surface: p_stays_broken, absorbed ratio, linked-axis scales; oracle lag does not matter (F-10); at calibrated depth "stays broken" is the clock (F-11) | Accepted (finding, amended; adds Story 2.8) | 2026-10-04 |
 | [0023](0023-reference-relative-recovery-and-budget-depth.md) | Reference-relative recovery via ReferenceView; oracle criterion removes the wander, not the clock; defending budget does not scale with depth | Accepted (finding, amended; refines F-11) | 2026-10-04 |
 | [0024](0024-holder-fill-price-limit.md) | Holder fill-price limit; C* unchanged; sawtooth gone on the plateau; 1992 flip 5.7 → 5.2: an overpaying believer was an accidental defender (F-12) | Accepted (finding, amended) | 2026-10-05 |
+| [0025](0025-defender-policies-and-base-axis.md) | Defender policy comparison: buy flag, spread cap, base_axis; the slow defender wins because it pays less (F-13); no spread dead zone under capacity-limited redemption (F-07 refinement) | Accepted (finding, amended) | 2026-10-05 |
 
 ## Template
 

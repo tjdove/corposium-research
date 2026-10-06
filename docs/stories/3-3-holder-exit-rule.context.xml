@@ -1,0 +1,50 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.3</storyId><title>Holder Sell Rule and the 1992 Switch-Sides Test</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-05</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-3-holder-exit-rule.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>the holder to be able to lose its belief and sell</iWant>
+    <soThat>the note can test whether Black Wednesday needed the convergence traders to turn</soThat>
+    <tasks>- Exit rule (AC: 1, 2) - Sweep and scan (AC: 3, 4) - Chart (AC: 5) - Verdict, ADR, figures, close out (AC: 6–8)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–8. The exit rule in AC 1 (one-way, sell all, never re-enter) is normative.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-3-holder-exit-rule.md" section="Dev Notes">Who the agent is now; why 25 C*; predictions.</doc>
+      <doc path="docs/BACKGROUND.md" section="4">The claim under test.</doc>
+      <doc path="docs/FINDINGS.md" section="F-12, F-13">Capped holder = redeemer in waiting; price paid decides.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/agents/holder.py" symbol="Holder.decide, _snapshot_extra" reason="Add hold_exit and the exited flag; snapshot it."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="HolderConfig" reason="exit_discount_pct with validator."/>
+      <existing path="src/depeg_sim/experiments/sweep.py" symbol="set_path, expand" reason="None on an axis, if not already possible."/>
+      <existing path="scenarios/soros-1992.yaml" reason="Base; attacker 255,754,476 at 6×."/>
+      <existing path="src/depeg_sim/analysis/charts.py" reason="plot_holder_exit; conventions."/>
+      <existing path="scripts/make_figures.py, docs/figures/README.md" reason="Register."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes beyond config.py; PHASE_ORDER_VERSION stays 1; every existing scenario hash unchanged.
+    - Exit is one-way; the holder never re-enters; the sell is on the AMM, not a redemption.
+    - Charts read parquet + manifest only.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="HolderConfig.exit_discount_pct" kind="field" path="src/depeg_sim/kernel/config.py">float | None = None; must exceed entry_discount_pct when set</interface>
+    <interface name="scripts/scan_1992.py" kind="script">--holder-capital, --exit, --range 4.0:7.0:0.1, --seed; prints the multiple table and the flip; --dry-run</interface>
+    <interface name="plot_holder_exit" kind="function" path="src/depeg_sim/analysis/charts.py">plot_holder_exit(sweep_dir: Path) -> Path</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; holder tests with real AMM and manual phases per 1.7; hash test; sweep None-axis test; scan dry-run; synthetic parquet for the chart.</standards>
+    <locations>tests/</locations>
+    <ideas>
+      <test ac="1" idea="entry 2, exit 10: spot 0.95 → hold_buy; spot 0.89 → hold_exit sells all; spot back to 0.95 → hold_done, no buy"/>
+      <test ac="1" idea="exit 1 with entry 2 → ValidationError naming the rule"/>
+      <test ac="3" idea="axis value None sets exit_discount_pct to None and the cell hash equals the base"/>
+    </ideas>
+  </tests>
+</story-context>

@@ -533,7 +533,56 @@ convergence trade seen from the issuer's side.
 
 ---
 
-## Headline candidates (ranked, 2026-10-04, revised after 2.7)
+## F-13 · When every defender spends its whole budget, the defense is decided by the price it pays — and the slow defender pays least
+
+**Date:** 2026-10-05 · **ADR:** [0025](adr/0025-defender-policy-comparison.md) · **Story:** 3.2
+**Reproduce:** `python -m depeg_sim.sweep sweeps/policy-comparison-mc.yaml --mc --workers 8`
+(≈ 1 min; 8.5 min on 2 cores) then `python scripts/policy_table.py output/policy-comparison-mc`;
+`plot_policy_comparison`.
+
+**Expected.** Early-aggressive (0.5% trigger, 50% pace) would get the price back fastest
+and spend the most; late-conservative (2%, 10%) would spend least and be slowest.
+
+**Observed.** At every attack size the three buying policies spend the same — the whole
+41.35M budget — and late-conservative is fastest: time-to-parity 6.6 / 19.2 / 29.9 h at
+ratio 0.5 / 0.7 / 1.0 against 18.2 / 37.1 / 48.2 (calibrated) and 20.0 / 41.4 / 53.1
+(early-aggressive). At 1.0 it is the only policy that recovers at all (11 of 16 seeds).
+Average price paid per stable: 0.283 (late) / 0.323 (calibrated) / 0.358 (early). It is
+not cheaper because someone else paid: the holder absorbs *less* under it (24.1M vs 32.1M)
+and redemption pays out less.
+
+**Why.** The attack sells over roughly 50 steps. A defender that buys at 50% of its budget
+per step is dry within 12 steps, having bought near par; the attacker's remaining stock
+then sets a new, deeper low that nothing defends. A defender at 10% per step still has
+budget when the selling stops and buys the bottom. Spending is fixed; what it buys is not.
+
+**What it changed.** Charter chart 5 is this figure, with panel (b) redrawn in Epic 4 as
+price paid. The early/late labels describe the trigger; the result is about the spending
+rate, and both triggers are crossed on the first dump, so the sweep cannot separate them —
+Story 3.4 adds a pace × trigger × attacker-pace sweep. 3.5 adds `arbitrageur_redeemed` to
+the summary.
+
+**For the note.** The defender that waits wins. A defense that spends before the attacker
+is done is defending the attacker's exit price. In 1992 the Bank of England spent its
+reserves fast, at the floor, while the selling was still coming; the model says that is
+the policy most likely to lose. This is also the F-03 mechanism seen from the defender's
+side: what matters is the price the budget buys at, and a defender who waits for the
+crash buys at the crash.
+
+---
+
+## F-07 refinement (2026-10-05, from 3.2)
+
+At calibrated scale there is **no spread dead zone**. Spread-only (200 bps, no buys) never
+recovers at any attack size, but for the same reason as no-defense: the clock. Redemption
+is capacity-limited, so a backlog of ≈ 11.4M in requests queued while the price was deep
+keeps paying out through the −2% to −1% band, and the price crosses the band in ≈ 140
+steps with or without the spread; the spread costs about an hour. F-07's stall is a
+property of the 1992 analogue's unconstrained redemption, not of spread defenses as such.
+
+---
+
+## Headline candidates (ranked, 2026-10-05, revised after 3.2)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
    (F-08, confirmed) — validation chart; lead.
@@ -542,21 +591,24 @@ convergence trade seen from the issuer's side.
    time-to-parity panel are its charts. The quantitative form: at D\* the issuer wins the
    price and loses the clock; at 2× D\* it loses the price unless it roughly doubles its
    budget.
-3. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
+3. **"The defender that waits wins: a defense that spends before the attacker is done is
+   defending the attacker's exit price."** (F-13) — the policy result; one chart; the 1992
+   echo writes itself.
+4. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
    F-11) — throughput; explains why validation needed the buyer and why "recovery" is a
    speed question.
-4. **"Oracle lag is not a depeg risk factor at Chainlink's settings."** (F-10) — short,
+5. **"Oracle lag is not a depeg risk factor at Chainlink's settings."** (F-10) — short,
    quotable, a flat chart.
-5. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
+6. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
    (F-01, F-07) — methods.
-6. **"One believer gives a cliff; many believers at different prices give a curve."**
+7. **"One believer gives a cliff; many believers at different prices give a curve."**
    (F-09) — limitations.
-7. **"A disciplined believer is a redeemer in waiting."** (F-12) — the 1992 section's
+8. **"A disciplined believer is a redeemer in waiting."** (F-12) — the 1992 section's
    bridge to the switch-sides test (3.3).
 
-The note leads with 1 (overlay as figure 1), gives 2 and 3 as the two mechanisms with the
-2.8 surface, states 4 in one paragraph with its chart, uses 5 in methods and closes on 6
-and the 1992 open question.
+The note leads with 1 (overlay as figure 1), gives 2 and 4 as the two mechanisms with the
+2.9 time-to-parity chart, 3 with the policy chart, states 5 in one paragraph, uses 6 in
+methods and closes on 7, 8 and the 1992 open question.
 
 ---
 

@@ -1,6 +1,6 @@
 # ADR-0025: Defender buy flag and spread cap; the base file as a sweep axis; a defender that spends slower than the attack beats one that spends faster (finding candidate); no spread dead zone at throughput-bound redemption (finding candidate)
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-05: F-13 stated as price paid, not pace; pace × trigger sweep → Story 3.4; chart panel (b) → average price paid in the Epic 4 figure pass)
 **Date:** 2026-10-05
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.2
