@@ -1,0 +1,39 @@
+# Defender pace x trigger x attacker pace at calibrated scale (Story 3.4 AC 4; 3.2 review
+# ruling 3). F-13 (Story 3.2): the late-conservative defender (2% trigger, 10% pace) was
+# fastest to parity because it paid least per stable, but its two labels moved together
+# and both triggers are crossed on the first dump, so the sweep could not say whether the
+# operative parameter is the trigger or the spending pace. This grid separates them, and
+# varies the attacker's pace to test whether what matters is the defender's pace relative
+# to the attacker's.
+# Base: scenarios/calibrated-baseline.yaml (calm volatility 3.086e-05/step, holder present,
+# D* depth). Numbers and their origins:
+#   reference = oracle (override): "recovered" = AMM within 31 bps of the oracle's
+#        published price for 6,900 steps (Story 2.8, ADR-0023), not of par.
+#   attacker capital = 179,454,391 = ratio 1.0 x (calibrated defender budget + redemption
+#        reserves) = 41,346,974 + 138,107,417 (scripts/probe_boundary.py `resources`):
+#        the attack at which F-13's ordering was sharpest (only late-conservative recovered).
+#   defender spend_pace in {0.05, 0.1, 0.2, 0.5}: the share of the remaining budget spent
+#        per step in defense; 0.1 and 0.5 are the 3.2 late and early policies, 0.2 the
+#        calibrated base value, 0.05 one step slower.
+#   defender threshold_pct in {0.5, 1, 2, 4}: the defense trigger, % below peg; 0.5 / 1 / 2
+#        are the 3.2 early / calibrated / late values, 4 one step later.
+#   attacker pace in {0.1, 0.02}: share of its remaining stable sold per step; 0.1 is the
+#        base (most of the stock sold in ~50 steps), 0.02 a five-times slower attack
+#        (~250 steps to the same share). Assumption, as the base value is (SOURCES.md#attacker).
+#   seeds 1000..1007 (8 per grid point); max_steps 18,000 = the ~60 h horizon.
+# Metrics (AC 5): median hours from run start to first re-entry (charts.time_to_parity_hours)
+# and average price paid per stable, defender_spent / defender_bought_stable.
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 4 x 4 x 2 = 32 grid points x 8 seeds = 256 runs.
+version: 1
+name: pace-x-trigger-mc
+base: scenarios/calibrated-baseline.yaml
+axes:
+  agents[type=attacker].pace: [0.1, 0.02]
+  agents[type=defender].spend_pace: [0.05, 0.1, 0.2, 0.5]
+  agents[type=defender].threshold_pct: [0.5, 1, 2, 4]
+overrides:
+  termination.peg_recovered.reference: oracle
+  agents[type=attacker].capital: 179454391
+seeds: { count: 8, start: 1000 }
+max_steps: 18000

@@ -866,36 +866,16 @@ def time_to_parity_hours(mc: pd.DataFrame, interval_seconds: float) -> pd.Series
     return hours.where(~never)
 
 
-def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
-    """Heatmap over the sweep's two axes of the median hours from run start to the first
-    re-entry into the recovery band (``time_to_parity_hours``). Cells where fewer than half
-    the seeds ever re-enter are hatched and labelled "never" (the price is lost). A dashed
-    contour marks the latest start that can still hold ``for_steps`` by ``max_steps``:
-    finite cells beyond it are lost on the clock. Reads only ``mc.parquet`` + manifest."""
+def _parity_grid(ax, grid: np.ndarray, deadline_h: float, horizon_h: float):
+    """Draw a time-to-parity grid (hours, NaN = never) on ``ax``: sequential colour over
+    0..horizon, cells that never re-enter hatched and labelled "never", finite cells past
+    ``deadline_h`` tagged "clock", and a dashed boundary along the cell edges between cells
+    that re-enter before the deadline and the rest. Returns the image for a colorbar."""
     from matplotlib.colors import LinearSegmentedColormap
     from matplotlib.patches import Rectangle
 
-    sweep_dir = Path(sweep_dir)
-    mc, manifest = _read_sweep(sweep_dir)
-    base = manifest["base_config"]
-    if len(manifest["axes"]) != 2:
-        raise ValueError(f"sweep {manifest['sweep_name']!r} needs exactly two axes")
-    y_axis, x_axis = manifest["axes"]
-    y_col, x_col = y_axis["name"], x_axis["name"]
-    rec = base["termination"]["peg_recovered"]
-    interval = base["steps"]["interval_seconds"]
-    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
-    horizon_h = horizon * interval / 3600
-    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
-
-    mc = mc.sort_values([y_col, x_col]).reset_index(drop=True)
-    mc["hours"] = time_to_parity_hours(mc, interval)
-    ys = sorted(mc[y_col].unique())
-    xs = sorted(mc[x_col].unique())
-    grid = mc.pivot(index=y_col, columns=x_col, values="hours").loc[ys, xs].to_numpy()
     never = pd.isna(grid)
-
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
+    ys, xs = range(grid.shape[0]), range(grid.shape[1])  # cell indices
     cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
     im = ax.imshow(grid, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=horizon_h)
     # The deadline boundary follows cell edges: a segment wherever a cell that first
@@ -943,6 +923,36 @@ def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> 
                 fontsize=7,
                 color="white" if v >= 0.55 * horizon_h else DARK,
             )
+    return im
+
+
+def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Heatmap over the sweep's two axes of the median hours from run start to the first
+    re-entry into the recovery band (``time_to_parity_hours``). Cells where fewer than half
+    the seeds ever re-enter are hatched and labelled "never" (the price is lost). A dashed
+    contour marks the latest start that can still hold ``for_steps`` by ``max_steps``:
+    finite cells beyond it are lost on the clock. Reads only ``mc.parquet`` + manifest."""
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    if len(manifest["axes"]) != 2:
+        raise ValueError(f"sweep {manifest['sweep_name']!r} needs exactly two axes")
+    y_axis, x_axis = manifest["axes"]
+    y_col, x_col = y_axis["name"], x_axis["name"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.sort_values([y_col, x_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    ys = sorted(mc[y_col].unique())
+    xs = sorted(mc[x_col].unique())
+    grid = mc.pivot(index=y_col, columns=x_col, values="hours").loc[ys, xs].to_numpy()
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
+    im = _parity_grid(ax, grid, deadline_h, horizon_h)
     ax.set_xticks(range(len(xs)))
     ax.set_xticklabels(_tick_labels(manifest, x_axis, xs, usd_per_unit), fontsize=8)
     ax.set_yticks(range(len(ys)))
@@ -1453,6 +1463,113 @@ def plot_budget_attack(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> P
     )
     _sweep_footer(fig, manifest)
     out = sweep_dir / BUDGET_ATTACK
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+# -- pace x trigger (Story 3.4) -------------------------------------------------------------
+
+PACE_TRIGGER = "pace_trigger.png"
+ATTACKER_PACE_PATH = "agents[type=attacker].pace"
+SPEND_PACE_PATH = "agents[type=defender].spend_pace"
+TRIGGER_PATH = "agents[type=defender].threshold_pct"
+
+
+def plot_pace_trigger(sweep_dir: Path) -> Path:
+    """One heatmap per attacker pace (in the sweep's axis order) of median hours from run
+    start to first re-entry (``time_to_parity_hours``) over defender spend pace (rows) x
+    defender trigger (columns): "never" hatched, the deadline after which a re-entry
+    cannot hold ``for_steps`` by ``max_steps`` dashed. A third, smaller panel: the average
+    price the defender paid per stable, ``defender_spent / defender_bought_stable`` (means
+    over seeds), over the same grid at the base scenario's attacker pace. Reads only
+    ``mc.parquet`` + manifest."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    atk_col = _axis_named(manifest, ATTACKER_PACE_PATH)
+    pace_col = _axis_named(manifest, SPEND_PACE_PATH)
+    trig_col = _axis_named(manifest, TRIGGER_PATH)
+    atk_axis = next(a for a in manifest["axes"] if a["name"] == atk_col)
+    attacker = next(a for a in base["agents"] if a["type"] == "attacker")
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.sort_values([atk_col, pace_col, trig_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    mc["price_paid"] = mc["defender_spent_mean"] / mc["defender_bought_stable_mean"]
+    paces = sorted(mc[pace_col].unique())
+    trigs = sorted(mc[trig_col].unique())
+    atk_paces = list(atk_axis["values"])
+    if attacker["pace"] not in atk_paces:
+        raise ValueError(
+            f"sweep {manifest['sweep_name']!r}: the base attacker pace {attacker['pace']} is "
+            f"not on the {atk_col} axis {atk_paces}"
+        )
+
+    def grid(g: pd.DataFrame, values: str) -> np.ndarray:
+        return g.pivot(index=pace_col, columns=trig_col, values=values).loc[paces, trigs].to_numpy()
+
+    fig, axes = plt.subplots(
+        1,
+        len(atk_paces) + 1,
+        figsize=(8 * len(atk_paces) + 6, 6),
+        dpi=150,
+        constrained_layout=True,
+        gridspec_kw={"width_ratios": [1] * len(atk_paces) + [0.7]},
+    )
+    for ax, ap in zip(axes, atk_paces, strict=False):
+        im = _parity_grid(ax, grid(mc[mc[atk_col] == ap], "hours"), deadline_h, horizon_h)
+        ax.set_title(f"attacker pace {ap:g} (sells {ap:.0%} of its remaining stable per step)")
+    fig.colorbar(
+        im, ax=list(axes[:-1]), label="median hours from run start to first re-entry", shrink=0.9
+    )
+
+    ax = axes[-1]
+    paid = grid(mc[mc[atk_col] == attacker["pace"]], "price_paid")
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
+    lo, hi = np.nanmin(paid), np.nanmax(paid)
+    ax.imshow(paid, origin="lower", aspect="auto", cmap=cmap, vmin=lo, vmax=hi)
+    for i in range(len(paces)):
+        for j in range(len(trigs)):
+            v = paid[i, j]
+            dark = hi > lo and (v - lo) / (hi - lo) >= 0.55
+            ax.text(
+                j, i, f"{v:.3f}", ha="center", va="center", fontsize=8,
+                color="white" if dark else DARK,
+            )  # fmt: skip
+    ax.set_title(
+        f"average price paid per stable\n(defender spent / stable bought), attacker pace "
+        f"{attacker['pace']:g}",
+        fontsize=10,
+    )
+    for ax in axes:
+        ax.set_xticks(range(len(trigs)))
+        ax.set_xticklabels([f"{t:g}%" for t in trigs], fontsize=8)
+        ax.set_yticks(range(len(paces)))
+        ax.set_yticklabels([f"{p:g}" for p in paces], fontsize=8)
+        ax.set_xlabel("defender trigger (threshold_pct, % below peg)")
+        ax.set_ylabel("defender spend pace (share of remaining budget per step)")
+
+    fig.suptitle(
+        f"{manifest['sweep_name']}: defender pace against trigger, criterion {_criterion(rec)} "
+        f"(attacker {attacker['capital'] / resources:.3g}× resources; "
+        f"{len(manifest['seeds'])} seeds per cell)\n"
+        f"median hours from run start to first re-entry within ±{rec['tolerance'] * BPS:g} bps "
+        f"of {_against(rec)}; orange dashed = {deadline_h:.0f} h, the latest first re-entry that "
+        f"can still hold {rec['for_steps']:,} steps by step {horizon:,}; hatched = never "
+        f"re-enters by {horizon_h:.0f} h",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / PACE_TRIGGER
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out

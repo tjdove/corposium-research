@@ -435,3 +435,64 @@ def test_budget_attack_with_bounds(tmp_path):
     never = [[0, 8, 8], [0, 0, 8], [0, 0, 8]]
     assert plot_budget_attack(_budget_attack_dir(tmp_path, never)).is_file()
     assert plt.get_fignums() == []
+
+
+# Story 3.4: pace x trigger -----------------------------------------------------------------
+
+APACE, DPACE, TRIG = (
+    "agents[type=attacker].pace",
+    "agents[type=defender].spend_pace",
+    "agents[type=defender].threshold_pct",
+)
+
+
+def _pace_trigger_dir(tmp_path, atk_paces=(0.1, 0.02)):
+    """2 attacker paces x 3 defender paces x 2 triggers; at attacker pace 0.1 hours rise
+    with defender pace (fast, clock, never); at 0.02 everything never re-enters."""
+    d = tmp_path / "pacetrig"
+    d.mkdir()
+    paces, trigs = [0.05, 0.2, 0.5], [1.0, 4.0]
+    entry = {0.05: 100, 0.2: 12_000, 0.5: None}
+    rows = []
+    for ap in atk_paces:
+        for p in paces:
+            for t in trigs:
+                e = entry[p] if ap == 0.1 else None
+                rows.append(
+                    {
+                        APACE: ap, DPACE: p, TRIG: t, "n": 8,
+                        "step_of_max_depeg_std": 0.0,
+                        "step_of_max_depeg_p05": 50.0,
+                        "step_of_max_depeg_p50": 50.0,
+                        "step_of_max_depeg_p95": 50.0,
+                        "steps_to_first_band_entry_p50": float("nan") if e is None else float(e),
+                        "steps_to_first_band_entry_n": 0 if e is None else 8,
+                        "defender_spent_mean": 41_346_974.0,
+                        "defender_bought_stable_mean": 41_346_974.0 / (0.25 + p / 4),
+                    }
+                )  # fmt: skip
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": APACE, "paths": [APACE], "values": list(atk_paces)},
+        {"name": DPACE, "paths": [DPACE], "values": paces},
+        {"name": TRIG, "paths": [TRIG], "values": trigs},
+    ]
+    _manifest(d, "pacetrig", "scenarios/calibrated-baseline.yaml", axes, seeds=8)
+    return d
+
+
+def test_pace_trigger_png_three_axis_grid(tmp_path):
+    from depeg_sim.analysis.charts import plot_pace_trigger
+
+    png = plot_pace_trigger(_pace_trigger_dir(tmp_path))
+    assert png.name == "pace_trigger.png" and png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 3300)  # (8 x 2 + 6) x 6 in at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_pace_trigger_needs_the_base_attacker_pace_on_its_axis(tmp_path):
+    from depeg_sim.analysis.charts import plot_pace_trigger
+
+    with pytest.raises(ValueError, match="base attacker pace 0.1"):
+        plot_pace_trigger(_pace_trigger_dir(tmp_path, atk_paces=(0.05, 0.02)))
+    plt.close("all")

@@ -106,6 +106,7 @@ FIGURES = (
     ),
     Figure("holder_exit.png", "sweeps/holder-exit-1992-mc.yaml", charts.plot_holder_exit),
     Figure("budget_attack.png", "sweeps/budget-x-attack-mc.yaml", charts.plot_budget_attack),
+    Figure("pace_trigger.png", "sweeps/pace-x-trigger-mc.yaml", charts.plot_pace_trigger),
 )
 
 

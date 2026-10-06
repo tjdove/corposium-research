@@ -506,3 +506,20 @@ def test_budget_x_attack_spec_expands():
         assert c.config.termination.peg_recovered.reference == "oracle"
         assert c.config.steps.max_steps == 18_000
     assert {c.seed for c in cells} == set(range(1000, 1008))
+
+
+def test_pace_x_trigger_spec_expands():
+    cells = expand(load_sweep("sweeps/pace-x-trigger-mc.yaml"))
+    assert len(cells) == 256
+    vals = {k: sorted({c.axis_values[k] for c in cells}) for k in cells[0].axis_values}
+    assert vals == {
+        "agents[type=attacker].pace": [0.02, 0.1],
+        "agents[type=defender].spend_pace": [0.05, 0.1, 0.2, 0.5],
+        "agents[type=defender].threshold_pct": [0.5, 1, 2, 4],
+    }
+    for c in cells:
+        atk = next(a for a in c.config.agents if a.type == "attacker")
+        assert atk.capital == 179_454_391
+        assert c.config.amm.reserve_stable == 16_666_667  # calibrated depth D*
+        assert c.config.termination.peg_recovered.reference == "oracle"
+    assert {c.seed for c in cells} == set(range(1000, 1008))
