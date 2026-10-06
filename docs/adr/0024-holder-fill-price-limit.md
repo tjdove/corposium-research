@@ -1,6 +1,6 @@
 # ADR-0024: The holder's fill-price limit: C\* unchanged, sawtooth gone, 1992 flip moves to 5.2
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-05: 1992 section → F-12; ADR-0021's "defender spend falls 41%" corrected to 25%; code-hash guard gap → Story 3.5)
 **Date:** 2026-10-05
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 3.1 (ADR-0021 Consequences and Alternatives: "a price limit on the holder's own buys")
