@@ -75,3 +75,22 @@ def test_invalid_value_is_a_validation_error():
         set_path(BASE, "amm.fee_bps", 10_000)
     with pytest.raises(pydantic.ValidationError):  # model-level validator re-runs
         set_path(BASE, "agents[1].id", "attacker-1")
+
+
+# Story 3.3: None on an axis ------------------------------------------------------------
+
+
+def test_none_sets_an_optional_field_and_restores_the_hash():
+    base = load_scenario("scenarios/soros-1992.yaml")
+    path = "agents[type=holder].exit_discount_pct"
+    on = set_path(base, path, 10)
+    assert on.agents[3].exit_discount_pct == 10.0
+    assert on.content_hash() != base.content_hash()
+    off = set_path(on, path, None)
+    assert off.agents[3].exit_discount_pct is None
+    assert off.content_hash() == base.content_hash()
+
+
+def test_none_on_a_required_field_is_rejected():
+    with pytest.raises(pydantic.ValidationError):
+        set_path(BASE, "agents[type=attacker].capital", None)

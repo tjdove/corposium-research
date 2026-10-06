@@ -3,6 +3,7 @@ import json
 import platform
 import subprocess
 import sys
+from pathlib import Path
 
 import pandas as pd
 import pydantic
@@ -18,6 +19,7 @@ from depeg_sim.experiments.sweep import (
     load_sweep,
     main,
     run_sweep,
+    set_path,
     sweep_spec_hash,
 )
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
@@ -460,3 +462,28 @@ def test_cli_records_spec_hash_in_manifest(tmp_path):
     assert run_sweep(small(max_steps=20), tmp_path / "o2").joinpath("manifest.json").is_file()
     m2 = json.loads((tmp_path / "o2" / "small" / "manifest.json").read_text())
     assert m2["spec_hash"] is None
+
+
+# Story 3.3: the holder-exit sweep, a null axis value ------------------------------------
+
+
+def test_holder_exit_sweep_null_cells_equal_the_base_with_capital_set():
+    spec = load_sweep(Path("sweeps/holder-exit-1992-mc.yaml"))
+    cells = expand(spec)
+    assert len(cells) == 5 * 3 * 8
+    base = load_scenario(spec.base)
+    exit_path = "agents[type=holder].exit_discount_pct"
+    cap_path = "agents[type=holder].capital"
+    nulls = [c for c in cells if c.axis_values[exit_path] is None]
+    assert len(nulls) == 3 * 8
+    for c in nulls:
+        assert c.config.agents[3].exit_discount_pct is None
+        same = set_path(base, cap_path, c.axis_values[cap_path])
+        same = set_path(set_path(same, "seed", c.seed), "name", c.config.name)
+        assert c.config.content_hash() == same.content_hash()
+    (first,) = [c for c in cells if c.index == 0]
+    assert (
+        first.config.content_hash()
+        == set_path(set_path(base, "seed", 1000), "name", first.config.name).content_hash()
+    )  # C*, never sells, seed 1000 is the committed scenario re-seeded
+    assert {c.config.agents[3].exit_discount_pct for c in cells} == {None, 5, 10, 20, 40}

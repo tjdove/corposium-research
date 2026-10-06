@@ -1149,3 +1149,139 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+HOLDER_EXIT = "holder_exit.png"
+HOLDER_EXIT_PATH = "agents[type=holder].exit_discount_pct"
+HOLDER_CAPITAL_PATH = "agents[type=holder].capital"
+
+
+def _exit_label(v: float) -> str:
+    return "never sells" if pd.isna(v) else f"sells below\n−{v:g}%"
+
+
+def plot_holder_exit(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
+    """Story 3.3: the holder's exit rule x holder capital. Left: heatmap of
+    ``p_reserves_exhausted`` over exit discount (columns; ``null`` first, labelled "never
+    sells") x holder capital (rows, as a multiple of the base scenario's holder capital).
+    Right, two panels over the same exit columns with one line per capital: mean hours to
+    reserves exhaustion (``steps_run_mean``; a filled marker where every seed exhausts, an
+    open one where only some do, so the mean includes ``max_steps`` runs, and "not
+    exhausted" at the horizon where none do), and mean holder PnL with its p05–p95 range.
+    Reads only ``mc.parquet`` + manifest."""
+    from matplotlib.ticker import FuncFormatter
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    exit_col = _axis_named(manifest, HOLDER_EXIT_PATH)
+    cap_col = _axis_named(manifest, HOLDER_CAPITAL_PATH)
+    holder = next(a for a in base["agents"] if a["type"] == "holder")
+    attacker = next(a for a in base["agents"] if a["type"] == "attacker")
+    unit = holder["capital"]
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+
+    exits = sorted(mc[exit_col].unique(), key=lambda v: (not pd.isna(v), 0 if pd.isna(v) else v))
+    caps = sorted(mc[cap_col].unique())
+    col = {("nan" if pd.isna(v) else v): i for i, v in enumerate(exits)}
+    mc = mc.assign(_x=[col["nan" if pd.isna(v) else v] for v in mc[exit_col]])
+    cap_labels = [
+        f"{c / unit:g}× ({_usd(c, usd_per_unit)}; {c / attacker['capital']:.2f}× attacker)"
+        for c in caps
+    ]
+
+    fig = plt.figure(figsize=(15, 6.4), dpi=150, constrained_layout=True)
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.05, 1])
+    ax_h = fig.add_subplot(gs[:, 0])
+    ax_t = fig.add_subplot(gs[0, 1])
+    ax_p = fig.add_subplot(gs[1, 1], sharex=ax_t)
+
+    # left: p_reserves_exhausted heatmap
+    grid = np.full((len(caps), len(exits)), np.nan)
+    for _, r in mc.iterrows():
+        grid[caps.index(r[cap_col]), int(r["_x"])] = r["p_reserves_exhausted"]
+    from matplotlib.colors import ListedColormap
+
+    im = ax_h.imshow(
+        grid, cmap=ListedColormap(SEQ_BLUE), vmin=0, vmax=1, origin="lower", aspect="auto"
+    )
+    for i in range(len(caps)):
+        for j in range(len(exits)):
+            v = grid[i, j]
+            ax_h.text(
+                j,
+                i,
+                "–" if np.isnan(v) else f"{v:.2f}",
+                ha="center",
+                va="center",
+                fontsize=10,
+                color="white" if v >= 0.6 else DARK,
+            )
+    ax_h.set_xticks(range(len(exits)))
+    ax_h.set_xticklabels([_exit_label(v) for v in exits], fontsize=8)
+    ax_h.set_yticks(range(len(caps)))
+    ax_h.set_yticklabels([lab.replace(" (", "\n(") for lab in cap_labels], fontsize=8)
+    ax_h.set_xlabel("holder exit rule (one-way: sells everything on the AMM, never re-enters)")
+    ax_h.set_ylabel("holder capital (× base holder C*)")
+    ax_h.set_title("p(reserves exhausted)", fontsize=10)
+    fig.colorbar(im, ax=ax_h, fraction=0.05, pad=0.02, label="p(reserves exhausted)")
+
+    # right: exhaustion time and holder PnL, one line per capital
+    styles = list(zip(SERIES, MARKERS, strict=False))
+    for k, (c, lab) in enumerate(zip(caps, cap_labels, strict=True)):
+        color, marker = styles[k]
+        g = mc[mc[cap_col] == c].sort_values("_x")
+        x = g["_x"].to_numpy(dtype=float)
+        p = g["p_reserves_exhausted"].to_numpy()
+        hours = g["steps_run_mean"].to_numpy() * interval / 3600
+        shown = np.where(p > 0, hours, horizon_h)
+        ax_t.plot(x, shown, color=color, lw=1.6, label=lab)
+        full, part, none = p >= 1, (p > 0) & (p < 1), p <= 0
+        ax_t.plot(x[full], shown[full], ls="none", marker=marker, ms=8, color=color)
+        for mask in (part, none):
+            ax_t.plot(
+                x[mask], shown[mask], ls="none", marker=marker, ms=9, mfc="white", mec=color, mew=2
+            )
+        bn = usd_per_unit / 1e9  # PnL drawn in $B so the axis ticks are round dollars
+        ax_p.fill_between(
+            x, g["holder_pnl_p05"] * bn, g["holder_pnl_p95"] * bn, color=color, alpha=0.15, lw=0
+        )
+        ax_p.plot(x, g["holder_pnl_mean"] * bn, color=color, lw=1.6, marker=marker, ms=8)
+
+    ax_t.axhline(horizon_h, color=GREY, ls=":", lw=1.0)
+    ax_t.text(
+        0, horizon_h, f" not exhausted (horizon {horizon_h:.0f} h)", va="bottom", fontsize=8,
+        color=DARK,
+    )  # fmt: skip
+    lo = np.nanmin(mc["steps_run_mean"]) * interval / 3600
+    ax_t.set_ylim(min(lo * 0.97, horizon_h * 0.5), horizon_h * 1.08)
+    ax_t.set_ylabel("mean hours to reserves exhausted")
+    ax_t.set_title("time to exhaustion (open marker: not every seed exhausts)", fontsize=10)
+    ax_t.legend(title="holder capital", fontsize=7, title_fontsize=7, loc="center right")
+
+    ax_p.axhline(0, color=GREY, ls="--", lw=1.0)
+    ax_p.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:+,.0f}" if v else "0"))
+    ax_p.set_ylabel("holder PnL ($B; mean, p05–p95 band)")
+    ax_p.set_title("holder PnL (marked at final AMM spot)", fontsize=10)
+    ax_p.set_xticks(range(len(exits)))
+    ax_p.set_xticklabels([_exit_label(v) for v in exits], fontsize=8)
+    plt.setp(ax_t.get_xticklabels(), visible=False)
+    for ax in (ax_t, ax_p):
+        ax.grid(axis="y", color=BAND, lw=0.6)
+        ax.set_axisbelow(True)
+
+    fig.suptitle(
+        f"{manifest['sweep_name']}: does the 1992 analogue need the believer to switch sides? "
+        f"attacker {attacker['capital'] / resources:.3g}× (defender budget + reserves) "
+        f"({len(manifest['seeds'])} seeds per cell)",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / HOLDER_EXIT
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out

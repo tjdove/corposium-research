@@ -104,6 +104,7 @@ FIGURES = (
         "sweeps/policy-comparison-mc.yaml",
         charts.plot_policy_comparison,
     ),
+    Figure("holder_exit.png", "sweeps/holder-exit-1992-mc.yaml", charts.plot_holder_exit),
 )
 
 

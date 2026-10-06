@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pytest
 from test_metrics import cfg_with
@@ -321,3 +323,57 @@ def test_include_texts_keeps_offset_labels_inside_the_axes():
     bottom = ax.transAxes.inverted().transform(label.get_window_extent())[0, 1]
     assert bottom >= 0.0
     plt.close(fig)
+
+
+# Story 3.3: holder exit chart from a synthetic mc.parquet + manifest ---------------------
+
+
+def _holder_exit_dir(tmp_path):
+    from depeg_sim.experiments.sweep import load_sweep
+
+    d = tmp_path / "hx"
+    d.mkdir()
+    spec = load_sweep(Path("sweeps/holder-exit-1992-mc.yaml"))
+    axes = spec.manifest_axes()
+    exits, caps = axes[0]["values"], axes[1]["values"]
+    rows = []
+    for i, x in enumerate(exits):
+        for j, c in enumerate(caps):
+            p = [1.0, 0.5, 0.0][j] if x is None else 1.0
+            rows.append({
+                axes[0]["name"]: np.nan if x is None else float(x), axes[1]["name"]: c, "n": 8,
+                "p_reserves_exhausted": p, "steps_run_mean": 9_550.0 + 50 * j,
+                "holder_pnl_mean": 1e5 if x is None else -1e6 * (i + 1),
+                "holder_pnl_p05": -2e6, "holder_pnl_p95": 2e5,
+            })  # fmt: skip
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    _manifest(d, "holder-exit-1992-mc", "scenarios/soros-1992.yaml", axes, seeds=8)
+    return d
+
+
+def test_holder_exit_png(tmp_path):
+    from depeg_sim.analysis.charts import plot_holder_exit
+
+    d = _holder_exit_dir(tmp_path)
+    png = plot_holder_exit(d)
+    assert png == d / "holder_exit.png"
+    assert png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (960, 2250)  # 15 x 6.4 in at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_holder_exit_labels_null_as_never_sells():
+    from depeg_sim.analysis.charts import _exit_label
+
+    assert _exit_label(np.nan) == "never sells" and _exit_label(10.0) == "sells below\n−10%"
+
+
+def test_holder_exit_needs_its_axes(tmp_path):
+    from depeg_sim.analysis.charts import plot_holder_exit
+
+    d = _holder_exit_dir(tmp_path)
+    m = json.loads((d / "manifest.json").read_text())
+    m["axes"] = m["axes"][1:]
+    (d / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="no axis setting"):
+        plot_holder_exit(d)

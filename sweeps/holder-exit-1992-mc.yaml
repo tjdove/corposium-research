@@ -1,0 +1,24 @@
+# Holder exit rule x holder capital on the 1992 analogue (Story 3.3, BACKGROUND §4).
+# Does Black Wednesday need the convergence traders to switch sides? The holder (the
+# par-expecting buyer, capped at its entry price per ADR-0024) gains a one-way exit: the
+# first time AMM spot is below 1 - exit_discount_pct/100 it sells every stable it holds
+# (not already queued for redemption) on the AMM and never buys or redeems again.
+# Base: scenarios/soros-1992.yaml as committed (attacker 255,754,476 = 6x Quantum;
+# ratio 1.270 to budget + reserves), holder entry 2%, pace 0.05.
+# Numbers and their origins:
+#   exit_discount_pct in {null, 5, 10, 20, 40}: null = never sells (the 3.1 holder; the
+#        cell hashes equal the base's with only capital changed); 5 ... 40 = sells once
+#        spot is below 0.95 / 0.90 / 0.80 / 0.60. All exceed the 2% entry (validator).
+#   capital in {C*, 5 C*, 25 C*} = {9,166,667; 45,833,335; 229,166,675}: C* fitted on
+#        usdc-2023 (ADR-0021) is 3.6% of the attacker; 25 C* is 0.90x the attacker
+#        (BACKGROUND §4: the convergence trades were the larger pool of capital).
+#   seeds 1000..1007 (8 per grid point); max_steps from the scenario (14,400 = two days).
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 5 exits x 3 capitals = 15 grid points x 8 seeds = 120 runs.
+version: 1
+name: holder-exit-1992-mc
+base: scenarios/soros-1992.yaml
+axes:
+  agents[type=holder].exit_discount_pct: [null, 5, 10, 20, 40]
+  agents[type=holder].capital: [9166667, 45833335, 229166675]
+seeds: { count: 8, start: 1000 }
