@@ -133,3 +133,38 @@ def test_every_scenario_hash_is_pinned_for_3_1():
     assert {p.stem for p in SCENARIO_DIR.glob("*.yaml")} == set(HASHES_3_1)
     for name, h in HASHES_3_1.items():
         assert load_scenario(SCENARIO_DIR / f"{name}.yaml").content_hash() == h, name
+
+
+# Story 3.3: exit rule ------------------------------------------------------------------
+
+
+def test_exit_discount_defaults_to_none():
+    assert HolderConfig.model_validate(HOLDER).exit_discount_pct is None
+
+
+@pytest.mark.parametrize("bad", [0, -1, 100, 150])
+def test_exit_discount_bounds(bad):
+    with pytest.raises(ValidationError):
+        HolderConfig.model_validate(HOLDER | {"exit_discount_pct": bad})
+
+
+@pytest.mark.parametrize("exit_", [1.0, 2.0])
+def test_exit_must_exceed_entry(exit_):
+    with pytest.raises(ValidationError, match="must exceed entry_discount_pct"):
+        HolderConfig.model_validate(HOLDER | {"exit_discount_pct": exit_})
+
+
+def test_exit_above_entry_allowed():
+    assert HolderConfig.model_validate(HOLDER | {"exit_discount_pct": 2.5}).exit_discount_pct == 2.5
+
+
+def test_exit_none_leaves_the_hash_and_a_set_exit_moves_it(tmp_path):
+    data = yaml.safe_load((SCENARIO_DIR / "soros-1992.yaml").read_text(encoding="utf-8"))
+    (holder,) = [a for a in data["agents"] if a["type"] == "holder"]
+    path = tmp_path / "s.yaml"
+    holder["exit_discount_pct"] = None
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert load_scenario(path).content_hash() == HASHES_3_1["soros-1992"]
+    holder["exit_discount_pct"] = 10.0
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert load_scenario(path).content_hash() != HASHES_3_1["soros-1992"]

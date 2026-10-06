@@ -187,7 +187,9 @@ class DefenderConfig(StrictModel):
 class HolderConfig(StrictModel):
     """Par-expecting buyer (Story 2.6): buys below ``1 - entry_discount_pct/100``, redeems
     in tranches the redemption channel can pay. ``redeem_horizon_steps`` is a constructor
-    default on the agent, not a config field."""
+    default on the agent, not a config field. ``exit_discount_pct`` (Story 3.3): once spot
+    falls below ``1 - exit_discount_pct/100`` it sells everything on the AMM and never
+    re-enters; ``None`` (default) never sells."""
 
     type: Literal["holder"]
     id: str
@@ -195,6 +197,19 @@ class HolderConfig(StrictModel):
     entry_discount_pct: float = Field(ge=0)
     pace: float = Field(gt=0, le=1)
     redeem_when_capacity: bool = True
+    exit_discount_pct: float | None = Field(default=None, gt=0, lt=100)
+
+    @model_validator(mode="after")
+    def _exit_below_entry(self) -> HolderConfig:
+        if self.exit_discount_pct is not None and not (
+            self.exit_discount_pct > self.entry_discount_pct
+        ):
+            raise ValueError(
+                f"holder {self.id!r}: exit_discount_pct ({self.exit_discount_pct}) must exceed "
+                f"entry_discount_pct ({self.entry_discount_pct}): the exit price must sit below "
+                "the entry price, or the holder sells at the price it buys"
+            )
+        return self
 
 
 AgentConfig = Annotated[
@@ -234,7 +249,8 @@ class ScenarioConfig(StrictModel):
         (Story 2.8). A set series enters as the file's sha256 (``price_series_sha256``), not
         its path, so the hash follows the data and does not depend on the machine. A
         defender's ``buy`` and ``max_spread_bps`` enter only when not at their defaults
-        (``True``, ``None``; Story 3.2)."""
+        (``True``, ``None``; Story 3.2). A holder's ``exit_discount_pct`` enters only when set
+        (Story 3.3)."""
         data = self.model_dump(mode="json")
         env = data["environment"]
         if env.pop("price_series_path") is not None:
@@ -250,6 +266,8 @@ class ScenarioConfig(StrictModel):
                     del agent["buy"]
                 if agent["max_spread_bps"] is None:
                     del agent["max_spread_bps"]
+            elif agent["type"] == "holder" and agent["exit_discount_pct"] is None:
+                del agent["exit_discount_pct"]  # Story 3.3: never-sells leaves hashes unchanged
         payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 

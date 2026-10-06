@@ -1,6 +1,6 @@
 # Story 3.3: Holder Sell Rule and the 1992 Switch-Sides Test
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 

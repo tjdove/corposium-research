@@ -328,3 +328,131 @@ def test_two_step_sawtooth(cls, above_par):
     assert (max(first, second) > 1.0) is above_par
     if not above_par:
         assert first <= h.entry_price + 1e-9 and second <= h.entry_price + 1e-9
+
+
+# Story 3.3: exit rule ------------------------------------------------------------------
+
+
+def exiting(capital=100_000.0, entry=2.0, exit_=10.0, pace=0.05, stable=0.0, redeem=False):
+    h = Holder(
+        "h",
+        capital=capital,
+        entry_discount_pct=entry,
+        pace=pace,
+        redeem_when_capacity=redeem,
+        exit_discount_pct=exit_,
+    )
+    h.balances["stable"] = stable
+    return h
+
+
+def test_exits_once_below_the_exit_price_and_sells_everything():
+    w = world()
+    h = exiting()
+    assert h.exit_price == pytest.approx(0.90)
+    w.set_spot(0.95)  # below entry (0.98), above exit (0.90)
+    w.step(h)
+    held = h.balances["stable"]
+    assert rules(w, "h") == ["hold_buy"] and held > 0
+    w.set_spot(0.89)
+    (act,) = w.step(h)
+    assert act.target == "amm" and act.params == {"amount_in": held, "side": "sell_stable"}
+    assert h.exited and h.balances["stable"] == pytest.approx(0.0)
+    assert h.sold_stable == held
+    w.set_spot(0.85)  # still below the exit price: no second exit
+    assert w.step(h) == []
+    assert rules(w, "h") == ["hold_buy", "hold_exit", "hold_done"]
+    (d,) = [d for d in decisions(w, "h") if d.rule == "hold_exit"]
+    assert d.observed["exit_price"] == pytest.approx(0.90) and d.observed["exited"] is False
+
+
+def test_at_the_exit_price_does_not_exit():
+    w = world()
+    h = exiting(stable=1_000.0)
+    w.set_spot(0.90)  # strictly below is required; at 0.90 it buys instead
+    w.step(h)
+    assert rules(w, "h") == ["hold_buy"] and not h.exited
+
+
+def test_never_re_enters_when_the_price_recovers():
+    w = world(capacity=1_000_000.0)
+    h = exiting(stable=1_000.0, redeem=True)
+    w.set_spot(0.85)
+    w.step(h)  # exit
+    reference_after_exit = h.balances["reference"]
+    for p in (0.95, 0.97, 0.99, 1.0, 0.95):  # discount reappears, queue clear, has reference
+        w.set_spot(p)
+        assert w.step(h) == []
+    assert rules(w, "h") == ["hold_exit"] + ["hold_done"] * 5
+    assert h.balances["reference"] == reference_after_exit and h.bought_stable == 0.0
+
+
+def test_exit_with_nothing_held_records_no_action():
+    w = world()
+    h = exiting()
+    w.set_spot(0.80)
+    assert w.step(h) == []
+    assert h.exited
+    (d,) = decisions(w, "h")
+    assert d.rule == "hold_exit" and d.action is None
+    w.set_spot(0.95)
+    w.step(h)  # would have bought before the exit
+    assert rules(w, "h") == ["hold_exit", "hold_done"]
+    assert h.balances["reference"] == 100_000.0
+
+
+def test_exit_cancels_nothing_queued():
+    w = world(capacity=100.0, spread_bps=0)
+    h = exiting(capital=1.0, stable=5_000.0, redeem=True)
+    w.set_spot(0.99)
+    w.step(h)  # tranche of 1,000 queued, 100 paid this step
+    assert rules(w, "h") == ["hold_redeem"] and h.queued_redeem == pytest.approx(900.0)
+    w.set_spot(0.85)
+    (act,) = w.step(h)  # sells only what is not queued; another 100 paid this step
+    assert act.params["amount_in"] == pytest.approx(5_000.0 - 1_000.0)
+    for _ in range(8):
+        w.step(h)
+    assert h.queued_redeem == pytest.approx(0.0) and h.balances["stable"] == pytest.approx(0.0)
+    paid = [e.payload["amount_stable"] for e in events_of(w, "redeem_fulfilled")]
+    assert sum(paid) == pytest.approx(1_000.0)
+    assert rules(w, "h") == ["hold_redeem", "hold_exit"] + ["hold_done"] * 8
+
+
+def test_buy_then_exit_at_a_lower_price_loses():
+    w = world(fee_bps=1)
+    h = exiting(capital=10_000.0, pace=1.0)
+    w.set_spot(0.95)
+    w.step(h)  # buys with everything near 0.95
+    assert h.balances["reference"] == pytest.approx(0.0)
+    w.set_spot(0.85)
+    w.step(h)  # sells everything near 0.85
+    assert h.exited and h.balances["stable"] == pytest.approx(0.0)
+    assert h.pnl(w.ctx) < 0 and h.pnl_last == pytest.approx(h.pnl(w.ctx))
+    # price impact on both legs makes it worse than the bare price ratio
+    assert 0.85 * 10_000.0 < h.balances["reference"] < 10_000.0 * 0.85 / 0.95
+
+
+def test_no_exit_rule_never_sells():
+    w = world()
+    h = holder(stable=10_000.0, redeem=False)
+    assert h.exit_price is None
+    w.set_spot(0.10)
+    (act,) = w.step(h)
+    assert act.params["side"] == "buy_stable" and not h.exited
+    assert "exit_price" not in decisions(w, "h")[0].observed
+    assert "exited" not in h.snapshot()
+
+
+@pytest.mark.parametrize("exit_", [2.0, 1.0, 100.0, 0.0])
+def test_exit_construction_guard(exit_):
+    with pytest.raises(ValueError, match="exit_discount_pct"):
+        Holder("h", capital=1.0, entry_discount_pct=2.0, pace=0.1, exit_discount_pct=exit_)
+
+
+def test_exit_from_config_and_snapshot():
+    cfg = HolderConfig(
+        type="holder", id="z", capital=1, entry_discount_pct=2, pace=1, exit_discount_pct=10
+    )
+    h = Holder.from_config(cfg)
+    assert h.exit_discount_pct == 10.0 and h.exit_price == pytest.approx(0.9)
+    assert h.snapshot()["exited"] is False and h.snapshot()["sold_stable"] == 0.0
