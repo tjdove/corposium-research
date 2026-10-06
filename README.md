@@ -106,6 +106,7 @@ output/         run artifacts (gitignored)
 - `docs/epics.md` — build plan broken into stories
 - `docs/PROCESS.md` — how the dev-manager role runs the project; review checklist; process lessons
 - `docs/LITERATURE.md` — outside sources and events pointed at the project, with verification status
+- `docs/NOTE.md` — the research note (outline during Epic 3; the note in Epic 4)
 - `docs/stories/` — one file per story with acceptance criteria and dev record
 - `CLAUDE.md` — working rules for coding agents
 

@@ -127,6 +127,7 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 - Python first; Rust only if measured
 - No live-chain dependencies in the core path (Anvil is verification only)
 - Honest results over impressive architecture
+- **The analogy is a tool, not a thesis.** 1992 gives the model its question and its first calibration; where on-chain mechanics diverge from 1992 is a result to report, not a caveat to bury. The note's spine is where the analogy holds and where the mechanism changes (Tim, 2026-10-06).
 
 ---
 
@@ -174,3 +175,4 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-05 | Epic 2 closed eight days early. Epic 3 re-planned from the findings (fill-price fix, policy comparison, 1992 switch-sides test, budget vs attack, hardening; stretch OU reference, multi-tranche holder, LP agent); starts Oct 6; freeze Oct 21 and Nov 1 unchanged | Tim (agreed in Monday review 2026-10-05) |
 | 2026-10-05 | Anvil/Foundry replay dropped from stretch: no finding depends on it and it costs 2–3 days of plumbing | Claude, Tim agreed |
 | 2026-10-05 | Note outline (`docs/NOTE.md`) drafted during Epic 3, not after the freeze; outside reader to be secured by Oct 15 | Claude, Tim agreed |
+| 2026-10-06 | Principle added: the analogy is a tool, not a thesis; divergences from 1992 are results and structure the note | Tim |
