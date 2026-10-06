@@ -582,7 +582,51 @@ property of the 1992 analogue's unconstrained redemption, not of spread defenses
 
 ---
 
-## Headline candidates (ranked, 2026-10-05, revised after 3.2)
+## F-14 · Where the believer exits decides what breaks: the venue or the issuer
+
+**Date:** 2026-10-06 · **ADR:** [0026](adr/0026-holder-exit-rule.md) · **Story:** 3.3
+**Reproduce:** `python -m depeg_sim.sweep sweeps/holder-exit-1992-mc.yaml --mc --workers 8`;
+`python scripts/scan_1992.py --holder-capital 229166675 --range 4.0:7.0:0.1` (flip 4.9) and
+`--exit 2.5` (flip 5.7).
+
+**Expected (story).** A believer who switches sides — sells everything on the AMM once the
+price falls past its exit discount — would be what breaks the 1992 analogue, per
+BACKGROUND §4; a believer who never sells would hold it up.
+
+**Observed.** At 6× Quantum every cell of exit {never, 5, 10, 20, 40%} × capital {C\*,
+5 C\*, 25 C\*} exhausts reserves (8/8 seeds), within 12 steps of each other. At 25 C\*
+(0.9× the attacker) no exit price is ever reached; the holder's own buying holds the trough
+at −225 … −272 bps. Where the exit fires it deepens the trough (−5,975 → −6,526 bps) and
+leaves the redemption payout unchanged. Every exiting run loses 36–77% of the holder's
+capital; every non-exiting run profits. The flip multiple at 25 C\*: **4.9× (ratio 1.04)
+without an exit**, 5.7× with one that fires (2.5%), 5.7× with no holder at all.
+
+**Why.** Reserves are reached only through redemption. An AMM sale moves the price and
+hands the seller the crashed price; it never touches the issuer. A believer who stays and
+redeems is paid at par out of the reserves — 29–41M of the 100.7M at 25 C\* — alongside
+the attacker's arbitrageur. So the believer who *keeps the faith and redeems* is the one
+who drains the Bank; the believer who *loses faith and dumps* spares it and pays twice.
+
+**The mapping.** In 1992 there was one exit: sterling sold to the Bank of England at the
+floor. In model terms that is a redemption. The story mapped "switch sides" to an AMM
+sale, which 1992 did not have. Under the right mapping BACKGROUND §4 is **supported**: the
+analogue needs the convergence traders' capital to break at a historical-scale attack,
+and it needs them as redeemers (F-12's disciplined believer), bringing the flip from 5.7×
+to 4.9× — within 4% of the F-06 formula's 1.0. Under the AMM-sale mapping it is
+contradicted. The on-chain world has both exits, and they do different things.
+
+**What it changed.** BACKGROUND "Where the analogy breaks" gains the two-exit item (Tim's
+text). The note's 1992 section is written around the mapping, not the null chart.
+
+**For the note.** "On-chain, a believer who loses faith has two exits: the venue or the
+issuer. Selling on the venue breaks the price and spares the reserves; redeeming spares
+the price and drains the reserves. In 1992 there was only the issuer. The believers who
+broke the Bank were not the ones who panicked — they were the ones who calmly took it at
+its word, at par, until the word ran out."
+
+---
+
+## Headline candidates (ranked, 2026-10-06, revised after 3.3)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
    (F-08, confirmed) — validation chart; lead.
@@ -603,7 +647,10 @@ property of the 1992 analogue's unconstrained redemption, not of spread defenses
    (F-01, F-07) — methods.
 7. **"One believer gives a cliff; many believers at different prices give a curve."**
    (F-09) — limitations.
-8. **"A disciplined believer is a redeemer in waiting."** (F-12) — the 1992 section's
+8. **"A disciplined believer is a redeemer in waiting."** (F-12) — now folded into 9.
+9. **"On-chain a believer who loses faith has two exits: the venue or the issuer. One
+   breaks the price; only the other breaks the peg."** (F-12 + F-14) — the 1992 section's
+   result and the closing argument; could rise to 2 if the note is built around belief. — the 1992 section's
    bridge to the switch-sides test (3.3).
 
 The note leads with 1 (overlay as figure 1), gives 2 and 4 as the two mechanisms with the
@@ -634,8 +681,9 @@ methods and closes on 7, 8 and the 1992 open question.
   refinement). Next: budget against attack size at fixed deep pool (Epic 3).
 - Does a mean-reverting (OU) calm reference remove the clock effect at D\* under the par
   criterion, i.e. is "breaks on the clock" partly the random walk again? (Epic 3)
-- Does the holder have to switch sides (sell) for the 1992 analogue to exhaust at the
-  historical multiple? (Epic 3: holder sell rule)
+- ~~Does the holder have to switch sides (sell) for the 1992 analogue to exhaust?~~ No —
+  and selling on the venue makes it *harder*; the 1992 switch was a redemption, and with
+  the believers redeeming the flip is 4.9× (F-14).
 - Does a fill price limit on the holder remove the sawtooth without moving C\* much?
   (Epic 3)
 - Does D* land at a physical aggregate depth once the attacker is episode-sized? Yes on the

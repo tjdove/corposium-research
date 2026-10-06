@@ -1,6 +1,6 @@
 # ADR-0026: Holder exit rule; the 1992 analogue does not need the believer to switch sides — a believer who stays and redeems breaks it sooner (finding candidate)
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-06: the 1992 "switch sides" is a sale to the Bank at the floor = a redemption in model terms; BACKGROUND §4 is supported under that mapping (flip 4.9× with 25 C* redeeming) and contradicted under the AMM-sale mapping; → F-14)
 **Date:** 2026-10-06
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.3

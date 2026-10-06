@@ -32,6 +32,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0023](0023-reference-relative-recovery-and-budget-depth.md) | Reference-relative recovery via ReferenceView; oracle criterion removes the wander, not the clock; defending budget does not scale with depth | Accepted (finding, amended; refines F-11) | 2026-10-04 |
 | [0024](0024-holder-fill-price-limit.md) | Holder fill-price limit; C* unchanged; sawtooth gone on the plateau; 1992 flip 5.7 → 5.2: an overpaying believer was an accidental defender (F-12) | Accepted (finding, amended) | 2026-10-05 |
 | [0025](0025-defender-policies-and-base-axis.md) | Defender policy comparison: buy flag, spread cap, base_axis; the slow defender wins because it pays less (F-13); no spread dead zone under capacity-limited redemption (F-07 refinement) | Accepted (finding, amended) | 2026-10-05 |
+| [0026](0026-holder-exit-rule-and-switch-sides-test.md) | Holder exit rule; 1992 switch-sides test: AMM exit breaks the price not the reserves; redemption is the 1992 switch; flip 4.9× with large redeeming believers (F-14) | Accepted (finding, amended) | 2026-10-06 |
 
 ## Template
 
