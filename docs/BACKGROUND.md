@@ -124,6 +124,7 @@ Stating these up front is part of the result.
 4. **No partner central bank.** Sterling's fate depended partly on how much the Bundesbank would help. Most stablecoins have no lender of last resort. In March 2023 USDC recovered its peg only after US authorities guaranteed deposits at Silicon Valley Bank, an outside backstop outside the protocol.
 5. **The promise is different.** ERM obligations bound governments within a negotiated system. A stablecoin redemption promise is set by the issuer's terms and its reserve custody.
 6. **Market structure and time.** Currency markets in 1992 were deep, over-the-counter and slow to report. An AMM's price impact is exact, public and settles every block.
+7. **Two exits, not one.** *(Proposed by the dev manager after Story 3.3, 2026-10-06; Tim to accept or edit.)* A holder of sterling who lost faith in 1992 had one way out: sell to the Bank of England at the floor, which drained the reserves. A stablecoin holder has two: sell on the venue, which moves the price and never touches the issuer, or redeem, which drains the reserves and leaves the price alone. The model shows they do different things (F-14): the venue exit deepens the depeg and spares the reserves; the redemption exit is what breaks the peg. In the 1992 analogue, "the convergence traders switching sides" is a redemption, and under that mapping the model needs them to break the Bank at a historical-scale attack.
 
 ---
 

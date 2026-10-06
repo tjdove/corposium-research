@@ -1,0 +1,40 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.4</storyId><title>Budget Against Attack at a Deep Pool, and Pace Against Trigger</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-06</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-4-budget-vs-attack.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>the price-defense boundary mapped against attack size at a deep pool, and defender pace separated from trigger</iWant>
+    <soThat>F-11's withdrawn clause is replaced by a tested one and F-13 names the right parameter</soThat>
+    <tasks>- Budget × attack (AC: 1–3) - Pace × trigger (AC: 4–6) - ADR, figures, close out (AC: 7, 8)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–8. The price-loss metric (never re-enters) is normative for AC 2; time-to-parity from run start for AC 5.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-4-budget-vs-attack.md" section="Dev Notes">Why 2× D*, metric choice, predictions.</doc>
+      <doc path="docs/FINDINGS.md" section="F-11 refinement, F-13">The two hypotheses under test.</doc>
+    </docs>
+    <code>
+      <existing path="sweeps/budget-x-depth-mc.yaml, sweeps/policy-comparison-mc.yaml" reason="Spec style; overrides usage."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_budget_depth, plot_time_to_parity" reason="Reuse the crossing and time-to-parity helpers; add plot_budget_attack and plot_pace_trigger."/>
+      <existing path="src/depeg_sim/experiments/mc.py" reason="steps_to_first_band_entry_n, attacker_pnl, defender_bought_stable columns."/>
+      <existing path="scripts/make_figures.py, docs/figures/README.md" reason="Register two figures."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes; no config changes; every scenario hash unchanged.
+    - Charts read parquet + manifest only; no hand-tuned axes.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="plot_budget_attack" kind="function" path="src/depeg_sim/analysis/charts.py">plot_budget_attack(sweep_dir: Path) -> Path</interface>
+    <interface name="plot_pace_trigger" kind="function" path="src/depeg_sim/analysis/charts.py">plot_pace_trigger(sweep_dir: Path) -> Path</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; synthetic parquet for both charts (crossing monotone in one; three-axis grid in the other); spec files load and expand to 200 and 256 cells.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

@@ -1,6 +1,6 @@
 # Story 3.3: Holder Sell Rule and the 1992 Switch-Sides Test
 
-Status: review
+Status: done
 
 ## Story
 
@@ -380,6 +380,78 @@ every existing scenario hash unchanged; nothing from CHARTER §4 Out.
   `tests/test_figures.py`
 - `docs/stories/3-3-holder-exit-rule.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-06
+**Outcome:** **APPROVE** ✅ — the claim is contradicted *as the story mapped it*, and the
+builder's caveat is the finding: the story mapped "switching sides" to the wrong exit.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `608 passed in
+50.75s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `90 files already
+formatted`; `make figures-check` → ok, 12 figures. **Exit sweep re-run in full** (120 runs,
+2 workers, 3m09s): every cell `p_reserves_exhausted` 1.0; `steps_run` 9,541.5 / 9,552.9–
+9,564.5 / 9,656.4 by capital; holder PnL +152k … −5.23M (1×), +493k … −35.1M (5×), +566k
+flat (25×, exit never reached) — all match. **Scans:** 25 C\* no exit → flip 4.9 (1.037);
+25 C\* exit 2.5% → flip 5.7. Chart read: a null heatmap, drawn as one.
+
+### Rulings
+
+1. **ADR-0026 → Accepted (finding, amended).** The amendment is the mapping. In 1992 a
+   convergence trader who "switched sides" sold sterling **to the Bank of England at the
+   floor** — in the model's terms, that is a *redemption*, not an AMM sale. The story (my
+   draft) mapped the switch to `sell_stable` on the AMM, which reaches the price but not
+   the reserves. The model's disciplined holder who buys below par and redeems whenever it
+   can (F-12) *is* the 1992 trader who turned. Read with that mapping, the sweep says: with
+   the convergence traders' capital redeeming alongside the attacker, the analogue breaks
+   at **4.9× Quantum (ratio 1.04)** instead of 5.7× — the model's Black Wednesday needs the
+   believers, as redeemers. BACKGROUND §4 is **supported**, once "switch sides" means
+   "redeem"; the AMM-sale version is contradicted. Both go in the note.
+2. **F-14 (new):** where the believer exits decides what breaks. On-chain a believer has
+   two exits that 1992 did not distinguish: dump on the venue (breaks the price, spares
+   the reserves, and the believer pays the crash — PnL −36% to −77% in every exiting run)
+   or redeem (spares the price, drains the reserves, and the believer is paid at par).
+   Reserves are only reached through redemption; so at 6× the AMM exit moves exhaustion
+   by at most 12 steps while deepening the trough from −5,975 to −6,526 bps.
+3. **"Sells all stable it holds" = the unqueued part** → accepted; the queued part is
+   already a redemption and is paid. Stated in the ADR; AC 1 reads that way from now on.
+4. **The holder is paid 29–41M of the 100.7M reserves at 25 C\*** — record as the number
+   the note quotes for "the believers' share of the Bank's reserves".
+5. **BACKGROUND.md "Where the analogy breaks"** gains an item for the two-exit distinction
+   (Tim's document; proposed text in the PR for Tim to accept or edit).
+6. **Predictions: two of five held.** Both misses came from the same wrong mapping. L-15
+   working as intended.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `exit_discount_pct`, validator, `hold_exit` one-way; hashes unchanged |
+| 2 | ✅ | five holder tests incl. negative PnL after exit |
+| 3 | ✅ | sweep spec; `None` on an axis already worked, tests added; reproduced here |
+| 4 | ✅ | `scripts/scan_1992.py` reproduces 3.1's 5.2 first; 25 C\* scans; dry-run test |
+| 5 | ✅ | `plot_holder_exit`; null heatmap drawn honestly |
+| 6 | ✅ | verdict paragraph with numbers and the one-sentence call |
+| 7 | ✅ | ADR-0026 with the caveat that becomes the finding |
+| 8 | ✅ | figure registered; `make figures` 529 s; guard ok; 608 tests; CI green |
+
+**8 of 8 ACs met.**
+
+### Key Findings
+
+- F-14 as above. Headline candidate: *"On-chain, a believer who loses faith has two exits:
+  the venue or the issuer. One breaks the price; only the other breaks the peg."*
+- The 1992 analogue with believers at 0.9× the attacker breaks at ratio 1.04, within 4% of
+  the F-06 formula's 1.0.
+
+### Learnings for Story 3.4
+
+- Map every 1992 action to its model counterpart *by what it touches* (price, reserves,
+  budget), not by its name. "Selling" meant two different things.
+- A null chart is a result; keep it in the record, keep it out of the note.
+
 ## Change Log
 
 - 2026-10-05: Story drafted by dev manager after Story 3.2 review
@@ -388,3 +460,4 @@ every existing scenario hash unchanged; nothing from CHARTER §4 Out.
   25 C\* flip 4.9 with and without exit 10 (exit never reached); diagnostics show switching
   sides raises the flip to the no-holder 5.7; verdict: BACKGROUND §4 contradicted in the
   model; figure registered, `make figures` 529 s; ADR-0026 Proposed. Status review
+- 2026-10-06: Senior review APPROVE; ADR-0026 accepted (finding, amended: the 1992 switch is a redemption); F-14 added; Status done
