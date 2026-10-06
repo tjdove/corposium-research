@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the five sweeps in full, then scripts/make_figures.py (~8.5 min on 12 cores)
+make figures         # runs the six sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
@@ -26,6 +26,7 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 refinement |
 | [`budget_depth.png`](budget_depth.png) | `sweeps/budget-x-depth-mc.yaml` | F-11 refinement |
 | [`oracle_sensitivity.png`](oracle_sensitivity.png) | `sweeps/oracle-lag-mc.yaml` | F-10, F-04 |
+| [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | ADR-0026 candidate (F-12, F-07) |
 | [`policy_comparison.png`](policy_comparison.png) | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | ADR-0025 candidates (F-07, F-11, F-12) |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | `scenarios/soros-1992.yaml` | F-07 (+ refinement) |
@@ -85,6 +86,15 @@ never re-enters (open marker). (b) Every buying policy spends the whole $9.70B b
 every ratio; the p05–p95 band has no width. (c) p(stays broken): only late-conservative
 stays below 0.5 at 0.7× and 1.0×; spread-only and no-defense are 1.0 everywhere. Points
 are dodged sideways per policy so coinciding series stay visible.
+
+**`holder_exit.png`.** The 1992 analogue at 6× Quantum (1.27× budget + reserves), 8 seeds
+per cell: the holder's exit rule (never sells; sells everything once spot is below −5,
+−10, −20, −40%) against its capital (1×, 5×, 25× C\*). Left: every cell exhausts reserves
+(p = 1.00). Top right: exhaustion comes at 31.8–32.2 h in every cell, the redemption
+channel's capacity clock; whether the believer sells does not move it. Bottom right: the
+holder that sells loses, $0.8–1.2B at 1× C\* and about $8B at 5× C\*; the 25× holder never
+reaches any exit price (it holds the trough at −256 bps) and earns +$0.13B; at 5× the −40%
+exit is never reached either.
 
 **`peg_trajectory_calibrated.png`.** The calibrated baseline (seed 42): the attack takes the
 AMM to −1,253 bps; the defender buys it back within minutes and the run ends
