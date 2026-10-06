@@ -626,7 +626,47 @@ its word, at par, until the word ran out."
 
 ---
 
-## Headline candidates (ranked, 2026-10-06, revised after 3.3)
+## F-11 second refinement (2026-10-06, from 3.4)
+
+**Reproduce:** `python -m depeg_sim.sweep sweeps/budget-x-attack-mc.yaml --mc --workers 8`;
+`python scripts/budget_attack_table.py output/budget-x-attack-mc`.
+
+At 2× D\* — a pool too deep for the dump to crash — the budget that holds the price
+(p(never re-enters) crossing 0.5) is **proportional to the attack**: 1.25× / 1.75× / 2.5×
+the calibrated budget at 0.8× / 1.0× / 1.5× resources, log–log slope 1.08; budget / attack
+0.36 (0.32–0.39). It does not track what the attacker extracts (slope 1.4, ratio drifting
+0.61 → 0.82). Mechanism by conservation: at the crossing the defender, holder and
+redemption absorb 96–99% of the attacker's stable; the holder (18.3M reference) and
+capacity-limited redemption are fixed, so the defender's share rises with the attack (62%
+→ 87%) at 0.43–0.52 per stable. Below ≈ 0.5× resources the believers and redemption hold
+the price without the defender. **F-11's replacement clause:** shallow pools are cheap to
+defend at any budget because the dump crashes; deep pools need a budget of about a third
+of the attack, because nothing crashes and someone has to buy the stock near par.
+
+---
+
+## F-13 refinement (2026-10-06, from 3.4)
+
+**Reproduce:** `python -m depeg_sim.sweep sweeps/pace-x-trigger-mc.yaml --mc --workers 8`;
+`plot_pace_trigger`; the pace-ratio sweep committed in 3.5.
+
+**The trigger does nothing.** Time-to-parity at D\*, ratio 1.0: defender pace 0.05 / 0.1 /
+0.2 / 0.5 → 0.4 / 29.9 / 48.2 / 53.1 h at every trigger from 0.5% to 4% (±1 h at pace
+0.05). The attacker's first sale — 10% of its stock, 17.9M into a 16.7M side — puts spot
+near 0.23, so every trigger fires on step 50. F-13's "late-conservative" label was its
+pace. **What matters is pace relative to the attacker's.** Against an attacker selling 2%
+per step instead of 10%, every defender on the grid (pace ≥ 0.05) loses the price; a probe
+with slower defenders finds the same shape shifted: at about half the attacker's pace the
+defender is back in hours (0.4 h vs 0.1; 7.9 h vs 0.02), at equal pace back late (29.9 h;
+47.1 h), at 1.5–2× the attacker's pace never. Price paid falls as the defender slows,
+bottoming at ≈ 20× slower than the attacker. **The slow attacker is the hard one.**
+
+**For the note.** How fast the defender spends matters as much as how much it has. The
+rule the model gives is simple enough to state: spend slower than the attacker sells.
+
+---
+
+## Headline candidates (ranked, 2026-10-06, revised after 3.4)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
    (F-08, confirmed) — validation chart; lead.
@@ -635,9 +675,9 @@ its word, at par, until the word ran out."
    time-to-parity panel are its charts. The quantitative form: at D\* the issuer wins the
    price and loses the clock; at 2× D\* it loses the price unless it roughly doubles its
    budget.
-3. **"The defender that waits wins: a defense that spends before the attacker is done is
-   defending the attacker's exit price."** (F-13) — the policy result; one chart; the 1992
-   echo writes itself.
+3. **"Spend slower than the attacker sells."** (F-13 + refinement) — the policy result in
+   five words; the trigger does nothing; the slow attacker is the hard one; the 1992 echo
+   writes itself.
 4. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
    F-11) — throughput; explains why validation needed the buyer and why "recovery" is a
    speed question.
@@ -677,8 +717,10 @@ methods and closes on 7, 8 and the 1992 open question.
   nominal per-depth crossings and saturation above D\* (F-11).
 - ~~Does oracle lag matter under deviation-triggered updates?~~ No (F-10).
 - ~~Under a reference-relative criterion, is the price-defense boundary budget vs depth?~~
-  No: slope 0.47; the budget interval that decides 2× and 4× D\* is the same (F-11
-  refinement). Next: budget against attack size at fixed deep pool (Epic 3).
+  No (slope 0.47). ~~Next: budget against attack size at fixed deep pool.~~ Proportional:
+  ≈ 0.36 × attack at 2× D\* (F-11 second refinement).
+- ~~Is F-13 pace, trigger, or pace relative to the attacker?~~ Relative pace; trigger does
+  nothing (F-13 refinement).
 - Does a mean-reverting (OU) calm reference remove the clock effect at D\* under the par
   criterion, i.e. is "breaks on the clock" partly the random walk again? (Epic 3)
 - ~~Does the holder have to switch sides (sell) for the 1992 analogue to exhaust?~~ No —

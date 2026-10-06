@@ -1,6 +1,6 @@
 # Story 3.4: Budget Against Attack at a Deep Pool, and Pace Against Trigger
 
-Status: review
+Status: done
 
 ## Story
 
@@ -387,7 +387,83 @@ this for every figure source).
 - `tests/test_charts.py`, `tests/test_sweep.py`, `tests/test_figures.py`
 - `docs/stories/3-4-budget-vs-attack.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-06
+**Outcome:** **APPROVE** ✅ — both hypotheses answered, both against the Dev Notes, both
+with a mechanism.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `616 passed in
+49.07s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `91 files already
+formatted`; `make figures-check` → ok, 14 figures. **Both sweeps re-run in full** (200 runs
+7m29s; 256 runs 14m07s on 2 workers). `scripts/budget_attack_table.py` reproduces the
+crossings (1.25× / 1.75× / 2.5×, two not reached), slope 1.08 vs attack, 1.40 vs
+extraction, 0.84 vs loss. Pace × trigger grid reproduced cell for cell: 0.4 / 29.9 / 48.2 /
+53.1 h by pace at every trigger (0.9 and 1.3 h at pace 0.05 for 2% and 4%); attacker pace
+0.02 never re-enters in all 128 runs. Both charts read.
+
+### Rulings
+
+1. **ADR-0027 → Accepted (finding, amended).** Finding A → F-11 second refinement; finding B
+   → F-13 refinement; the "how fast matters as much as how much" candidate is folded into
+   F-13 rather than numbered separately.
+2. **Extraction candidate** — the builder is right that `capital + attacker_pnl` is
+   extraction and `−attacker_pnl` is the attacker's loss; my Dev Notes conflated them. Both
+   tested; attack size is the only input among the three and the one that fits. Recorded.
+3. **The slow-attack result is uncommitted.** The committed grid shows only "never" at
+   attacker pace 0.02; the relative-pace finding (back in 2 h at half the attacker's pace,
+   late at equal, never at 1.5–2×) lives in an 80-run diagnostic. Story 3.5 commits it as
+   `sweeps/pace-ratio-mc.yaml` (defender pace {0.0025, 0.005, 0.01, 0.02, 0.03, 0.05, 0.1}
+   × attacker pace {0.02, 0.1}, trigger 1%, 8 seeds) with a one-panel line chart of
+   time-to-parity against defender/attacker pace ratio. The note cites that, not the ADR's
+   table.
+4. **`D_STAR` chart constant** → accepted; label only.
+5. **Session `/tmp` quota on Seoul** → not a repo problem; 3.5's REPRODUCIBILITY.md notes
+   `TMPDIR` and that sweeps belong in `output/`.
+6. **Price paid bottoms at pace 0.005 and rises at 0.0025** → recorded as a nuance; below
+   the attacker's pace by 20× the defender is buying after the arbitrageur has already
+   pulled the price back. Not pursued.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | spec with origins; 2× D\* via overrides; reproduced |
+| 2 | ✅ | `plot_budget_attack`, p(never re-enters), crossing + slope lines |
+| 3 | ✅ | crossings, slope 1.08, both candidates tested, F-11 sentence |
+| 4 | ✅ | spec; 256 runs; reproduced |
+| 5 | ✅ | `plot_pace_trigger`, three panels |
+| 6 | ✅ | pace only; best pace moves with attacker pace (diagnostic); F-13 sentence |
+| 7 | ✅ | ADR-0027 |
+| 8 | ✅ | two figures registered; `make figures` 689 s; guard ok; 616 tests; CI green |
+
+**8 of 8 ACs met.**
+
+### Key Findings
+
+- **F-11, second refinement:** at a pool too deep to crash the holding budget is
+  proportional to the attack — ≈ 0.36× (0.32–0.39 over 0.8–2× resources), slope 1.08 —
+  because the holder and redemption are fixed absorbers and the defender takes the rest at
+  0.43–0.52 per stable. Below ≈ 0.5× resources the believers and redemption hold it alone.
+- **F-13 refinement:** the trigger does nothing (every trigger up to 4% is crossed by the
+  first dump); time-to-parity is set by the defender's spending pace relative to the
+  attacker's selling pace — half the attacker's pace is back in hours, equal is back late,
+  1.5–2× never. "Late-conservative" was the pace.
+- Against a five-times-slower attack, every defender on the grid loses the price. The slow
+  attacker is the harder one.
+
+### Learnings for Story 3.5
+
+- A committed grid that reads all-"never" is not the figure; commit the probe that shows
+  the gradient.
+- Three "outcome" candidates (extraction, loss, absorbed ratio) have now each looked like
+  a predictor and turned out to be conservation. Inputs only, from here.
+
 ## Change Log
 
 - 2026-10-06: Story drafted by dev manager after Story 3.3 review
 - 2026-10-06: Implemented by Claude Code (Opus 5.5): two sweeps, two charts, extraction table, ADR-0027 Proposed; Status: review
+- 2026-10-06: Senior review APPROVE; ADR-0027 accepted (finding, amended); F-11 and F-13 refined; pace-ratio sweep → 3.5; Status done

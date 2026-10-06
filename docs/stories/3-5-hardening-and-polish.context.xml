@@ -1,0 +1,46 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.5</storyId><title>Test Hardening, Repo Polish, and the Pace-Ratio Sweep</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-06</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-5-hardening-and-polish.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader</asA>
+    <iWant>to clone the repo and reproduce every figure and number without asking anyone</iWant>
+    <soThat>the note's claims are auditable by a stranger</soThat>
+    <tasks>- Pace-ratio sweep (AC: 1) - Summary field (AC: 2) - Guard and Makefile (AC: 3, 4) - Coverage (AC: 5) - Docs and pins (AC: 6–9) - Close out (AC: 10)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–10. Guard semantics (warn on code hash, fail on source hash) are normative.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-5-hardening-and-polish.md" section="Dev Notes">Why warn; what the README is for.</doc>
+      <doc path="docs/PROCESS.md">Source for CONTRIBUTING.md.</doc>
+      <doc path="docs/adr/0027-budget-vs-attack-and-pace-vs-trigger.md" section="Findings B">The probe AC 1 commits.</doc>
+    </docs>
+    <code>
+      <existing path="scripts/check_figures.py, scripts/make_figures.py" reason="code_hash."/>
+      <existing path="Makefile" reason="PYTHON default."/>
+      <existing path="src/depeg_sim/analysis/summary.py" reason="arbitrageur_redeemed."/>
+      <existing path="scripts/policy_table.py" reason="Read from summary."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="time_to_parity_hours" reason="plot_pace_ratio."/>
+      <existing path="tests/" reason="Coverage; property tests."/>
+      <existing path="README.md, pyproject.toml" reason="Rewrite; pins."/>
+    </code>
+    <dependencies><python>No new dependencies (no hypothesis); pytest-cov already present.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ behaviour changes; PHASE_ORDER_VERSION stays 1; every scenario hash unchanged.
+    - summary.json gains one key; the determinism fixtures are updated once with the diff in the Debug Log.
+    - README body has no story or ADR numbers.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="manifest.code_hash" kind="field" path="docs/figures/manifest.json">sha256 hex over sorted src/depeg_sim/**/*.py contents</interface>
+    <interface name="plot_pace_ratio" kind="function" path="src/depeg_sim/analysis/charts.py">plot_pace_ratio(sweep_dir: Path) -> Path</interface>
+    <interface name="summary.arbitrageur_redeemed" kind="key" path="src/depeg_sim/analysis/summary.py">float | None</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest + pytest-cov; seeded Generator for random sequences; coverage threshold asserted in CI for the two packages.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

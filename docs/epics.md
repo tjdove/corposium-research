@@ -484,7 +484,7 @@ So that F-11's withdrawn clause is replaced by a tested one.
 
 ---
 
-### Story 3.5: Test Hardening and Repo Polish
+### Story 3.5: Test Hardening, Repo Polish, and the Pace-Ratio Sweep
 
 As a **reader**,
 I want to clone the repo and reproduce every figure without asking anyone,
@@ -495,6 +495,7 @@ So that the note's claims are auditable.
 2. README: full quick start, scenario reference table (every YAML, one line each, with hash), sweep reference, `make` targets, figure index, FINDINGS pointer
 3. `CONTRIBUTING.md` (story process, determinism rule, how to add a scenario); `docs/REPRODUCIBILITY.md` checklist (versions, hashes, commands, expected wall times on a named machine); `summarize` gains `arbitrageur_redeemed` (3.2 review ruling 5)
 4. Dependency pins reviewed; `pip install -e .` on a clean 3.12 venv documented with timing
+0. `sweeps/pace-ratio-mc.yaml` + `plot_pace_ratio` commit the 3.4 slow-attack probe (3.4 review ruling 3)
 5. `docs/figures/manifest.json` gains `code_hash` (sha256 over `src/depeg_sim/**/*.py`); `figures-check` warns on a code-hash mismatch and fails on a source mismatch; `make figures` is on the freeze checklist (3.1 review ruling 4); Makefile prefers `.venv/bin/python` when present (2.9 review ruling 6)
 
 **Prerequisites:** Stories 3.1–3.4
