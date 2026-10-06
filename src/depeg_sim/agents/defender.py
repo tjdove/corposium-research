@@ -11,12 +11,16 @@ In defense, each step it buys stable on the AMM with::
 
 and skips the buy when ``x <= 0`` (rule ``defend_budget_exhausted``).
 
+With ``buy=False`` (Story 3.2, the "spread-only" policy) it never buys: in defense the
+rule is ``defend_spread_widen`` on the step it widens and ``defend_idle`` otherwise.
+
 Spread lever: if ``spread_adjust_bps > 0``, on entering defense it raises the
 redemption spread from its current value ``base`` to ``base + spread_adjust_bps``
-(capped at 9_999) through ``redemption.set_spread_bps(ctx, ..., source=agent_id)``,
+(capped at ``max_spread_bps``, default ``MAX_SPREAD_BPS`` = 9_999; a cap at or below
+``base`` means no widen) through ``redemption.set_spread_bps(ctx, ..., source=agent_id)``,
 once. When deviation returns within band it restores ``base``, once. It calls
-``set_spread_bps`` only when the value would change, so ``spread_changed`` events
-mark real lever pulls.
+``set_spread_bps`` only when the value would change, so ``spread_changed`` events mark
+real lever pulls.
 
 ``spent`` is reference actually sent to the AMM (``amount_in`` of its own executed
 swaps, applied in ``settle``), not planned spend. ``interventions`` counts those
@@ -59,6 +63,8 @@ class Defender(Agent):
         spread_adjust_bps: int = 0,
         max_spend: float | None = None,
         peg_price: float = 1.0,
+        buy: bool = True,
+        max_spread_bps: int | None = None,
     ) -> None:
         if not budget > 0:
             raise ValueError(f"budget must be > 0, got {budget}")
@@ -70,12 +76,18 @@ class Defender(Agent):
             raise ValueError(f"spread_adjust_bps must be >= 0, got {spread_adjust_bps}")
         if max_spend is not None and max_spend < 0:
             raise ValueError(f"max_spend must be >= 0, got {max_spend}")
+        if max_spread_bps is not None and not 0 <= max_spread_bps <= MAX_SPREAD_BPS:
+            raise ValueError(
+                f"max_spread_bps must be in [0, {MAX_SPREAD_BPS}], got {max_spread_bps}"
+            )
         super().__init__(agent_id, stable=0.0, reference=budget, peg_price=peg_price)
         self.budget = float(budget)
         self.threshold_pct = float(threshold_pct)
         self.spend_pace = float(spend_pace)
         self.spread_adjust_bps = spread_adjust_bps
         self.max_spend = max_spend
+        self.buy = buy
+        self.max_spread_bps = MAX_SPREAD_BPS if max_spread_bps is None else max_spread_bps
         self.spent = 0.0
         self.interventions = 0
         self.bought_stable = 0.0
@@ -92,6 +104,8 @@ class Defender(Agent):
             spread_adjust_bps=cfg.spread_adjust_bps,
             max_spend=cfg.max_spend,
             peg_price=peg_price,
+            buy=cfg.buy,
+            max_spread_bps=cfg.max_spread_bps,
         )
 
     def _buy_size(self, amm) -> float:
@@ -112,19 +126,22 @@ class Defender(Agent):
             rule = None
             if self.spread_adjust_bps > 0 and redemption is not None and not self.spread_widened:
                 base = redemption.spread_bps
-                target = min(base + self.spread_adjust_bps, MAX_SPREAD_BPS)
-                if target != base:
+                target = min(base + self.spread_adjust_bps, self.max_spread_bps)
+                if target > base:
                     redemption.set_spread_bps(ctx, target, source=self.agent_id)
                     self.base_spread = base
                     self.spread_widened = True
                     records.append(_spread_record(target))
                     rule = "defend_spread_widen"
-            x = self._buy_size(amm)
-            if x > DUST:
-                actions.append(self._swap("buy_stable", x))
-                records.append(action_record(actions[0]))
-                rule = rule or "defend_buy"
-            rule = rule or "defend_budget_exhausted"
+            if not self.buy:
+                rule = rule or "defend_idle"
+            else:
+                x = self._buy_size(amm)
+                if x > DUST:
+                    actions.append(self._swap("buy_stable", x))
+                    records.append(action_record(actions[0]))
+                    rule = rule or "defend_buy"
+                rule = rule or "defend_budget_exhausted"
         elif self.spread_widened:
             if redemption.spread_bps != self.base_spread:
                 redemption.set_spread_bps(ctx, self.base_spread, source=self.agent_id)

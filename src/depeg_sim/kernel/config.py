@@ -169,6 +169,10 @@ class ArbitrageurConfig(StrictModel):
 
 
 class DefenderConfig(StrictModel):
+    """``buy: false`` (Story 3.2) is a defender that never buys on the AMM and may still
+    widen the redemption spread (the "spread-only" policy). ``max_spread_bps`` caps the
+    widened spread; ``None`` keeps the agent's ``MAX_SPREAD_BPS``."""
+
     type: Literal["defender"]
     id: str
     budget: float = Field(gt=0)
@@ -176,6 +180,8 @@ class DefenderConfig(StrictModel):
     spend_pace: float = Field(gt=0, le=1)
     spread_adjust_bps: int = Field(default=0, ge=0)
     max_spend: float | None = None
+    buy: bool = True
+    max_spread_bps: int | None = Field(default=None, ge=0, lt=10_000)
 
 
 class HolderConfig(StrictModel):
@@ -226,7 +232,9 @@ class ScenarioConfig(StrictModel):
         empty ``redemption.capacity_schedule`` and an absent ``price_series_path`` are
         dropped, as is ``termination.peg_recovered.reference`` when it is ``par``
         (Story 2.8). A set series enters as the file's sha256 (``price_series_sha256``), not
-        its path, so the hash follows the data and does not depend on the machine."""
+        its path, so the hash follows the data and does not depend on the machine. A
+        defender's ``buy`` and ``max_spread_bps`` enter only when not at their defaults
+        (``True``, ``None``; Story 3.2)."""
         data = self.model_dump(mode="json")
         env = data["environment"]
         if env.pop("price_series_path") is not None:
@@ -236,6 +244,12 @@ class ScenarioConfig(StrictModel):
         rec = data["termination"]["peg_recovered"]
         if rec is not None and rec["reference"] == "par":
             del rec["reference"]  # Story 2.8: the default leaves older hashes unchanged
+        for agent in data["agents"]:
+            if agent["type"] == "defender":  # Story 3.2: defaults leave older hashes unchanged
+                if agent["buy"] is True:
+                    del agent["buy"]
+                if agent["max_spread_bps"] is None:
+                    del agent["max_spread_bps"]
         payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 

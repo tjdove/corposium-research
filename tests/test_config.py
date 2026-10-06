@@ -228,3 +228,43 @@ def test_new_fields_absent_leave_existing_hashes_unchanged():
         assert cfg.environment.price_series_path is None
         assert cfg.redemption.capacity_schedule == []
         assert cfg.content_hash()[:12] == h
+
+
+def test_defender_buy_and_spread_cap_defaults_leave_every_scenario_hash_unchanged():
+    """Story 3.2: ``buy`` and ``max_spread_bps`` at their defaults do not enter the hash.
+    Pinned at the Story 3.1 commit (14aed1e)."""
+    pinned = {
+        "scenarios/calibrated-baseline.yaml": "44ac03c60e5f",
+        "scenarios/calibrated-stress.yaml": "17b24b458e47",
+        "scenarios/soros-1992-no-defense.yaml": "516edaef4795",
+        "scenarios/soros-1992.yaml": "f4e26ae66440",
+        "scenarios/soros-baseline.yaml": "2e09f431ce74",
+        "scenarios/soros-volatile.yaml": "84ad0b810807",
+        "scenarios/usdc-2023.yaml": "2c3aeaa9825d",
+    }
+    for path, h in pinned.items():
+        cfg = load_scenario(Path(path))
+        for a in cfg.agents:
+            if a.type == "defender":
+                assert (a.buy, a.max_spread_bps) == (True, None)
+        assert cfg.content_hash()[:12] == h, path
+
+
+def test_defender_buy_false_and_cap_enter_the_hash(tmp_path, baseline_dict):
+    i = next(k for k, a in enumerate(baseline_dict["agents"]) if a["type"] == "defender")
+    h0 = load_scenario(write(tmp_path, copy.deepcopy(baseline_dict))).content_hash()
+    for extra in ({"buy": False}, {"max_spread_bps": 500}):
+        d = copy.deepcopy(baseline_dict)
+        d["agents"][i] |= extra
+        assert load_scenario(write(tmp_path, d)).content_hash() != h0
+    d = copy.deepcopy(baseline_dict)
+    d["agents"][i] |= {"buy": True, "max_spread_bps": None}  # explicit defaults
+    assert load_scenario(write(tmp_path, d)).content_hash() == h0
+
+
+@pytest.mark.parametrize("bad", [-1, 10_000])
+def test_defender_max_spread_bps_range(tmp_path, baseline_dict, bad):
+    i = next(k for k, a in enumerate(baseline_dict["agents"]) if a["type"] == "defender")
+    baseline_dict["agents"][i]["max_spread_bps"] = bad
+    with pytest.raises(ValidationError):
+        load_scenario(write(tmp_path, baseline_dict))

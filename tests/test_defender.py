@@ -188,3 +188,106 @@ def test_construction_guards_and_from_config():
         25,
     )
     assert d.max_spend == 4.0
+
+
+# -- Story 3.2: buy flag and spread cap --------------------------------------------------
+
+
+def test_buy_false_never_buys_and_still_widens_and_restores():
+    w = world(spread_bps=10)
+    d = Defender(
+        "def",
+        budget=1_000_000.0,
+        threshold_pct=1.0,
+        spend_pace=0.2,
+        spread_adjust_bps=200,
+        buy=False,
+    )
+    for _ in range(3):
+        w.set_spot(0.95)
+        assert w.step(d) == []
+    w.set_spot(1.0)
+    w.step(d)
+    w.step(d)
+    r = rules(w, "def")
+    assert r == [
+        "defend_spread_widen",
+        "defend_idle",
+        "defend_idle",
+        "defend_spread_restore",
+        "defend_idle",
+    ]
+    assert "defend_buy" not in r and "defend_budget_exhausted" not in r
+    assert decisions(w, "def")[0].action == {
+        "target": "redemption",
+        "kind": "set_spread_bps",
+        "params": {"bps": 210},
+    }
+    assert [e.payload["new"] for e in events_of(w, "spread_changed")] == [210, 10]
+    assert (d.spent, d.interventions, d.bought_stable) == (0.0, 0, 0.0)
+    assert d.balances["reference"] == 1_000_000.0
+    assert all(e.payload["source"] != "def" for e in events_of(w, "swap_executed"))
+
+
+def test_buy_false_without_spread_is_idle_in_defense():
+    w = world()
+    d = Defender("def", budget=1.0, threshold_pct=1.0, spend_pace=0.2, buy=False)
+    w.set_spot(0.9)
+    assert w.step(d) == []
+    assert rules(w, "def") == ["defend_idle"]
+    assert events_of(w, "spread_changed") == []
+
+
+def test_max_spread_bps_caps_the_widen():
+    w = world(spread_bps=10)
+    d = Defender(
+        "def",
+        budget=1_000.0,
+        threshold_pct=1.0,
+        spend_pace=0.2,
+        spread_adjust_bps=200,
+        max_spread_bps=150,
+    )
+    w.set_spot(0.95)
+    w.step(d)
+    assert w.redemption.spread_bps == 150
+
+
+def test_max_spread_bps_below_base_never_lowers_the_spread():
+    w = world(spread_bps=100)
+    d = Defender(
+        "def",
+        budget=1_000.0,
+        threshold_pct=1.0,
+        spend_pace=0.2,
+        spread_adjust_bps=200,
+        max_spread_bps=50,
+    )
+    w.set_spot(0.95)
+    w.step(d)
+    assert w.redemption.spread_bps == 100
+    assert events_of(w, "spread_changed") == []
+    assert rules(w, "def") == ["defend_buy"]
+
+
+def test_buy_and_cap_from_config_and_guards():
+    cfg = DefenderConfig(
+        type="defender",
+        id="z",
+        budget=9.0,
+        threshold_pct=1.0,
+        spend_pace=0.2,
+        spread_adjust_bps=200,
+        buy=False,
+        max_spread_bps=300,
+    )
+    d = Defender.from_config(cfg)
+    assert (d.buy, d.max_spread_bps) == (False, 300)
+    dflt = Defender.from_config(
+        DefenderConfig(type="defender", id="y", budget=9.0, threshold_pct=1.0, spend_pace=0.2)
+    )
+    assert (dflt.buy, dflt.max_spread_bps) == (True, 9_999)
+    base = {"agent_id": "a", "budget": 1.0, "threshold_pct": 1.0, "spend_pace": 0.1}
+    for bad in (-1, 10_000):
+        with pytest.raises(ValueError):
+            Defender(**base, max_spread_bps=bad)
