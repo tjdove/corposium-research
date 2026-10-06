@@ -33,6 +33,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0024](0024-holder-fill-price-limit.md) | Holder fill-price limit; C* unchanged; sawtooth gone on the plateau; 1992 flip 5.7 → 5.2: an overpaying believer was an accidental defender (F-12) | Accepted (finding, amended) | 2026-10-05 |
 | [0025](0025-defender-policies-and-base-axis.md) | Defender policy comparison: buy flag, spread cap, base_axis; the slow defender wins because it pays less (F-13); no spread dead zone under capacity-limited redemption (F-07 refinement) | Accepted (finding, amended) | 2026-10-05 |
 | [0026](0026-holder-exit-rule-and-switch-sides-test.md) | Holder exit rule; 1992 switch-sides test: AMM exit breaks the price not the reserves; redemption is the 1992 switch; flip 4.9× with large redeeming believers (F-14) | Accepted (finding, amended) | 2026-10-06 |
+| [0027](0027-budget-vs-attack-and-pace-vs-trigger.md) | Budget vs attack at 2× D*: holding budget ≈ 0.36 × attack (slope 1.08); pace vs trigger: trigger does nothing, defender pace relative to attacker pace decides (F-11, F-13 refinements) | Accepted (finding, amended) | 2026-10-06 |
 
 ## Template
 

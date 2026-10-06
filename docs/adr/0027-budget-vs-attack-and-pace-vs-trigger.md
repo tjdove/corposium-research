@@ -1,6 +1,6 @@
 # ADR-0027: At 2× D\* the price-holding budget is proportional to the attack (≈ 0.36×), not to what the attacker extracts; F-13's operative parameter is the defender's spending pace relative to the attacker's selling pace, and the trigger does nothing (finding candidates)
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-06: A → F-11 second refinement; B → F-13 refinement; the slow-attack probe is committed in Story 3.5 as pace-ratio-mc)
 **Date:** 2026-10-06
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.4
