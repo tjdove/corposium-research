@@ -215,10 +215,20 @@ def test_flat_reference_oracle_equals_par(tmp_path):
 
 
 def test_soros_baseline_summary_bytes_unchanged(tmp_path):
-    # summary.json sha256 captured at b29c7c0, before Story 2.8 touched anything
+    # summary.json sha256 re-captured in Story 3.5 (one new key, arbitrageur_redeemed).
+    # Without that line the bytes are the ones captured at b29c7c0, before Story 2.8.
     art = run_scenario(
         load_scenario(Path("scenarios/soros-baseline.yaml")), output_dir=tmp_path, chart=False
     )
-    digest = hashlib.sha256((art.run_dir / "summary.json").read_bytes()).hexdigest()
-    assert digest == "ae9578ad45a35fe6986537a344d20746451d2ac74bd5a8ae331816f89fd77704"
+    raw = (art.run_dir / "summary.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "f2428bdb6b6fc52188e7761f9170fbddda5cb501a74849e7c7f1284e73677865"
+    )
+    lines = raw.splitlines(keepends=True)
+    added = [ln for ln in lines if b'"arbitrageur_redeemed"' in ln]
+    assert len(added) == 1
+    before = b"".join(ln for ln in lines if ln not in added)
+    assert hashlib.sha256(before).hexdigest() == (
+        "ae9578ad45a35fe6986537a344d20746451d2ac74bd5a8ae331816f89fd77704"
+    )
     json.loads((art.run_dir / "summary.json").read_text())

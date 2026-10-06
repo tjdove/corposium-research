@@ -6,13 +6,17 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Tim Dove", email = "timdoveemail@yahoo.com" }]
+# Upper bounds stop a fresh install from picking up the next major of a library whose
+# major releases change behaviour this package depends on (numpy RNG and dtypes, pandas
+# copy and dtype semantics, the parquet writer, the chart backend, pydantic validation).
+# Lower bounds are the oldest versions the suite has been run against (docs/REPRODUCIBILITY.md).
 dependencies = [
-    "pydantic>=2.7",
-    "pyyaml>=6.0",
-    "numpy>=1.26",
-    "pandas>=2.2",
-    "pyarrow>=16.0",
-    "matplotlib>=3.9",
+    "pydantic>=2.7,<3",
+    "pyyaml>=6.0.1,<7",
+    "numpy>=1.26,<3",
+    "pandas>=2.2,<4",
+    "pyarrow>=16.0,<26",
+    "matplotlib>=3.9,<4",
 ]
 
 [project.optional-dependencies]

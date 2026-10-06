@@ -1,8 +1,11 @@
 # Story 2.9. `make figures` regenerates every committed figure in full (runs all nine
-# sweeps first: ~10 min on 12 cores); `make figures-check` is the stale-figure guard CI
-# runs (no sweeps, no PNG comparison); `make figures-quick` is the 2-seed smoke test.
+# sweeps first: ~10 min on 12 cores) and records the code hash; `make figures-check` is
+# the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
+# warns on changed code); `make figures-quick` is the 2-seed smoke test. `make test` also
+# fails if line coverage of protocol/ and agents/ (together) drops below 85% (Story 3.5).
 
-PYTHON ?= python
+# The repo's .venv when there is one (no activation needed), else whatever `python` is.
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
 WORKERS ?= $(shell nproc 2>/dev/null || echo 2)
 SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml \
           sweeps/budget-x-depth-mc.yaml sweeps/oracle-lag-mc.yaml \
@@ -15,7 +18,9 @@ SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml 
 figures:
 	@start=$$(date +%s); \
 	for spec in $(SWEEPS); do \
+		t0=$$(date +%s); \
 		$(PYTHON) -m depeg_sim.sweep $$spec --mc --workers $(WORKERS) || exit 1; \
+		echo "sweep $$spec: wall time $$(( $$(date +%s) - t0 )) s"; \
 	done; \
 	$(PYTHON) scripts/make_figures.py --workers $(WORKERS) || exit 1; \
 	end=$$(date +%s); \
@@ -31,8 +36,9 @@ figures-check:
 	$(PYTHON) scripts/check_figures.py
 
 test:
-	$(PYTHON) -m pytest
+	$(PYTHON) -m pytest --cov=depeg_sim.protocol --cov=depeg_sim.agents \
+		--cov-report=term --cov-fail-under=85
 
 lint:
-	ruff check .
-	ruff format --check .
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .

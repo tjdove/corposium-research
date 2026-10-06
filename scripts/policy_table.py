@@ -1,13 +1,14 @@
 """Story 3.2 AC 5: the defender-policy table from a ``policy-comparison-mc`` sweep.
 
-Reads ``<sweep_dir>/sweep.parquet`` and each cell's ``events.jsonl`` (for who redeemed:
-``redeem_fulfilled.paid_reference`` summed by requester) and prints, per policy and
-attack ratio, means over seeds of: defender spent and stable bought, holder stable
-bought, redemption paid in total and to the arbitrageur and the holder; the median hours
-from run start to first re-entry into the recovery band ("never" when fewer than half the
-seeds re-enter, as ``charts.time_to_parity_hours``); ``p_stays_broken`` with Wilson 95%
-bounds; and, against no-defense at the same ratio, hours saved and defender spend per
-hour saved.
+Reads ``<sweep_dir>/sweep.parquet`` and the sweep manifest only (no per-cell files;
+Story 3.5) and prints, per policy and attack ratio, means over seeds of: defender spent
+and stable bought, holder stable bought, redemption paid in total and to the arbitrageur
+(``arbitrageur_redeemed``) and the holder (``redemption_paid_total -
+arbitrageur_redeemed``: the arbitrageur and the holder are the only agents that redeem);
+the median hours from run start to first re-entry into the recovery band ("never" when
+fewer than half the seeds re-enter, as ``charts.time_to_parity_hours``);
+``p_stays_broken`` with Wilson 95% bounds; and, against no-defense at the same ratio,
+hours saved and defender spend per hour saved.
 
     python scripts/policy_table.py [output/policy-comparison-mc]
 """
@@ -21,42 +22,18 @@ from pathlib import Path
 import pandas as pd
 
 from depeg_sim.analysis.stats import wilson
-from depeg_sim.experiments.sweep import (
-    SWEEP_MANIFEST,
-    SWEEP_PARQUET,
-    cell_run_dir,
-    expand,
-    load_sweep,
-)
+from depeg_sim.experiments.sweep import SWEEP_MANIFEST, SWEEP_PARQUET
 
 CAPITAL = "agents[type=attacker].capital"
-SPEC = Path("sweeps/policy-comparison-mc.yaml")
 
 
-def redeemed_by(run_dir: Path) -> dict[str, float]:
-    """Reference paid by redemption, summed by the requesting agent's id."""
-    out: dict[str, float] = {}
-    with open(run_dir / "events.jsonl", encoding="utf-8") as f:
-        for line in f:
-            if '"redeem_fulfilled"' not in line:
-                continue
-            p = json.loads(line)["payload"]
-            out[p["source"]] = out.get(p["source"], 0.0) + p["paid_reference"]
-    return out
-
-
-def table(sweep_dir: Path, spec_path: Path = SPEC) -> pd.DataFrame:
+def table(sweep_dir: Path) -> pd.DataFrame:
     sweep_dir = Path(sweep_dir)
     manifest = json.loads((sweep_dir / SWEEP_MANIFEST).read_text(encoding="utf-8"))
     runs = pd.read_parquet(sweep_dir / SWEEP_PARQUET)
     interval = manifest["base_config"]["steps"]["interval_seconds"]
-    cells = {c.index: c for c in expand(load_sweep(spec_path))}
-    arb, hld = [], []
-    for i in runs["index"]:
-        paid = redeemed_by(cell_run_dir(cells[int(i)], sweep_dir.parent))
-        arb.append(paid.get("arb-1", 0.0))
-        hld.append(paid.get("holder-1", 0.0))
-    runs["arb_redeemed"], runs["holder_redeemed"] = arb, hld
+    runs["arb_redeemed"] = runs["arbitrageur_redeemed"]
+    runs["holder_redeemed"] = runs["redemption_paid_total"] - runs["arbitrageur_redeemed"]
     runs["hours"] = (
         (runs["step_of_max_depeg"] + runs["steps_to_first_band_entry"]) * interval / 3600
     )

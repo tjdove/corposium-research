@@ -29,6 +29,11 @@ strict JSON. Missing agents give ``None``.
 from its executed AMM buys (``amount_out``), the first defender and holder in the world.
 With ``redemption_paid_total`` they are the three sinks for the attacker's stable at
 calibrated scale; Story 2.7's absorbed ratio is ``capital`` over their sum.
+
+``arbitrageur_redeemed`` is the reference the redemption channel paid to the first
+arbitrageur: ``redeem_fulfilled.paid_reference`` summed over events whose requester is
+that agent (0.0 when it never redeemed; ``None`` without an arbitrageur or a redemption
+module). It is the part of ``redemption_paid_total`` a defense did not pay to believers.
 """
 
 from __future__ import annotations
@@ -57,6 +62,7 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "steps_to_sustained_recovery",
     "reserves_exhausted",
     "redemption_paid_total",
+    "arbitrageur_redeemed",
     "defender_spent",
     "defender_interventions",
     "attacker_pnl",
@@ -88,6 +94,16 @@ def _float(x: Any) -> float | None:
 def _seed(result: RunResult) -> int:
     started = next(e for e in result.events if e.kind == "run_started")
     return int(started.payload["seed"])
+
+
+def _redeemed_by(result: RunResult, agent_id: str) -> float:
+    return float(
+        sum(
+            e.payload["paid_reference"]
+            for e in result.events
+            if e.kind == "redeem_fulfilled" and e.payload["source"] == agent_id
+        )
+    )
 
 
 def summarize(
@@ -130,6 +146,9 @@ def summarize(
         "steps_to_sustained_recovery": sustained,
         "reserves_exhausted": bool(red is not None and red.reserves_exhausted),
         "redemption_paid_total": None if red is None else _float(red.paid_total),
+        "arbitrageur_redeemed": (
+            None if red is None or arb is None else _redeemed_by(result, arb.agent_id)
+        ),
         "defender_spent": None if dfn is None else _float(dfn.spent),
         "defender_interventions": None if dfn is None else dfn.interventions,
         "attacker_pnl": None if atk is None else _float(atk.pnl_last),

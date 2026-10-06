@@ -9,9 +9,12 @@ spec or another base scenario.
 
 Writes ``docs/figures/<file>`` for each figure and ``docs/figures/manifest.json``::
 
-    {"<figure>": {"file", "source", "source_hash", "function", "commit"}}
+    {"code_hash": "<sha256>",
+     "<figure>": {"file", "source", "source_hash", "function", "commit"}}
 
-``source_hash`` is ``check_figures.source_hash`` (the guard recomputes it); ``commit`` is
+``code_hash`` is ``check_figures.code_hash()`` over ``src/depeg_sim/**/*.py`` at drawing
+time (the guard warns when it differs); ``source_hash`` is ``check_figures.source_hash``
+(the guard fails when it differs); ``commit`` is
 ``git rev-parse HEAD`` at generation time, suffixed ``-dirty`` if code or inputs differ
 from it.
 
@@ -34,7 +37,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from check_figures import MANIFEST, is_sweep, source_hash
+from check_figures import CODE_HASH, MANIFEST, code_hash, is_sweep, source_hash
 
 from depeg_sim.analysis import charts
 from depeg_sim.experiments.mc import aggregate_mc
@@ -191,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
 
         commit = git_commit()
         FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-        manifest = {}
+        manifest: dict = {CODE_HASH: code_hash()}
         for fig, png in rendered.items():
             shutil.copyfile(png, FIGURES_DIR / fig.file)
             manifest[fig.name] = {
@@ -203,7 +206,10 @@ def main(argv: list[str] | None = None) -> int:
             }
     text = json.dumps(manifest, sort_keys=True, indent=2) + "\n"
     MANIFEST.write_text(text, encoding="utf-8")
-    print(f"wrote: {len(manifest)} figures and {MANIFEST} (commit {commit[:12]})")
+    print(
+        f"wrote: {len(rendered)} figures and {MANIFEST} (commit {commit[:12]}, "
+        f"code_hash {manifest[CODE_HASH][:12]})"
+    )
     return 0
 
 

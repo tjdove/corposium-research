@@ -100,3 +100,43 @@ def test_scan_1992_helpers():
     assert spec.linked_axes[0].path_values(6.0) == [
         ("agents[type=attacker].capital", 6.0 * 42_625_746)
     ]
+
+
+def test_policy_table_reads_redemptions_from_the_summary(tmp_path):
+    """Story 3.5 AC 2: no per-cell events.jsonl; holder share is total minus arbitrageur."""
+    import json
+    from pathlib import Path
+
+    import pandas as pd
+
+    sys.path.insert(0, str(Path("scripts").resolve()))
+    import policy_table
+
+    from depeg_sim.kernel.config import load_scenario
+
+    base = load_scenario("scenarios/calibrated-baseline.yaml").model_dump(mode="json")
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = base["redemption"]["reserves"] + defender["budget"]
+    (tmp_path / "manifest.json").write_text(json.dumps({"base_config": base}))
+    rows = []
+    for policy in ("no-defense", "calibrated"):
+        for seed in (1, 2):
+            rows.append(
+                {
+                    "index": len(rows), "seed": seed, "policy": policy,
+                    policy_table.CAPITAL: resources,
+                    "step_of_max_depeg": 50, "steps_to_first_band_entry": 100.0,
+                    "terminated_by": "peg_recovered",
+                    "defender_spent": None if policy == "no-defense" else 4.0e7,
+                    "defender_bought_stable": None if policy == "no-defense" else 1.0e8,
+                    "holder_bought_stable": 5.0, "redemption_paid_total": 10.0 + seed,
+                    "arbitrageur_redeemed": 4.0,
+                }
+            )  # fmt: skip
+    pd.DataFrame(rows).to_parquet(tmp_path / "sweep.parquet", index=False)
+    df = policy_table.table(tmp_path).set_index("policy")
+    assert list(df.index) == ["no-defense", "calibrated"]
+    assert df.loc["calibrated", "arb_redeemed"] == 4.0
+    assert df.loc["calibrated", "holder_redeemed"] == 7.5  # mean of 11 - 4 and 12 - 4
+    assert df.loc["calibrated", "ratio"] == 1.0
+    assert df.loc["calibrated", "entered"] == "2/2"

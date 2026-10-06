@@ -22,6 +22,7 @@ EXPECTED = [
     "steps_to_sustained_recovery",
     "reserves_exhausted",
     "redemption_paid_total",
+    "arbitrageur_redeemed",
     "defender_spent",
     "defender_interventions",
     "attacker_pnl",
@@ -99,6 +100,7 @@ def test_missing_agents_are_null():
     assert s["defender_spent"] is None
     assert s["defender_interventions"] is None
     assert s["arbitrageur_pnl"] is None
+    assert s["arbitrageur_redeemed"] is None
     assert s["defender_bought_stable"] is None
     assert s["holder_bought_stable"] is None and s["holder_pnl"] is None
     assert s["attacker_pnl"] is not None
@@ -151,3 +153,31 @@ def test_bought_stable_fields_on_calibrated_baseline():
     assert outs and s["defender_bought_stable"] == pytest.approx(sum(outs), rel=1e-12)
     assert s["defender_bought_stable"] == defender.bought_stable
     json.dumps(s, allow_nan=False)
+
+
+# Story 3.5 AC 2: who the redemption channel paid -----------------------------------------
+
+
+def test_arbitrageur_redeemed_is_its_share_of_redemption_paid():
+    data = load_scenario("scenarios/calibrated-baseline.yaml").model_dump(mode="json")
+    data["steps"]["max_steps"] = 1500  # long enough for both the arbitrageur and holder
+    cfg = ScenarioConfig.model_validate(data)
+    _, world, result, df = run(cfg)
+    s = summarize(cfg, result, df, world)
+    paid: dict[str, float] = {}
+    for e in result.events:
+        if e.kind == "redeem_fulfilled":
+            src = e.payload["source"]
+            paid[src] = paid.get(src, 0.0) + e.payload["paid_reference"]
+    assert set(paid) == {"arb-1", "holder-1"}  # the only agents that redeem
+    assert paid["arb-1"] > 0
+    assert s["arbitrageur_redeemed"] == pytest.approx(paid["arb-1"], rel=1e-12)
+    # policy_table's holder_redeemed = redemption_paid_total - arbitrageur_redeemed
+    assert s["redemption_paid_total"] - s["arbitrageur_redeemed"] == pytest.approx(
+        paid["holder-1"], rel=1e-12
+    )
+
+
+def test_arbitrageur_redeemed_zero_when_it_never_redeems():
+    s, _, _ = summary_for(cfg_with(max_steps=10))  # attack starts at step 50
+    assert s["arbitrageur_redeemed"] == 0.0
