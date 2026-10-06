@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the four sweeps in full, then scripts/make_figures.py (~7.5 min on 12 cores)
+make figures         # runs the five sweeps in full, then scripts/make_figures.py (~8.5 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
@@ -26,6 +26,7 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 refinement |
 | [`budget_depth.png`](budget_depth.png) | `sweeps/budget-x-depth-mc.yaml` | F-11 refinement |
 | [`oracle_sensitivity.png`](oracle_sensitivity.png) | `sweeps/oracle-lag-mc.yaml` | F-10, F-04 |
+| [`policy_comparison.png`](policy_comparison.png) | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | ADR-0025 candidates (F-07, F-11, F-12) |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | `scenarios/soros-1992.yaml` | F-07 (+ refinement) |
 | [`peg_trajectory_1992_no_defense.png`](peg_trajectory_1992_no_defense.png) | `scenarios/soros-1992-no-defense.yaml` | none of its own: the counterfactual to `soros-1992` (ADR-0019, ADR-0021) |
@@ -73,6 +74,17 @@ at every budget; at 2× and 4× D\* the price fails at 1× budget and holds at 2
 heartbeat, one line per deviation threshold, on the stress base: the mean trough moves
 by 10.7 bps across all 20 cells and the calibrated oracle sits within 0.5 bps of zero
 lag. The bottom panel's ~0.7 is F-04's stress-volatility floor, not an oracle effect.
+
+**`policy_comparison.png`.** Five defender policies at calibrated scale against attacks of
+0.5, 0.7 and 1.0× (budget + reserves), 16 seeds each, recovery against the oracle. (a)
+Median hours to first re-entry: late-conservative (2% trigger, 10% pace) is fastest at
+every ratio (6.6 / 19.2 / 29.9 h) and the only policy under the 37 h deadline at 1.0;
+early-aggressive (0.5%, 50%) is the slowest buyer; no-defense comes back on redemption
+alone after the deadline (49–59 h); spread-only trails it by about an hour and at 1.0
+never re-enters (open marker). (b) Every buying policy spends the whole $9.70B budget at
+every ratio; the p05–p95 band has no width. (c) p(stays broken): only late-conservative
+stays below 0.5 at 0.7× and 1.0×; spread-only and no-defense are 1.0 everywhere. Points
+are dodged sideways per policy so coinciding series stay visible.
 
 **`peg_trajectory_calibrated.png`.** The calibrated baseline (seed 42): the attack takes the
 AMM to −1,253 bps; the defender buys it back within minutes and the run ends
