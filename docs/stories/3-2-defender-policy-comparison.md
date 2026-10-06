@@ -1,6 +1,6 @@
 # Story 3.2: Defender Policy Comparison
 
-Status: review
+Status: done
 
 ## Story
 
@@ -405,6 +405,79 @@ every summary JSON for one table. `scripts/policy_table.py` reads it from events
 - `tests/test_defender.py`, `tests/test_config.py`, `tests/test_figures.py`
 - `docs/stories/3-2-defender-policy-comparison.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-05
+**Outcome:** **APPROVE** ✅ — charter chart 5 delivered, and the result inverts the
+Dev Notes' predictions with a clean mechanism.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `578 passed in
+27.54s`; `ruff check .` → `All checks passed!`; `ruff format --check .` → `89 files already
+formatted`; `make figures-check` → `ok, 11 figures`. **Policy sweep re-run in full** (240
+runs, 2 workers, 8m30s): `scripts/policy_table.py` reproduces every cell of the ratio-1.0
+table — defender spent 41,346,974 for all three buyers; holder bought 32.07M / 40.34M /
+24.07M / 146.57M / 146.56M; time-to-parity 48.2 / 53.1 / 29.9 / never (1 of 16) / 59.1 h;
+`p_stays_broken` 1.0 / 1.0 / 0.3125 / 1.0 / 1.0 — and the 0.5 and 0.7 rows. Chart
+regenerated and read.
+
+### Rulings
+
+1. **ADR-0025 → Accepted (finding, amended).** F-13 and the F-07 refinement promoted to
+   FINDINGS. Amendment: F-13 is stated in terms of *price paid*, which the data gives
+   directly (0.283 / 0.323 / 0.358 per stable for late / calibrated / early), rather than
+   "pace decides", which the sweep cannot yet separate from trigger (builder's own caveat).
+2. **`base_axis` on `SweepSpec` instead of five sub-sweeps → accepted**; the right call for
+   the figure pipeline, and the eight existing specs expand identically (tested).
+3. **Pace × trigger confound → folded into Story 3.4** as a second small sweep (D\*, ratio
+   1.0, pace {0.05, 0.1, 0.2, 0.5} × trigger {0.5, 1, 2, 4}%, 8 seeds), with attacker pace
+   as a third factor at two levels. No new story.
+4. **Panel (b) of the chart is flat by construction** (every buyer spends its whole
+   budget). For the note, panel (b) becomes *average price paid per stable* — the quantity
+   that differs. Epic 4 figure pass; the committed figure stands as the record.
+5. **`scripts/policy_table.py` reads arbitrageur redemptions from `events.jsonl`** because
+   the summary lacks them → accepted; 3.5 adds `arbitrageur_redeemed` to `summarize` so the
+   table can come from parquet alone.
+6. **Policy file names differ (`name: policy-<x>`)** → accepted; necessary for distinct run
+   dirs, and tested.
+7. **CI result not in the Debug Log** → recorded here: both jobs green on 14ce26c.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `buy`, `max_spread_bps`; `decide` honours both; hashes unchanged |
+| 2 | ✅ | four policy files + baseline; diffs in Debug Log; test pins the diff |
+| 3 | ✅ | `base_axis` (allowed alternative, proposed in ADR); one spec, one parquet |
+| 4 | ✅ | three-panel chart; reads parquet + manifest |
+| 5 | ✅ | ratio-1.0 table with all six columns; three answers |
+| 6 | ✅ | 1992 not re-run |
+| 7 | ✅ | ADR-0025 |
+| 8 | ✅ | figure registered; `make figures` 512 s; guard ok; 578 tests; CI green |
+
+**8 of 8 ACs met.**
+
+### Key Findings
+
+- **F-13:** when every defender spends its whole budget, the defense is decided by the
+  price it pays. The fast defender is dry within 12–44 steps, before the attacker has
+  finished selling; it bought near par and the attacker's remaining stock sets a new low.
+  The slow defender's budget outlasts the selling and buys at 0.283 instead of 0.358. At
+  ratio 1.0 it is the only policy that recovers (11 of 16 seeds; 29.9 h vs 48–59 h).
+- **F-07 refinement:** at calibrated scale there is no spread dead zone. Capacity-limited
+  redemption queued while the price was deep keeps paying out through the band; the 200 bps
+  spread costs about an hour. Spread-only fails on the clock, like no-defense.
+- All five predictions in the Dev Notes were wrong or right for the wrong reason. Recorded
+  as L-15 working.
+
+### Learnings for Story 3.3
+
+- Name policies by what they do (pace), not when they start (trigger).
+- A flat panel is a result; say what it means in the caption rather than hiding it.
+- 1992 is the natural home for F-13: the Bank of England spent fast at the floor.
+
 ## Change Log
 
 - 2026-10-05: Story drafted by dev manager after Story 3.1 review
@@ -413,3 +486,4 @@ every summary JSON for one table. `scripts/policy_table.py` reads it from events
   sub-sweeps; `policy-comparison-mc` (240 runs, 73 s); `plot_policy_comparison`; ADR-0025
   (Proposed) with two finding candidates; `make figures` 512 s, guard green; 578 tests.
   Status → review.
+- 2026-10-05: Senior review APPROVE; ADR-0025 accepted (finding, amended); F-13 and F-07 refinement added; pace × trigger → 3.4; Status done

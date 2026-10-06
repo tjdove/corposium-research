@@ -477,6 +477,7 @@ So that F-11's withdrawn clause is replaced by a tested one.
 **Acceptance Criteria (summary):**
 1. `sweeps/budget-x-attack-mc.yaml`: 2× D\* fixed, oracle criterion, holder present; defender budget × {0.5, 1, 1.5, 2, 3} × attacker ratio {0.5, 0.8, 1.0, 1.5, 2.0}; 8 seeds
 2. `plot_budget_attack(sweep_dir)`: heatmap of never-re-enters (price loss) with 0.5 contour, plus the crossing budget vs attack on log–log with slope
+2b. `sweeps/pace-x-trigger-mc.yaml` (3.2 review ruling 3): D\*, ratio 1.0, oracle criterion; defender `spend_pace {0.05, 0.1, 0.2, 0.5}` × `threshold_pct {0.5, 1, 2, 4}` × attacker `pace {0.1, 0.02}`; 8 seeds; `plot_pace_trigger`: time-to-parity heatmaps per attacker pace; answers whether F-13 is pace, trigger, or pace relative to attacker pace
 3. Completion Notes: is the crossing budget proportional to attack size, to what the attacker extracts, or to neither; one sentence for the note; Proposed ADR; tests
 
 **Prerequisites:** Story 2.9
@@ -492,7 +493,7 @@ So that the note's claims are auditable.
 **Acceptance Criteria (summary):**
 1. Coverage ≥ 85% on `protocol/` and `agents/`; property tests on AMM invariants and redemption accounting; termination edge cases (both criteria)
 2. README: full quick start, scenario reference table (every YAML, one line each, with hash), sweep reference, `make` targets, figure index, FINDINGS pointer
-3. `CONTRIBUTING.md` (story process, determinism rule, how to add a scenario); `docs/REPRODUCIBILITY.md` checklist (versions, hashes, commands, expected wall times on a named machine)
+3. `CONTRIBUTING.md` (story process, determinism rule, how to add a scenario); `docs/REPRODUCIBILITY.md` checklist (versions, hashes, commands, expected wall times on a named machine); `summarize` gains `arbitrageur_redeemed` (3.2 review ruling 5)
 4. Dependency pins reviewed; `pip install -e .` on a clean 3.12 venv documented with timing
 5. `docs/figures/manifest.json` gains `code_hash` (sha256 over `src/depeg_sim/**/*.py`); `figures-check` warns on a code-hash mismatch and fails on a source mismatch; `make figures` is on the freeze checklist (3.1 review ruling 4); Makefile prefers `.venv/bin/python` when present (2.9 review ruling 6)
 
