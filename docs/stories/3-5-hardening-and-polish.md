@@ -1,6 +1,6 @@
 # Story 3.5: Test Hardening, Repo Polish, and the Pace-Ratio Sweep
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -23,8 +23,8 @@ so that the note's claims are auditable by a stranger — and the last uncommitt
 
 ## Tasks / Subtasks
 
-- [ ] Pace-ratio sweep and chart (AC: 1)
-  - [ ] Commit separately: `story 3.5: pace-ratio sweep`
+- [x] Pace-ratio sweep and chart (AC: 1)
+  - [x] Commit separately: `story 3.5: pace-ratio sweep`
 - [ ] Summary field and policy table (AC: 2)
 - [ ] Guard and Makefile (AC: 3, 4)
 - [ ] Coverage and property tests (AC: 5)

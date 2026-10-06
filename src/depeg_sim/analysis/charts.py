@@ -1573,3 +1573,128 @@ def plot_pace_trigger(sweep_dir: Path) -> Path:
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+# -- pace ratio (Story 3.5) ---------------------------------------------------------------
+
+PACE_RATIO = "pace_ratio.png"
+
+
+def deadline_crossing(
+    ratios: list[float], hours: list[float], deadline_h: float
+) -> tuple[float | None, str]:
+    """Pace ratio at which time to parity first reaches ``deadline_h`` as the ratio rises.
+    ``hours`` NaN means "never" (above any deadline). Returns ``(ratio, "crossing")`` by
+    linear interpolation in log ratio between two finite grid points; ``(ratio, "before")``
+    when the first point at or past the deadline is "never", so the crossing lies after
+    ``ratio`` and by the next grid ratio and cannot be interpolated; ``(None, "below")``
+    when every point re-enters before the deadline; ``(None, "above")`` when the smallest
+    ratio is already at or past it."""
+    pairs = sorted(zip(ratios, hours, strict=True))
+
+    def late(h: float) -> bool:
+        return math.isnan(h) or h >= deadline_h
+
+    if not any(late(h) for _, h in pairs):
+        return None, "below"
+    if late(pairs[0][1]):
+        return None, "above"
+    for (r0, h0), (r1, h1) in itertools.pairwise(pairs):
+        if not late(h0) and late(h1):
+            if math.isnan(h1):
+                return r0, "before"
+            t = (deadline_h - h0) / (h1 - h0)
+            return math.exp(math.log(r0) + t * (math.log(r1) - math.log(r0))), "crossing"
+    return None, "above"  # unreachable: a late point follows an early one
+
+
+def _crossing_text(ratio: float | None, kind: str, ratios: list[float], hours: list[float]) -> str:
+    if kind == "crossing":
+        return f"crosses at {ratio:.2f}"
+    if kind == "before":
+        nxt = min(r for r in ratios if r > ratio)
+        return f"crosses between {ratio:g} and {nxt:g} (never at {nxt:g})"
+    if kind == "below":
+        return f"does not cross by {max(ratios):g} ({hours[-1]:.1f} h there)"
+    return f"past the deadline from {min(ratios):g}"
+
+
+def plot_pace_ratio(sweep_dir: Path) -> Path:
+    """One panel: median hours from run start to first re-entry (``time_to_parity_hours``)
+    against defender spend pace / attacker pace on a log x-axis, one line per attacker pace
+    (in the sweep's axis order). Points where fewer than half the seeds re-enter are drawn
+    as "never" at the horizon with an open marker; the deadline after which a re-entry
+    cannot hold ``for_steps`` by ``max_steps`` is dashed, and each line's crossing of it
+    (``deadline_crossing``) is in the legend. Reads only ``mc.parquet`` + manifest."""
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    atk_col = _axis_named(manifest, ATTACKER_PACE_PATH)
+    pace_col = _axis_named(manifest, SPEND_PACE_PATH)
+    atk_paces = list(next(a for a in manifest["axes"] if a["name"] == atk_col)["values"])
+    attacker = next(a for a in base["agents"] if a["type"] == "attacker")
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.copy()
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    mc["ratio"] = mc[pace_col] / mc[atk_col]
+    ratios = sorted(mc["ratio"].unique())
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
+    for (color, marker), ap in zip(zip(SERIES, MARKERS, strict=False), atk_paces, strict=False):
+        g = mc[mc[atk_col] == ap].sort_values("ratio")
+        x = g["ratio"].to_numpy()
+        hours = g["hours"].to_numpy()
+        never = np.isnan(hours)
+        shown = np.where(never, horizon_h, hours)
+        cross, kind = deadline_crossing(list(x), list(hours), deadline_h)
+        label = f"attacker pace {ap:g}: {_crossing_text(cross, kind, list(x), list(hours))}"
+        ax.plot(x, shown, color=color, lw=1.8, label=label, zorder=3)
+        ax.plot(x[~never], shown[~never], ls="none", marker=marker, ms=7, color=color, zorder=4)
+        ax.plot(
+            x[never], shown[never], ls="none", marker=marker, ms=9, mfc="white", mec=color,
+            mew=2, zorder=5,
+        )  # fmt: skip
+        if kind == "crossing":
+            ax.plot([cross], [deadline_h], marker="|", ms=16, mew=2, color=color, zorder=6)
+
+    ax.axhline(deadline_h, color=ORANGE, ls="--", lw=1.4, zorder=1)
+    ax.text(ratios[0], deadline_h, f" deadline {deadline_h:.0f} h", va="bottom", ha="left",
+            fontsize=8, color=DARK)  # fmt: skip
+    ax.axhline(horizon_h, color=GREY, ls=":", lw=1.0, zorder=1)
+    ax.text(ratios[0], horizon_h, f" never (horizon {horizon_h:.0f} h)", va="bottom",
+            ha="left", fontsize=8, color=DARK)  # fmt: skip
+    ax.axvline(1.0, color=GREY, ls=":", lw=1.0, zorder=1)
+    ax.text(1.0, 2, " equal pace", rotation=90, va="bottom", ha="left", fontsize=8, color=GREY)
+    ax.set_xscale("log")
+    ax.set_xticks(ratios)
+    ax.set_xticklabels([f"{r:g}" for r in ratios], fontsize=8, rotation=45)
+    ax.minorticks_off()
+    ax.set_ylim(0, horizon_h * 1.08)
+    ax.set_xlabel(
+        "defender spend pace / attacker pace (share of remaining budget per step / "
+        "share of remaining stable sold per step)"
+    )
+    ax.set_ylabel("median hours from run start to first re-entry")
+    ax.grid(axis="y", color=BAND, lw=0.6)
+    ax.set_axisbelow(True)
+    ax.legend(fontsize=8, loc="center left")
+    fig.suptitle(
+        f"{manifest['sweep_name']}: defender pace relative to attacker pace, criterion "
+        f"{_criterion(rec)} (attacker {attacker['capital'] / resources:.3g}× resources, "
+        f"trigger {defender['threshold_pct']:g}%; {len(manifest['seeds'])} seeds per point)\n"
+        f"re-entry = first step within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}; "
+        f"open marker = fewer than half the seeds re-enter by {horizon_h:.0f} h",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / PACE_RATIO
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out

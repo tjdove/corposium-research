@@ -1,4 +1,4 @@
-# Story 2.9. `make figures` regenerates every committed figure in full (runs all eight
+# Story 2.9. `make figures` regenerates every committed figure in full (runs all nine
 # sweeps first: ~10 min on 12 cores); `make figures-check` is the stale-figure guard CI
 # runs (no sweeps, no PNG comparison); `make figures-quick` is the 2-seed smoke test.
 
@@ -7,7 +7,8 @@ WORKERS ?= $(shell nproc 2>/dev/null || echo 2)
 SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml \
           sweeps/budget-x-depth-mc.yaml sweeps/oracle-lag-mc.yaml \
           sweeps/policy-comparison-mc.yaml sweeps/holder-exit-1992-mc.yaml \
-          sweeps/budget-x-attack-mc.yaml sweeps/pace-x-trigger-mc.yaml
+          sweeps/budget-x-attack-mc.yaml sweeps/pace-x-trigger-mc.yaml \
+          sweeps/pace-ratio-mc.yaml
 
 .PHONY: figures figures-quick figures-check test lint
 

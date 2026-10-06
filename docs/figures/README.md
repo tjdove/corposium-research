@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the eight sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
+make figures         # runs the nine sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
@@ -29,6 +29,7 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | ADR-0026 candidate (F-12, F-07) |
 | [`budget_attack.png`](budget_attack.png) | `sweeps/budget-x-attack-mc.yaml` | ADR-0027 candidate (F-11 refinement) |
 | [`pace_trigger.png`](pace_trigger.png) | `sweeps/pace-x-trigger-mc.yaml` | ADR-0027 candidate (F-13) |
+| [`pace_ratio.png`](pace_ratio.png) | `sweeps/pace-ratio-mc.yaml` | F-13 refinement |
 | [`policy_comparison.png`](policy_comparison.png) | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | ADR-0025 candidates (F-07, F-11, F-12) |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | `scenarios/soros-1992.yaml` | F-07 (+ refinement) |
@@ -88,6 +89,16 @@ in 0.4–1.3 h, 0.1 in 29.9 h, and 0.2 and 0.5 only after the 37 h deadline (48.
 middle, against the same attack sold five times more slowly, every cell is hatched
 "never". Right: the average price paid per stable at attacker pace 0.1 falls with slower
 pace (0.358 → 0.264) and does not depend on the trigger.
+
+**`pace_ratio.png`.** The 1.0× attack at D\* (oracle criterion, trigger 1%, 8 seeds per
+point): median hours to first re-entry against defender spend pace / attacker pace, one
+line per attacker pace. Against the base attacker (pace 0.1, blue) every defender at or
+below half its pace is back in under an hour (0.38–0.85 h), and an equal-pace defender
+in 29.9 h, still inside the 37 h deadline. Against the five-times-slower attacker (0.02,
+orange) the defender is back in 2.0 h at a ratio of 0.125–0.25, 7.9 h at 0.5 and 47.1 h
+at 1.0, crossing the deadline at a ratio of about 0.84 (log-interpolated); from 1.5 up
+no seed re-enters. Below the attacker's pace the defense is fast; at it, the defense is
+late; above it, against the slow attacker, it never comes back.
 
 **`oracle_sensitivity.png`.** Mean trough (top) and p(stays broken) (bottom) against oracle
 heartbeat, one line per deviation threshold, on the stress base: the mean trough moves

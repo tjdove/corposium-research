@@ -496,3 +496,68 @@ def test_pace_trigger_needs_the_base_attacker_pace_on_its_axis(tmp_path):
     with pytest.raises(ValueError, match="base attacker pace 0.1"):
         plot_pace_trigger(_pace_trigger_dir(tmp_path, atk_paces=(0.05, 0.02)))
     plt.close("all")
+
+
+def test_deadline_crossing_kinds():
+    from depeg_sim.analysis.charts import deadline_crossing
+
+    nan = float("nan")
+    r, kind = deadline_crossing([0.5, 1.0], [7.0, 47.0], 37.0)
+    assert kind == "crossing" and r == pytest.approx(0.5 * 2 ** (30 / 40))
+    assert deadline_crossing([1.0, 0.5, 2.0], [47.0, 7.0, nan], 37.0)[1] == "crossing"
+    assert deadline_crossing([0.5, 1.0, 1.5], [7.0, 30.0, nan], 37.0) == (1.0, "before")
+    assert deadline_crossing([0.1, 1.0], [0.4, 29.9], 37.0) == (None, "below")
+    assert deadline_crossing([1.5, 5.0], [nan, nan], 37.0) == (None, "above")
+    assert deadline_crossing([1.0, 2.0], [37.0, 50.0], 37.0) == (None, "above")
+
+
+def _pace_ratio_dir(tmp_path):
+    """2 attacker paces x 4 defender paces: at 0.1 every point re-enters early; at 0.02
+    hours rise through the deadline and then never re-enter."""
+    d = tmp_path / "paceratio"
+    d.mkdir()
+    paces = [0.005, 0.01, 0.02, 0.05]
+    entry = {0.1: {p: 100 for p in paces}, 0.02: {0.005: 500, 0.01: 2_000, 0.02: 14_000,
+                                                0.05: None}}  # fmt: skip
+    rows = []
+    for ap in (0.1, 0.02):
+        for p in paces:
+            e = entry[ap][p]
+            rows.append(
+                {
+                    APACE: ap, DPACE: p, "n": 8,
+                    "step_of_max_depeg_std": 0.0,
+                    "step_of_max_depeg_p05": 50.0,
+                    "step_of_max_depeg_p50": 50.0,
+                    "step_of_max_depeg_p95": 50.0,
+                    "steps_to_first_band_entry_p50": float("nan") if e is None else float(e),
+                    "steps_to_first_band_entry_n": 0 if e is None else 8,
+                }
+            )  # fmt: skip
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": APACE, "paths": [APACE], "values": [0.1, 0.02]},
+        {"name": DPACE, "paths": [DPACE], "values": paces},
+    ]
+    _manifest(d, "paceratio", "scenarios/calibrated-baseline.yaml", axes, seeds=8)
+    return d
+
+
+def test_pace_ratio_png_one_panel(tmp_path):
+    from depeg_sim.analysis.charts import plot_pace_ratio
+
+    png = plot_pace_ratio(_pace_ratio_dir(tmp_path))
+    assert png.name == "pace_ratio.png" and png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 1500)  # 10 x 6 in at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_pace_ratio_needs_both_pace_axes(tmp_path):
+    from depeg_sim.analysis.charts import plot_pace_ratio
+
+    d = _pace_ratio_dir(tmp_path)
+    m = json.loads((d / "manifest.json").read_text())
+    m["axes"] = m["axes"][1:]
+    (d / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="no axis setting"):
+        plot_pace_ratio(d)

@@ -94,7 +94,7 @@ def test_guard_fails_on_missing_png_or_source(tmp_path):
 
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 14
+    assert len(files) == len(set(files)) == 15
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
     assert {f.function_name for f in make_figures.FIGURES} == {
@@ -108,6 +108,7 @@ def test_registry_names_every_source_once_per_file():
         "depeg_sim.analysis.charts.plot_holder_exit",
         "depeg_sim.analysis.charts.plot_budget_attack",
         "depeg_sim.analysis.charts.plot_pace_trigger",
+        "depeg_sim.analysis.charts.plot_pace_ratio",
     }
 
 
