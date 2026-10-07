@@ -155,6 +155,7 @@ All committed figures, with source, caption and the finding each supports:
 ## Further reading
 
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) — what the model has shown, in the order it was learned
+- [`docs/NOTE.md`](docs/NOTE.md) — the research note (outline now; the note itself in the final weeks)
 - [`docs/BACKGROUND.md`](docs/BACKGROUND.md) — the 1992 ERM crisis and how it maps to the simulator
 - [`docs/LITERATURE.md`](docs/LITERATURE.md) — outside sources and events, with verification status
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) — versions, commands, timings and hashes for reproducing every figure

@@ -1,6 +1,6 @@
 # ADR-0028: The figure guard warns on a code-hash mismatch and fails on a source-hash mismatch
 
-**Status:** Proposed
+**Status:** Accepted (review 2026-10-06)
 **Date:** 2026-10-06
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.5 AC 3 (3.1 review ruling 4)
