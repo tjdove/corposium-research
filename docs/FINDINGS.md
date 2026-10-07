@@ -672,6 +672,25 @@ rule the model gives is simple enough to state: spend slower than the attacker s
 
 ---
 
+## F-04 resolution (2026-10-07, from 3.6)
+
+**Reproduce:** `python scripts/fit_reversion.py`; `python -m depeg_sim.sweep
+sweeps/threshold-surface-ou-mc.yaml --mc --workers 8`; `plot_time_to_parity`,
+`plot_threshold_surface` on it.
+
+The calm reference now reverts to par: an AR(1) on the calm USDC hourly series gives
+φ = 0.61 ± 0.07 (unit root rejected, −5.33), κ = 0.00163 per step, half-life 1.4 h,
+stationary sd 5.4 bps — inside the 31 bps band. With that reference and the **par**
+criterion the surface is exactly 0 or 1 in every cell; the above-par "stays broken" runs
+(68 under the random walk) are gone; **D\* still breaks on the clock** at ≥ 0.8× (median
+re-entry 41.9–56.4 h, to the decimal the same as under the random walk); ≥ 2× D\* still
+loses the price. Time to first re-entry is identical in all 40 cells whichever reference
+is used: the clock at D\* is the redemption channel, not the environment. The oracle
+criterion (ADR-0023) was a workaround for calm sweeps and is now a sensitivity check; the
+note explains one reference and one criterion.
+
+---
+
 ## Headline candidates (ranked, 2026-10-06, revised after 3.4)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
@@ -727,8 +746,8 @@ methods and closes on 7, 8 and the 1992 open question.
   ≈ 0.36 × attack at 2× D\* (F-11 second refinement).
 - ~~Is F-13 pace, trigger, or pace relative to the attacker?~~ Relative pace; trigger does
   nothing (F-13 refinement).
-- Does a mean-reverting (OU) calm reference remove the clock effect at D\* under the par
-  criterion, i.e. is "breaks on the clock" partly the random walk again? (Epic 3)
+- ~~Does a mean-reverting calm reference remove the clock effect at D\*?~~ No; re-entry
+  times are identical; the clock is the redemption channel (F-04 resolution).
 - ~~Does the holder have to switch sides (sell) for the 1992 analogue to exhaust?~~ No —
   and selling on the venue makes it *harder*; the 1992 switch was a redemption, and with
   the believers redeeming the flip is 4.9× (F-14).

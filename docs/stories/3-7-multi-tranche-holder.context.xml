@@ -1,0 +1,43 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.7</storyId><title>Multi-Tranche Holder (stretch)</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-07</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-7-multi-tranche-holder.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>the believers to enter at a spread of prices rather than one</iWant>
+    <soThat>the note can say whether F-09's cliff becomes a curve</soThat>
+    <tasks>- Tranche config and holder (AC: 1, 2) - Fit three ladders (AC: 3, 4) - Best ladder scenario (AC: 5) - Verdict, ADR, figures, close out (AC: 6–8)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–8. The three ladders are fixed assumptions; C* is the only fitted number; the per-tranche cap is normative.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-7-multi-tranche-holder.md" section="Dev Notes">Why ladders; per-tranche cap; predictions.</doc>
+      <doc path="docs/FINDINGS.md" section="F-09">The cliff under test.</doc>
+      <doc path="docs/stories/2-6-holder-agent.md" section="Debug Log">The single-entry refinement table for the cliff comparison.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/agents/holder.py" symbol="Holder.decide, _tranche, from_config" reason="Per-tranche reference balances and caps; pooled stable."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="HolderConfig" reason="tranches with validators."/>
+      <existing path="scripts/fit_holder.py" reason="--tranches option; rule unchanged."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_validation_overlay" reason="Reuse for the tranche overlay."/>
+      <existing path="docs/calibration/VALIDATION.md, SOURCES.md" reason="3.7 rows."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes beyond config.py; PHASE_ORDER_VERSION stays 1; every existing scenario hash unchanged; usdc-2023.yaml untouched.
+    - Ladders fixed as written; C* by the two-pass rule; no hand-picking.
+    - Holder never calls ctx.rng.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="HolderConfig.tranches" kind="field" path="src/depeg_sim/kernel/config.py">list[Tranche] | None; Tranche(entry_discount_pct, share)</interface>
+    <interface name="fit_holder.py --tranches" kind="option" path="scripts/fit_holder.py">entry:share,entry:share,…</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; real AMM, manual phases per 1.7; byte-identity of single-tranche vs scalar on usdc-2023; validators; hash test.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

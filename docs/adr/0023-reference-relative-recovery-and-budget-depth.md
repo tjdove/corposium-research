@@ -1,6 +1,6 @@
 # ADR-0023: Reference-relative recovery via a `ReferenceView`; the oracle criterion removes the wander but not the clock; the defending budget does not scale with depth
 
-**Status:** Accepted (finding, amended in review 2026-10-04: §4–§5 refine F-11; the "budget scales with depth" clause is withdrawn; time-to-parity chart added to Story 2.9; ADR-0007 extended, not amended)
+**Status:** Accepted (finding, amended in review 2026-10-04; amended again 2026-10-07 by ADR-0029: for calm-volatility sweeps the oracle criterion was a workaround for the random-walk reference and is now a sensitivity check; it stays the criterion of choice for stress volatility and the replay keeps par; §4–§5 refine F-11; the "budget scales with depth" clause is withdrawn; time-to-parity chart added to Story 2.9; ADR-0007 extended, not amended)
 **Date:** 2026-10-04
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** story 2.8 AC 8

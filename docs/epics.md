@@ -508,7 +508,7 @@ Replace the calm random walk with an OU process calibrated from the calm USDC se
 
 ### Story 3.7 (stretch): Multi-Tranche Holder
 
-`HolderConfig.tranches: list[{entry_discount_pct, share}]`; re-fit on the replay; report whether the F-09 cliff becomes a curve and the fit lands within 5% of −1,373.
+`HolderConfig.tranches: list[{entry_discount_pct, share}]`; re-fit on the replay; report whether the F-09 cliff becomes a curve and the fit lands within 5% of −1,373. Story file drafted 2026-10-07: three fixed ladders, C* fitted per ladder, cliff test at C* × {0.8…1.2}, best ladder as `usdc-2023-tranches.yaml` (replay file untouched).
 
 ### Story 3.8 (stretch): LP Withdrawal Agent
 

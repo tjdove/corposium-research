@@ -37,9 +37,10 @@ source, and one command that regenerates every figure.
   limited queue with spread. Agents: attacker, arbitrageur, defender, holder.
 - What each real-world actor maps to (BACKGROUND mapping table), and the one that mapped
   wrong until Story 3.3 (the two exits — forward reference to §7).
-- Recovery criterion: ±31 bps for 6,900 steps; against par in the replay, against the
-  market price in the sweeps; why (F-04, F-11, ADR-0023). Time-to-parity as the working
-  metric.
+- Recovery criterion: ±31 bps of par for 6,900 steps. The calm reference reverts to par
+  with a half-life fitted from the calm USDC series (1.4 h); measuring against the oracle
+  instead changes nothing in the sweeps (ADR-0023, one sentence). Time-to-parity as the
+  working metric, which 3.6 showed is independent of the reference process.
 - *No figure.* A small schematic if the site page needs one.
 
 ## 3. Calibration and validation (≈ 500 words) — **Figure 1: `validation_overlay_usdc_2023.png`**
@@ -129,7 +130,7 @@ source, and one command that regenerates every figure.
 | # | file | section | finding(s) | status |
 |---|---|---|---|---|
 | 1 | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final after 3.1 |
-| 2 | `time_to_parity.png` | 4 | F-03, F-06, F-11 | final |
+| 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final (OU reference, par criterion; `time_to_parity.png` is the random-walk record) |
 | — | `threshold_surface.png`, `budget_depth.png` | 4 (supporting) | F-11 refinement | final; may drop one for length |
 | 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | panel (b) → price paid (Epic 4) |
 | 4 | `oracle_sensitivity.png` | 6 | F-10 | final |
