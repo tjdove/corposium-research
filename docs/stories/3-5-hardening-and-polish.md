@@ -1,6 +1,6 @@
 # Story 3.5: Test Hardening, Repo Polish, and the Pace-Ratio Sweep
 
-Status: review
+Status: done
 
 ## Story
 
@@ -444,7 +444,78 @@ caption is in `docs/figures/README.md`, the row tagged "F-13 refinement" pending
   `tests/test_summary.py`, `tests/test_reference_recovery.py`
 - `docs/stories/3-5-hardening-and-polish.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-06
+**Outcome:** **APPROVE** ✅ — Epic 3's core is complete, fifteen days before the freeze.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest --cov` → `745
+passed`, **agents 98.8%, protocol 99.4%** (arbitrageur 98, base 96, redemption 99, the
+rest 100); `ruff check .` → `All checks passed!`; `ruff format --check .` → `92 files
+already formatted`; `make figures-check` → ok, 15 figures, code hash matches. **Guard,
+both paths, proven here:** a docstring line in `amm.py` → WARNING naming both hashes,
+exit 0; `capacity_per_step` 13986.57 → .58 in `soros-1992.yaml` → two figures STALE, exit
+1. **Pace-ratio sweep re-run in full** (112 runs, 3m08s): identical — attacker 0.02: 2.0 /
+2.0 / 7.9 / 47.1 h then never from ratio 1.5; attacker 0.1: < 1 h through 0.5, 29.9 h at
+1.0. README read as a stranger would: three sentences, one figure, one command.
+
+### Rulings
+
+1. **ADR-0028 → Accepted.** Guard semantics as built (warn on code, fail on source) and
+   the freeze checklist as the hard gate.
+2. **The two attacker-pace lines do not coincide** — at every ratio the slow attacker
+   takes longer to beat (7.9 h vs 0.4 h at 0.5; 47 h vs 30 h at 1.0). Recorded as the
+   second-order term in the F-13 refinement: the ratio is first-order, the attacker's
+   absolute pace second-order, and slower is harder. No new finding number.
+3. **The 0.1 line's 37 h crossing is off the grid** (between ratio 1 and 2). Not extended;
+   the pace × trigger sweep already brackets it at 48.2 h for ratio 2. The note quotes
+   "between 1× and 2× the attacker's pace".
+4. **"Results so far" keeps two figures** — accepted; "one figure" meant the hero image.
+5. **PR #32 (NOTE outline) merged into this branch**, conflict in README resolved by
+   keeping the 3.5 README and adding the NOTE link. The builder's "stranger couldn't find
+   the NOTE" item is closed by this PR.
+6. **What a stranger still cannot reproduce** (builder's list) → carried into the Epic 3
+   retro: the fitting scripts' outputs are not under the guard (`fit_depth`, `fit_holder`
+   results live in story logs); cross-version byte identity is not promised; a full
+   regeneration needs ~30 GB. The first is worth a small AC in the Epic 4 figure pass
+   (record the fit tables in `docs/calibration/` with their script hashes); the other two
+   are stated in REPRODUCIBILITY.md and that is enough.
+7. **PyYAML ≥ 6.0.1** — accepted.
+8. **CI run 37551328758 on 917444a: both jobs green** — recorded here as the builder asked.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `pace-ratio-mc`; `plot_pace_ratio`; registered; 37 h crossings reported; reproduced |
+| 2 | ✅ | `arbitrageur_redeemed`; fixtures updated once with diff; policy table byte-identical from parquet |
+| 3 | ✅ | `code_hash`; warn/fail proven here; REPRODUCIBILITY freeze checklist |
+| 4 | ✅ | Makefile `PYTHON` prefers `.venv/bin/python`; documented |
+| 5 | ✅ | 98.8% / 99.4%; AMM k, redemption accounting, termination edges with seeded Generator |
+| 6 | ✅ | README for a stranger; no story/ADR numbers in body |
+| 7 | ✅ | CONTRIBUTING.md |
+| 8 | ✅ | REPRODUCIBILITY.md with timings, hashes, TMPDIR note, checklist |
+| 9 | ✅ | pins reviewed; oldest-allowed versions pass 745 tests; clean install 72 s |
+| 10 | ✅ | `make figures` 708 s; guard ok; 745 tests; both CI jobs green; ADR-0028 |
+
+**10 of 10 ACs met.**
+
+### Key Findings
+
+No new finding. The pace-ratio figure is now the committed evidence for the F-13
+refinement, with the slow-attacker term recorded.
+
+### Learnings for the stretch stories
+
+- The repo now warns when figures and code diverge; every stretch story ends with
+  `make figures` anyway.
+- Coverage is at 99% on the two packages that matter; stretch stories keep it there.
+
 ## Change Log
 
 - 2026-10-06: Story drafted by dev manager after Story 3.4 review
 - 2026-10-06: Implemented by Claude Code (Opus 5.5) on Seoul: pace-ratio sweep and chart; `arbitrageur_redeemed`; guard `code_hash` (warn) with Proposed ADR-0028; Makefile `PYTHON` default; property tests; README, CONTRIBUTING, REPRODUCIBILITY; dependency bounds; Status review
+- 2026-10-06: Senior review APPROVE; ADR-0028 accepted; Status done; Epic 3 core complete

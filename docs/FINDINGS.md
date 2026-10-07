@@ -661,6 +661,12 @@ defender is back in hours (0.4 h vs 0.1; 7.9 h vs 0.02), at equal pace back late
 47.1 h), at 1.5–2× the attacker's pace never. Price paid falls as the defender slows,
 bottoming at ≈ 20× slower than the attacker. **The slow attacker is the hard one.**
 
+*Second-order term (3.5, `sweeps/pace-ratio-mc.yaml`, `pace_ratio.png`):* the two
+attacker-pace lines do not coincide on the ratio axis — at every ratio the slow attacker
+takes longer to beat (0.5: 7.9 h vs 0.4 h; 1.0: 47 h vs 30 h). The ratio is first-order;
+the attacker's absolute pace is second-order, and slower is harder. The 37 h crossing is
+at ratio ≈ 0.84 against the slow attacker and between 1 and 2 against the fast one.
+
 **For the note.** How fast the defender spends matters as much as how much it has. The
 rule the model gives is simple enough to state: spend slower than the attacker sells.
 

@@ -1,0 +1,43 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.6</storyId><title>Mean-Reverting Reference (stretch)</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-06</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-6-mean-reverting-reference.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>the calm reference to revert to par as an off-venue stablecoin price does</iWant>
+    <soThat>the note can say whether "D* breaks on the clock" is the model or the random walk</soThat>
+    <tasks>- OU update (AC: 1) - Fit and scenario (AC: 2, 3) - OU surface (AC: 4) - Verdict, ADR, figures, close out (AC: 5–7)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–7. The OU update in AC 1 and the fit rule in AC 2 are normative; κ is never tuned by eye.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-6-mean-reverting-reference.md" section="Dev Notes">Why; fit caveat; predictions.</doc>
+      <doc path="docs/FINDINGS.md" section="F-04, F-11">What is being re-tested.</doc>
+      <doc path="docs/calibration/SOURCES.md" section="environment">σ's fit; add κ beside it.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/environment/price_process.py" symbol="ReferencePrice.on_phase" reason="OU branch; one draw per step unchanged."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="EnvironmentConfig" reason="mean_reversion_per_step; validator vs price_series_path."/>
+      <existing path="scripts/fit_depth.py" reason="Script style for fit_reversion.py."/>
+      <existing path="sweeps/threshold-surface-mc.yaml" reason="Copy with the OU base."/>
+      <existing path="scripts/make_figures.py, docs/figures/README.md" reason="Register two figures."/>
+    </code>
+    <dependencies><python>numpy only for the AR(1) (least squares); no scipy/statsmodels.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No kernel/ or protocol/ changes beyond config.py; PHASE_ORDER_VERSION stays 1; every existing scenario hash unchanged; κ = 0 is byte-identical to today.
+    - One rng draw per step when σ > 0, none otherwise (determinism contract of 1.5).
+    - κ from the fit rule only; standard error reported.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="EnvironmentConfig.mean_reversion_per_step" kind="field" path="src/depeg_sim/kernel/config.py">float = 0.0, ge=0, lt=1</interface>
+    <interface name="scripts/fit_reversion.py" kind="script">--csv (default the calm series), --interval 12, --dry-run; prints phi, se, kappa_step, half_life_h, stationary_sd_bps</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; κ = 0 byte-identity on soros-baseline; OU with κ = 1 pins price to base; synthetic AR(1) series recovers its φ within tolerance; validator test; hash test.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

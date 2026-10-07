@@ -504,7 +504,7 @@ So that the note's claims are auditable.
 
 ### Story 3.6 (stretch): Mean-Reverting Reference
 
-Replace the calm random walk with an OU process calibrated from the calm USDC series' autocorrelation; re-run the par-criterion surface; report whether the D\* clock effect survives (F-04 root cause).
+Replace the calm random walk with an OU process calibrated from the calm USDC series' autocorrelation; re-run the par-criterion surface; report whether the D\* clock effect survives (F-04 root cause). Story file drafted 2026-10-06; `mean_reversion_per_step`, `scripts/fit_reversion.py`, `calibrated-baseline-ou.yaml`, `threshold-surface-ou-mc`, verdict on whether the oracle criterion was a workaround.
 
 ### Story 3.7 (stretch): Multi-Tranche Holder
 
