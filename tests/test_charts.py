@@ -561,3 +561,11 @@ def test_pace_ratio_needs_both_pace_axes(tmp_path):
     (d / "manifest.json").write_text(json.dumps(m))
     with pytest.raises(ValueError, match="no axis setting"):
         plot_pace_ratio(d)
+
+
+def test_reversion_heading_only_when_the_reference_reverts():
+    from depeg_sim.analysis.charts import _reversion
+
+    assert _reversion({"volatility_per_step": 3e-5}) == ""  # pre-3.6 manifests
+    assert _reversion({"mean_reversion_per_step": 0.0}) == ""
+    assert _reversion({"mean_reversion_per_step": 0.001634}) == "; OU reference, κ 0.001634/step"

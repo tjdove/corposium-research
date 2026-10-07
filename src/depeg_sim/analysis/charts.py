@@ -391,6 +391,13 @@ def _criterion(rec: dict) -> str:
     return f"reference={rec.get('reference', 'par')}"
 
 
+def _reversion(env: dict) -> str:
+    """``"; OU reference, kappa <k>/step"`` when the reference mean-reverts (Story 3.6),
+    else empty, so headings of random-walk sweeps are unchanged."""
+    k = env.get("mean_reversion_per_step", 0.0)
+    return f"; OU reference, κ {k:g}/step" if k else ""
+
+
 def _against(rec: dict) -> str:
     return "the published oracle price" if rec.get("reference") == "oracle" else "par"
 
@@ -523,7 +530,8 @@ def plot_threshold_surface(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     fig.suptitle(
         f"{manifest['sweep_name']}: where the peg stays broken, criterion "
         f"{_criterion(rec)} "
-        f"(volatility {base['environment']['volatility_per_step']:g}/step, calm per F-04; "
+        f"(volatility {base['environment']['volatility_per_step']:g}/step, calm per F-04"
+        f"{_reversion(base['environment'])}; "
         f"holder present; {len(manifest['seeds'])} seeds per cell)\n"
         f"stays broken = not back within ±{rec['tolerance'] * BPS:g} bps of "
         f"{_against(rec)} for "
@@ -967,7 +975,7 @@ def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> 
     fig.colorbar(im, ax=ax, label="median hours from run start to first re-entry", shrink=0.9)
     fig.suptitle(
         f"{manifest['sweep_name']}: time to parity, criterion {_criterion(rec)} "
-        f"({len(manifest['seeds'])} seeds per cell)\n"
+        f"({len(manifest['seeds'])} seeds per cell{_reversion(base['environment'])})\n"
         f"median hours from run start (trough step + steps to first band entry) to first "
         f"re-entry within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}\n"
         f"clock = re-enters, but after {deadline_h:.0f} h; price = never re-enters by step "

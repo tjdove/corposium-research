@@ -85,7 +85,12 @@ BEFORE_2_8 = {  # content_hash of every scenario at b29c7c0, before the field ex
 
 
 def test_every_scenario_hash_unchanged():
-    found = {p.name: load_scenario(p).content_hash() for p in Path("scenarios").glob("*.yaml")}
+    later = {"calibrated-baseline-ou.yaml"}  # Story 3.6, pinned in test_calibrated_scenarios.py
+    found = {
+        p.name: load_scenario(p).content_hash()
+        for p in Path("scenarios").glob("*.yaml")
+        if p.name not in later
+    }
     assert found == BEFORE_2_8
     assert load_scenario(Path("scenarios/usdc-2023.yaml")).content_hash()[:12] == "2c3aeaa9825d"
 

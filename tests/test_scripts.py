@@ -140,3 +140,68 @@ def test_policy_table_reads_redemptions_from_the_summary(tmp_path):
     assert df.loc["calibrated", "holder_redeemed"] == 7.5  # mean of 11 - 4 and 12 - 4
     assert df.loc["calibrated", "ratio"] == 1.0
     assert df.loc["calibrated", "entered"] == "2/2"
+
+
+# Story 3.6: fit_reversion -----------------------------------------------------------------
+
+
+def _fit_reversion():
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path("scripts").resolve()))
+    import fit_reversion
+
+    return fit_reversion
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 3])
+def test_fit_reversion_recovers_synthetic_phi(seed):
+    import numpy as np
+
+    fr = _fit_reversion()
+    rng = np.random.default_rng(seed)
+    phi, x = 0.6, [0.0]
+    for _ in range(2_000):
+        x.append(phi * x[-1] + 5e-4 * rng.standard_normal())
+    fit = fr.fit_ar1(np.array(x))
+    assert abs(fit.phi - phi) < 3 * fit.se and fit.se < 0.03
+    assert fit.significant
+    assert fit.resid_sd == pytest.approx(5e-4, rel=0.1)
+
+
+def test_fit_reversion_random_walk_is_not_significant():
+    import numpy as np
+
+    fr = _fit_reversion()
+    hits = 0
+    for seed in range(40):
+        walk = np.cumsum(np.random.default_rng(seed).standard_normal(120)) * 1e-4
+        hits += fr.fit_ar1(walk).significant
+    assert hits <= 6  # a 5% test: about 2 of 40 false rejections expected
+
+
+def test_fit_reversion_conversions():
+    fr = _fit_reversion()
+    k = fr.kappa_step(0.5, 12)
+    assert (1 - k) ** 300 == pytest.approx(0.5, rel=1e-12)
+    assert fr.half_life_hours(0.5) == pytest.approx(1.0)
+    assert fr.stationary_sd(0.6, 0.8) == pytest.approx(1.0)
+    with pytest.raises(ValueError, match="identically zero"):
+        fr.fit_ar1([0.0, 0.0, 0.0])
+
+
+def test_fit_reversion_dry_run_states_the_rule():
+    text = dry_run("fit_reversion.py")
+    assert "no constant" in text and "-1.95" in text and "1 / 300" in text
+
+
+def test_fit_reversion_on_the_calm_series_matches_the_scenario():
+    """The committed kappa is the fit's output rounded to 4 significant figures."""
+    from depeg_sim.kernel.config import load_scenario
+
+    fr = _fit_reversion()
+    fit = fr.fit_ar1(fr.deviations(fr.CALM))
+    assert fit.significant
+    k = fr.kappa_step(fit.phi, 12)
+    cfg = load_scenario("scenarios/calibrated-baseline-ou.yaml")
+    assert cfg.environment.mean_reversion_per_step == float(f"{k:.4g}")

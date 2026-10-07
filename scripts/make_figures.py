@@ -111,6 +111,14 @@ FIGURES = (
     Figure("budget_attack.png", "sweeps/budget-x-attack-mc.yaml", charts.plot_budget_attack),
     Figure("pace_trigger.png", "sweeps/pace-x-trigger-mc.yaml", charts.plot_pace_trigger),
     Figure("pace_ratio.png", "sweeps/pace-ratio-mc.yaml", charts.plot_pace_ratio),
+    Figure(
+        "threshold_surface_ou.png",
+        "sweeps/threshold-surface-ou-mc.yaml",
+        charts.plot_threshold_surface,
+    ),
+    Figure(
+        "time_to_parity_ou.png", "sweeps/threshold-surface-ou-mc.yaml", charts.plot_time_to_parity
+    ),
 )
 
 

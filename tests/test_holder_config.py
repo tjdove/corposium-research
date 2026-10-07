@@ -10,6 +10,8 @@ from pydantic import ValidationError
 from depeg_sim.kernel.config import HolderConfig, ScenarioConfig, load_scenario
 
 SCENARIO_DIR = Path("scenarios")
+# Scenarios added after these snapshots, each pinned where it was added.
+ADDED_LATER = {"calibrated-baseline-ou"}  # Story 3.6: tests/test_calibrated_scenarios.py
 
 # content_hash() of every scenario as of Story 2.5 (commit 9a62e23), before HolderConfig
 # existed. With any holder entries removed, each scenario must still hash to this value:
@@ -40,7 +42,8 @@ def without_holders(cfg: ScenarioConfig) -> ScenarioConfig:
 
 
 def test_every_scenario_is_pinned():
-    assert sorted(p.stem for p in SCENARIO_DIR.glob("*.yaml")) == sorted(PRE_HOLDER_HASHES)
+    found = {p.stem for p in SCENARIO_DIR.glob("*.yaml")} - ADDED_LATER
+    assert sorted(found) == sorted(PRE_HOLDER_HASHES)
 
 
 @pytest.mark.parametrize("name", sorted(PRE_HOLDER_HASHES))
@@ -130,7 +133,7 @@ HASHES_3_1 = {
 
 
 def test_every_scenario_hash_is_pinned_for_3_1():
-    assert {p.stem for p in SCENARIO_DIR.glob("*.yaml")} == set(HASHES_3_1)
+    assert {p.stem for p in SCENARIO_DIR.glob("*.yaml")} - ADDED_LATER == set(HASHES_3_1)
     for name, h in HASHES_3_1.items():
         assert load_scenario(SCENARIO_DIR / f"{name}.yaml").content_hash() == h, name
 

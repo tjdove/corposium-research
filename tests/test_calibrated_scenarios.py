@@ -16,7 +16,7 @@ from depeg_sim.kernel.engine import Engine
 SCENARIOS = ("scenarios/calibrated-baseline.yaml", "scenarios/calibrated-stress.yaml")
 SOURCES = Path("docs/calibration/SOURCES.md")
 DATA = Path("data")
-STATUSES = {"verified", "secondary", "assumption"}
+STATUSES = {"verified", "secondary", "assumption", "fitted"}  # fitted: Story 3.6
 
 
 def leaf_paths(node, prefix=""):
@@ -160,3 +160,25 @@ def test_sources_has_market_depth_multiple_row():
     assert row[1] == f"{D_STAR / 1_000_000:.2f}"
     assert row[-1] == "assumption"
     assert "fitted to observed trough, this story" in row[2]
+
+
+# Story 3.6: the OU reference ------------------------------------------------------------
+
+OU = Path("scenarios/calibrated-baseline-ou.yaml")
+
+
+def test_ou_hash_is_pinned():
+    assert load_scenario(OU).content_hash()[:12] == "741f1bdd0012"
+
+
+def test_ou_differs_only_in_name_and_mean_reversion():
+    base = load_scenario(Path(SCENARIOS[0])).model_dump(mode="json")
+    ou = load_scenario(OU).model_dump(mode="json")
+    assert ou["name"] == "calibrated-baseline-ou"
+    assert ou["environment"]["mean_reversion_per_step"] == 0.001634
+    assert base["environment"]["mean_reversion_per_step"] == 0.0
+    for d in (base, ou):
+        del d["name"]
+        del d["environment"]["mean_reversion_per_step"]
+    assert ou == base
+    assert load_scenario(OU).termination.peg_recovered.reference == "par"

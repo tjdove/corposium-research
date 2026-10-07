@@ -37,6 +37,9 @@ steps and convert without `s`. One step is one Ethereum slot, 12 s.
   pending.
 - `assumption`: policy or behavioural parameter with no empirical anchor; value stated and
   justified.
+- `fitted` (Story 3.6): estimated by a committed script from a committed data series under
+  a stated rule, with its standard error; the script reproduces the value. (Earlier
+  values fitted to one observed number, D\* and C\*, keep `assumption`, as their rows say.)
 
 Figures marked "pre-verified by dev manager" were read by the dev manager on the stated
 date and are cited as such (story 2.3 References); the builder did not re-open them.
@@ -126,6 +129,7 @@ ADR-0018.
 |---|---|---|---|---|---|
 | `environment.base_price` | 1.0 | definition | reference asset is the US dollar | 1.0 | verified |
 | `environment.volatility_per_step` (calibrated-baseline) | 3.086e-05 | Bitstamp USDC/USD hourly candles, https://www.bitstamp.net/api/v2/ohlc/usdcusd/?step=3600&limit=1000&start=1677456000&end=1677888000 (accessed 2026-10-04), committed as `data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv` | 120 hourly closes, 2023-02-27 00:00Z → 2023-03-03 23:00Z; sd of 119 hourly log returns = 0.0005345425225988582 | sd_step = sd_hourly / sqrt(300) = 0.0005345425225988582 / 17.3205 = 3.0862e-05 → 3.086e-05 | verified |
+| `environment.mean_reversion_per_step` (calibrated-baseline-ou) | 0.001634 | same calm series, `data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv` (Story 3.6, `scripts/fit_reversion.py`) | 120 hourly closes; AR(1) through the origin on x = ln(close / 1.0), 119 pairs: φ = 0.6123, se 0.0728 (95% CI 0.470–0.755); unit-root stat (φ − 1)/se = −5.33 < Dickey–Fuller 5% (no constant) −1.95: significantly below 1. Mean deviation −3.37 bps, sd 5.01 bps | κ_step = 1 − φ^(1/300) = 0.00163402 → 0.001634; half-life ln 2 / −ln φ = 1.41 h; stationary sd 5.40 bps with σ_step 3.086e-05 (data: sd(e)/√(1 − φ²) = 6.07 bps). Caveat: the thin calm book (13 zero-volume hours repeating the previous close, isolated prints) biases a 120-point fit; with a constant (reverting to the series mean, −3.4 bps, not to par) φ would be 0.43 ± 0.08 — not used, the model reverts to par | fitted |
 | `environment.volatility_per_step` (calibrated-stress) | 0.0007561 | same endpoint, `start=1678406400&end=1678752000`, committed as `data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv` | 96 hourly closes, 2023-03-10 00:00Z → 2023-03-13 23:00Z; sd of 95 hourly log returns = 0.01309650361013093; lowest close 0.86267 | sd_step = 0.01309650361013093 / 17.3205 = 7.5613e-04 → 0.0007561 | verified |
 | `environment.shocks` | [] | n/a | no scheduled shocks; the attack is the shock | none | assumption |
 
