@@ -1,6 +1,6 @@
 # Story 3.6 (stretch): Mean-Reverting Reference
 
-Status: review
+Status: done
 
 ## Story
 
@@ -394,7 +394,85 @@ stationary sd would be ≈ 132 bps, still above the band, so this story does not
   `tests/test_reference_recovery.py`
 - `docs/stories/3-6-mean-reverting-reference.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-07
+**Outcome:** **APPROVE** ✅ — F-04's root cause is fixed at source, and the clock result is
+the model's own.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `773 passed`;
+`ruff check .` → `All checks passed!`; `ruff format --check .` → `93 files already
+formatted`; `make figures-check` → ok, 17 figures, code hash matches. `fit_reversion.py`
+→ φ = 0.6123, se 0.0728, CI [0.4696, 0.7549], unit-root −5.33, κ_step 0.00163402,
+half-life 1.413 h, stationary sd 6.07 (data) / 5.40 (model) bps — identical.
+`calibrated-baseline-ou` hash `741f1bdd0012`, `peg_recovered` at 7024, −1,253.2. **OU
+surface slice** (D\* and 2× D\* at ratio {0.6, 0.8, 1.0}, 96 runs, 4m37s): D\* 0 / 1 / 1
+(crossing between 0.6 and 0.8 — the 0.70), re-entry 30.1 / 41.9 / 48.2 h identical to the
+random-walk surface, 2× D\* never from 0.8×. Both charts read.
+
+### Rulings
+
+1. **ADR-0029 → Accepted (finding, amended).** The amendment names what the story found
+   and did not predict: time to first re-entry is identical in all 40 cells whether the
+   reference wanders or reverts, so the clock at D\* is the redemption channel, full stop;
+   and the OU surface is exactly 0/1 everywhere — the par criterion with a reverting
+   reference is the sharpest of the three.
+2. **F-04 → resolved.** Root cause (driftless random walk) confirmed and removed; the
+   stationary sd (5.4 bps) sits well inside the 31 bps band. FINDINGS gets a resolution
+   entry, not a new number.
+3. **ADR-0023 (oracle criterion) → amended, not superseded.** It stays for stress
+   volatility (not re-tested here) and for the replay (where the reference *is* the
+   observed depeg). For calm sweeps it was a workaround.
+4. **Criterion for the note:** every sweep figure the note uses reports **time to first
+   re-entry**, which this story shows is criterion- and reference-independent; the "stays
+   broken" probability is quoted from the OU + par surface. Figure 2 becomes
+   `time_to_parity_ou.png`; `time_to_parity.png` stays in the record. The note explains one
+   reference (reverting, calibrated) and one criterion (par). ADR-0023's oracle criterion
+   is mentioned once, in methods, as the sensitivity check it now is.
+5. **Prediction φ ≈ 0.7–0.9 missed (0.61, half-life 1.4 h)** — faster reversion than I
+   guessed; the thin Bitstamp series may overstate it (SOURCES caveat stands). Immaterial
+   to any result: both reversion rates put the stationary sd inside the band.
+6. **κ = 1 test on `ReferencePrice` directly** — accepted; the context file's test idea
+   contradicted AC 1's `lt=1`, and the builder chose the right reading.
+7. **A commit pushed once with two failing tests, then amended before push** — the pushed
+   commit passes; the Debug Log says so. Fine.
+8. **CI run 37660256282 on d97e51b: both jobs green** — recorded here as asked.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | OU update; κ = 0 byte-identical; one draw per step; validator; hashes unchanged |
+| 2 | ✅ | `fit_reversion.py` with se and unit-root test; SOURCES.md `fitted` row and status definition |
+| 3 | ✅ | `calibrated-baseline-ou.yaml`, header, run, hash pinned |
+| 4 | ✅ | OU surface; both charts; three-way crossings table; slice reproduced |
+| 5 | ✅ | four answers with numbers |
+| 6 | ✅ | ADR-0029 |
+| 7 | ✅ | figures registered; `make figures` 840 s; guard ok; 773 tests; CI green |
+
+**7 of 7 ACs met.**
+
+### Key Findings
+
+- **F-04 resolved:** with a reference that reverts to par at the rate the calm USDC series
+  implies (half-life 1.4 h), the par criterion gives a clean 0/1 surface; the above-par
+  "stays broken" population (68 runs) is gone; D\* still breaks on the clock at ≥ 0.8×
+  (median re-entry 41.9–56.4 h, unchanged to the decimal); ≥ 2× D\* still loses the price.
+- Time to first re-entry does not depend on the reference process at all. The clock is
+  the redemption channel.
+
+### Learnings for Story 3.7
+
+- When a workaround and a fix both exist, run the fix and keep the workaround as the
+  sensitivity check; don't carry two criteria into the note.
+- Predictions on fitted parameters should carry a range wide enough to be wrong usefully;
+  "a few hours" was the right shape, the number was not.
+
 ## Change Log
 
 - 2026-10-06: Story drafted by dev manager after Story 3.5 review (first Epic 3 stretch story)
 - 2026-10-07: Implemented by Claude Code (Opus 5.5) on Seoul: OU reference (κ = 0 byte-identical), κ fitted (φ 0.6123 ± 0.0728), OU scenario and surface; the clock and the price survive, the wander was the random walk; Proposed ADR-0029; Status review
+- 2026-10-07: Senior review APPROVE; ADR-0029 accepted (finding, amended); F-04 resolved; note uses OU + par; Status done

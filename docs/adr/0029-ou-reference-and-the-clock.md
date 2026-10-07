@@ -1,6 +1,6 @@
 # ADR-0029: Mean-reverting (OU) reference; κ fitted from the calm series; the clock is the model's, the wander was the random walk
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-07: re-entry time is reference-independent; F-04 resolved; ADR-0023 amended to a sensitivity check for calm sweeps; the note uses OU + par)
 **Date:** 2026-10-07
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.6 (F-04 refinement, ADR-0023)
