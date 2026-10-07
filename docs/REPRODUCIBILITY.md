@@ -1,7 +1,8 @@
 # Reproducibility
 
 How to reproduce every committed figure and number from a clean checkout, how long it
-takes, and which hashes must match. Measured 2026-10-06; the committed figures were drawn from code commit `7db6480`.
+takes, and which hashes must match. Measured 2026-10-06 and updated 2026-10-07 for the OU surface; the committed figures were
+drawn from code commit `8c5fdf3`.
 
 ## Machines
 
@@ -40,7 +41,7 @@ figures were not compared.
 ## Commands that produce figures
 
 `make figures` runs every figure sweep, then `scripts/make_figures.py`, which runs the
-five scenario figures itself (seconds each), draws all fifteen figures and writes
+five scenario figures itself (seconds each), draws all seventeen figures and writes
 `docs/figures/manifest.json`. Wall times:
 
 | Command | Figures | Runs (full) | Seoul full, 12 workers | Seoul quick, 12 workers | CI quick, 4 workers |
@@ -54,8 +55,15 @@ five scenario figures itself (seconds each), draws all fifteen figures and write
 | `python -m depeg_sim.sweep sweeps/budget-x-attack-mc.yaml --mc` | `budget_attack.png` | 200 | 57 s | 16 s | 132 s |
 | `python -m depeg_sim.sweep sweeps/pace-x-trigger-mc.yaml --mc` | `pace_trigger.png` | 256 | 92 s | 25 s | 191 s |
 | `python -m depeg_sim.sweep sweeps/pace-ratio-mc.yaml --mc` | `pace_ratio.png` | 112 | 23 s | 7 s | 52 s |
-| `python scripts/make_figures.py` | all 15 (runs the 5 scenario figures: `peg_trajectory_*.png`, `validation_overlay_usdc_2023.png`) | — | ≈ 7 s | (included) | (included) |
-| **`make figures`** / **`make figures-quick`** | all 15 | 3,048 | **708 s** | **127 s** | **1,019 s** |
+| `python -m depeg_sim.sweep sweeps/threshold-surface-ou-mc.yaml --mc` | `threshold_surface_ou.png`, `time_to_parity_ou.png` | 640 | 127 s | 17 s | 144 s |
+| `python scripts/make_figures.py` | all 17 (runs the 5 scenario figures: `peg_trajectory_*.png`, `validation_overlay_usdc_2023.png`) | — | ≈ 7 s | (included) | (included) |
+| **`make figures`** / **`make figures-quick`** | all 17 | 3,688 | **840 s** | **147 s** | **1,155 s** |
+
+Totals are from 2026-10-07 (code `8c5fdf3`: Seoul `make figures` 840 s, `make figures-quick`
+147 s; CI run
+[37657607713](https://github.com/tjdove/corposium-research/actions/runs/37657607713),
+`figures-quick` 1,155 s). The per-sweep rows other than `threshold-surface-ou-mc` are the
+2026-10-06 measurements below; on 2026-10-07 each was within 10 s of them.
 
 "Full" is the committed spec (8 or 16 seeds per point); "quick" is the same grid at 2
 seeds (`make figures-quick`). Seoul timings: `make figures WORKERS=12` and
@@ -64,7 +72,7 @@ Makefile; the `make_figures.py` line is the total minus the sweeps). CI timings:
 `figures-quick` job of run
 [37549454426](https://github.com/tjdove/corposium-research/actions/runs/37549454426)
 on `7db6480` (`ubuntu-24.04`, `nproc` = 4). The full `make figures` is not run on CI; at
-CI's quick-to-quick ratio (about 8×) it would take roughly an hour and a half there
+CI's quick-to-quick ratio (about 8×) it would take roughly two hours there
 (an extrapolation, not a measurement).
 
 `make figures-quick` (2 seeds per sweep, temporary directory, writes only the gitignored
@@ -77,7 +85,7 @@ then `python scripts/make_figures.py` (it redraws all figures from whatever is i
 ## Disk and `TMPDIR`
 
 Sweeps write every cell's full run directory: about **2 GB per 200 runs**, so a full
-`make figures` writes roughly 30 GB under `output/` (gitignored). Keep `--sweeps-dir` /
+`make figures` writes roughly 36 GB under `output/` (gitignored). Keep `--sweeps-dir` /
 `output/` on a large disk. `make figures-quick` and the tests write to the system
 temporary directory; when that is a small tmpfs (agent sessions, containers), point it
 at a large disk first:
@@ -97,7 +105,7 @@ mkdir -p output/tmp && export TMPDIR=$PWD/output/tmp
 | `soros-baseline` seed 42 `summary.json` | `tests/test_reference_recovery.py` | `pytest`; `sha256sum output/soros-baseline-42-2e09f431/summary.json` |
 
 At that commit: `code_hash` =
-`e97b43b811483fc92ca0e5a2029c2e486734a887b3bd5baa0f3f5d96d057b568`; `soros-baseline` seed 42
+`01754f98382a7a72f98c7684d16dd4ab3a5598a87ff244130ef22cf605f78c7c`; `soros-baseline` seed 42
 `summary.json` sha256 = `f2428bdb6b6fc52188e7761f9170fbddda5cb501a74849e7c7f1284e73677865`,
 run directory `output/soros-baseline-42-2e09f431/`.
 
@@ -111,7 +119,7 @@ number); this checklist is the hard gate.
 - [ ] Clean venv: `pip install -e ".[dev]"` succeeds on Python 3.12.
 - [ ] `make test lint` passes (tests, coverage ≥ 85% on `protocol/` and `agents/`,
       `ruff check`, `ruff format --check`).
-- [ ] `make figures` on a machine with ≥ 30 GB free under `output/`; record its wall time.
+- [ ] `make figures` on a machine with ≥ 40 GB free under `output/`; record its wall time.
 - [ ] Commit the regenerated `docs/figures/*.png` and `manifest.json`.
 - [ ] `make figures-check` prints `ok, N figures match their sources (code_hash matches)`
       with **no** `WARNING` line.

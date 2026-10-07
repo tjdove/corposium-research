@@ -12,7 +12,7 @@ command, `make figures`.
 ![Observed vs simulated USDC/USD, March 2023](docs/figures/validation_overlay_usdc_2023.png)
 
 ```bash
-make figures   # every figure sweep, then all 15 committed figures: 12 min on 12 cores
+make figures   # every figure sweep, then all 17 committed figures: 14 min on 12 cores
 ```
 
 **Status:** pre-alpha, research note in preparation (target 2026-11-01). MIT licensed.
@@ -26,7 +26,7 @@ git clone https://github.com/tjdove/corposium-research.git
 cd corposium-research
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"          # ~70 s on a clean venv without a pip cache
-pytest                           # 745 tests, ~15 s
+pytest                           # 773 tests, ~15 s
 python run.py scenarios/soros-baseline.yaml
 ```
 
@@ -99,6 +99,7 @@ One YAML file per scenario; every value's source is in the file's header. The ha
 | `scenarios/soros-baseline.yaml` | First end-to-end scenario: flat reference price, placeholder magnitudes; the quick-start run | `2e09f431ce74` |
 | `scenarios/soros-volatile.yaml` | `soros-baseline` with a noisy reference price, so the seed matters | `84ad0b810807` |
 | `scenarios/calibrated-baseline.yaml` | USDC / SVB, March 2023, at calm volatility and fitted pool depth D\*, with a par-expecting holder; the base of most sweeps | `44ac03c60e5f` |
+| `scenarios/calibrated-baseline-ou.yaml` | `calibrated-baseline` with a reference price that mean-reverts to par (fitted from the calm series, half-life 1.4 h) instead of a random walk | `741f1bdd0012` |
 | `scenarios/calibrated-stress.yaml` | `calibrated-baseline` at the stress-window volatility (24.5× calm) | `17b24b458e47` |
 | `scenarios/usdc-2023.yaml` | Replay of the observed USDC/USD series, 10–13 March 2023: the validation run | `2c3aeaa9825d` |
 | `scenarios/soros-1992.yaml` | Black Wednesday, 16 September 1992, as ratios of capital, budget, reserves and depth | `f4e26ae66440` |
@@ -120,6 +121,7 @@ sweeps feed the committed figures and run in `make figures`. The last two run wi
 | File | What it asks | Runs | Wall time |
 |---|---|---:|---:|
 | `sweeps/threshold-surface-ref-mc.yaml` ★ | Time to parity and p(stays broken) over pool depth × attacker capital, recovery measured against the oracle price | 640 | 138 s |
+| `sweeps/threshold-surface-ou-mc.yaml` ★ | The par surface again with the mean-reverting reference: what was the model and what was the random walk | 640 | 127 s |
 | `sweeps/threshold-surface-mc.yaml` ★ | The same surface with recovery measured against par | 640 | 136 s |
 | `sweeps/budget-x-depth-mc.yaml` ★ | Defender budget needed to hold the price, over pool depth | 200 | 52 s |
 | `sweeps/budget-x-attack-mc.yaml` ★ | Defender budget needed, over attack size, at twice the fitted depth | 200 | 57 s |

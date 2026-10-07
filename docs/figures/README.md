@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the nine sweeps in full, then scripts/make_figures.py (~12 min on 12 cores)
+make figures         # runs the ten sweeps in full, then scripts/make_figures.py (~14 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn;
                      # a warning (exit 0) if the package code changed
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
@@ -27,6 +27,8 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | [`time_to_parity.png`](time_to_parity.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement |
 | [`threshold_surface.png`](threshold_surface.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement, F-03 |
 | [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 refinement |
+| [`threshold_surface_ou.png`](threshold_surface_ou.png) | `sweeps/threshold-surface-ou-mc.yaml` | F-04 root cause, F-11 (ADR-0029 candidate) |
+| [`time_to_parity_ou.png`](time_to_parity_ou.png) | `sweeps/threshold-surface-ou-mc.yaml` | F-11 (ADR-0029 candidate) |
 | [`budget_depth.png`](budget_depth.png) | `sweeps/budget-x-depth-mc.yaml` | F-11 refinement |
 | [`oracle_sensitivity.png`](oracle_sensitivity.png) | `sweeps/oracle-lag-mc.yaml` | F-10, F-04 |
 | [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | ADR-0026 candidate (F-12, F-07) |
@@ -71,6 +73,22 @@ as the record of F-11 as first observed: here "stays broken" mixes three things,
 clock, the price, and the calm reference wandering more than the band away from par over
 60 h (F-04 refinement). It is why the criterion was changed to oracle-relative in Story
 2.8; do not read its contour as the defense boundary.
+
+**`threshold_surface_ou.png`.** The par-criterion surface again, with a reference that
+mean-reverts to par (OU, κ = 0.001634 per step fitted from the calm series: half-life
+1.41 h, stationary sd 5.4 bps) instead of a random walk. Every cell is 0 or 1. Nothing
+breaks at ≤ 0.5× D\* at any attack, where the random-walk par surface had up to 0.56 and
+the oracle criterion up to 0.25. 1× D\* and 4× D\* go to 1.0 from 0.8×, 2× D\* from 0.6×
+(crossings 0.70 / 0.55 / 0.70, against the oracle criterion's 0.68 / 0.54 / 0.69). On the
+right every point sits at p = 0 or 1; the collapse fit puts 0.5 at an absorbed ratio of
+1.03.
+
+**`time_to_parity_ou.png`.** Median hours to first re-entry within ±31 bps of par on the
+OU surface. The hours are identical to the random-walk par surface's in every cell (and
+within 0.04 h of the oracle surface's): first re-entry is set by the attack and the
+defense, not by the reference. 1× D\* re-enters
+after the 37 h deadline at ≥ 0.8× (41.9–56.4 h, "clock"); 2× D\* at 0.6× too (42.5 h);
+2× and 4× D\* never re-enter from 0.8× ("price").
 
 **`budget_depth.png`.** p(stays broken) over pool depth × defender budget at a fixed attack
 of 1.0× nominal resources (left), and each depth's 0.5-crossing budget against depth on
