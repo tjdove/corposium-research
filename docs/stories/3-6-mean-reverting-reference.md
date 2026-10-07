@@ -1,6 +1,6 @@
 # Story 3.6 (stretch): Mean-Reverting Reference
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 

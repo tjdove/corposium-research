@@ -1,4 +1,5 @@
-"""Exogenous reference price: a seeded log-normal walk with scheduled shocks.
+"""Exogenous reference price: a seeded log-normal walk (optionally mean-reverting) with
+scheduled shocks.
 
 This is the Market Environment Layer. ``ReferencePrice`` is what the stablecoin is
 "really worth" off-chain; the oracle publishes a lagged copy of it and agents compare
@@ -8,15 +9,27 @@ Update rule, once per step in ``ENVIRONMENT_UPDATE``::
 
     step 0:     prev = base_price
     each step:  p = prev
-                if volatility_per_step > 0:
-                    p *= exp(volatility_per_step * ctx.rng.standard_normal())
+                if mean_reversion_per_step == 0:          # random walk
+                    if volatility_per_step > 0:
+                        p *= exp(volatility_per_step * ctx.rng.standard_normal())
+                else:                                     # OU in log price (Story 3.6)
+                    z = ctx.rng.standard_normal() if volatility_per_step > 0 else 0
+                    log p = log p + kappa * (log base_price - log p) + sigma * z
                 if step in shocks:  p *= 1 + shocks[step] / 100
                 emit price_updated {step, price: p, prev_price: prev, shock_pct}
                 prev = p
 
-``volatility_per_step`` is the per-step log-return standard deviation. Exactly one
+``volatility_per_step`` (sigma) is the per-step log-return standard deviation. Exactly one
 ``ctx.rng.standard_normal()`` is drawn per step when it is > 0, and **none** when it is
 0, so a shock-only environment leaves the run's random stream untouched.
+
+``mean_reversion_per_step`` (kappa, Story 3.6) pulls log price toward ``log base_price``
+by that share of the gap each step: an AR(1) in log deviation with coefficient
+``1 - kappa``, half-life ``ln 2 / -ln(1 - kappa)`` steps and stationary sd
+``sigma / sqrt(1 - (1 - kappa)**2)``. ``kappa == 0`` takes the random-walk branch, so
+it is byte-identical to the model before 3.6; ``kappa == 1`` pins the price to
+``base_price`` plus that step's noise. The draw count is the same in both branches. A
+shock moves the price and then decays back like any other deviation.
 
 Shocks: the scenario field ``environment.shocks[].pct`` is a **percent**, not a
 fraction. ``-5.0`` means minus five percent (``price *= 0.95``); ``0.5`` means plus
@@ -74,15 +87,22 @@ class ReferencePrice(Subsystem):
         volatility_per_step: float,
         shocks: Sequence[ShockEvent] | Mapping[int, float] = (),
         name: str = "environment",
+        mean_reversion_per_step: float = 0.0,
     ) -> None:
         if not (math.isfinite(base_price) and base_price > 0):
             raise ValueError(f"base_price must be > 0, got {base_price}")
         if not (math.isfinite(volatility_per_step) and volatility_per_step >= 0):
             raise ValueError(f"volatility_per_step must be >= 0, got {volatility_per_step}")
+        if not (math.isfinite(mean_reversion_per_step) and 0 <= mean_reversion_per_step <= 1):
+            raise ValueError(
+                f"mean_reversion_per_step must be in [0, 1], got {mean_reversion_per_step}"
+            )
         self.name = name
         self.phases = frozenset({Phase.ENVIRONMENT_UPDATE})
         self.base_price = float(base_price)
         self.volatility_per_step = float(volatility_per_step)
+        self.mean_reversion_per_step = float(mean_reversion_per_step)
+        self._log_base = math.log(self.base_price)
         self._shocks_by_step = _shocks_by_step(shocks)
         self._price = self.base_price
         self._prev_price = self.base_price
@@ -97,6 +117,7 @@ class ReferencePrice(Subsystem):
             base_price=cfg.base_price,
             volatility_per_step=cfg.volatility_per_step,
             shocks=cfg.shocks,
+            mean_reversion_per_step=cfg.mean_reversion_per_step,
         )
 
     @classmethod
@@ -145,8 +166,17 @@ class ReferencePrice(Subsystem):
         p = prev
         if self._series is not None:
             p = float(self._series[min(step, len(self._series) - 1)])
-        elif self.volatility_per_step > 0:
-            p *= math.exp(self.volatility_per_step * float(ctx.rng.standard_normal()))
+        elif self.mean_reversion_per_step == 0:
+            if self.volatility_per_step > 0:
+                p *= math.exp(self.volatility_per_step * float(ctx.rng.standard_normal()))
+        else:
+            z = float(ctx.rng.standard_normal()) if self.volatility_per_step > 0 else 0.0
+            log_p = math.log(p)
+            log_p += (
+                self.mean_reversion_per_step * (self._log_base - log_p)
+                + self.volatility_per_step * z
+            )
+            p = math.exp(log_p)
         shock_pct = self._shocks_by_step.get(step, 0.0)
         if step in self._shocks_by_step:
             p *= 1 + shock_pct / 100

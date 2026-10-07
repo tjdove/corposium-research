@@ -85,6 +85,9 @@ def _sha256(path: Path) -> str:
 class EnvironmentConfig(StrictModel):
     base_price: float = Field(default=1.0, gt=0)
     volatility_per_step: float = Field(default=0.0, ge=0)
+    # Story 3.6: per-step pull of log price toward log base_price (an OU / AR(1) reference);
+    # 0 is the driftless random walk.
+    mean_reversion_per_step: float = Field(default=0.0, ge=0, lt=1)
     shocks: list[ShockEvent] = Field(default_factory=list)
     # Observed reference series (Story 2.5): a CSV with ``unix, close`` columns. A relative
     # path resolves against the scenario file's directory (``load_scenario`` passes it as
@@ -108,6 +111,11 @@ class EnvironmentConfig(StrictModel):
             raise ValueError(
                 "environment.price_series_path is set, so volatility_per_step must be 0 and "
                 "shocks must be empty: the observed series is the whole environment"
+            )
+        if self.mean_reversion_per_step != 0:
+            raise ValueError(
+                "environment.price_series_path is set, so mean_reversion_per_step must be 0: "
+                "the observed series is the whole environment and does not revert"
             )
         if not self.price_series_path.is_file():
             raise ValueError(f"environment.price_series_path not found: {self.price_series_path}")
@@ -250,9 +258,11 @@ class ScenarioConfig(StrictModel):
         its path, so the hash follows the data and does not depend on the machine. A
         defender's ``buy`` and ``max_spread_bps`` enter only when not at their defaults
         (``True``, ``None``; Story 3.2). A holder's ``exit_discount_pct`` enters only when set
-        (Story 3.3)."""
+        (Story 3.3). ``environment.mean_reversion_per_step`` enters only when > 0 (Story 3.6)."""
         data = self.model_dump(mode="json")
         env = data["environment"]
+        if env["mean_reversion_per_step"] == 0:
+            del env["mean_reversion_per_step"]  # Story 3.6: the random walk keeps its hash
         if env.pop("price_series_path") is not None:
             env["price_series_sha256"] = self.environment.price_series_sha256
         if not data["redemption"]["capacity_schedule"]:

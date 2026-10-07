@@ -1,7 +1,9 @@
 import math
 
+import numpy as np
 import pytest
 from kernel_stubs import make_config
+from pydantic import ValidationError
 
 from depeg_sim.environment.price_process import ReferencePrice
 from depeg_sim.kernel.config import EnvironmentConfig, ShockEvent
@@ -257,3 +259,119 @@ def test_from_config_uses_the_series(tmp_path):
     path = write_series(tmp_path / "s.csv", [0.98, 0.99])
     env = ReferencePrice.from_config(EnvironmentConfig(price_series_path=path), 12)
     assert env.series is not None and env.price == 0.98
+
+
+# Story 3.6: mean-reverting (OU) reference -----------------------------------------------
+
+
+def test_kappa_zero_is_the_random_walk_exactly():
+    walk = ReferencePrice(base_price=1.0, volatility_per_step=0.01)
+    ou0 = ReferencePrice(base_price=1.0, volatility_per_step=0.01, mean_reversion_per_step=0.0)
+    ca, ra = run(walk, max_steps=200, seed=7)
+    cb, rb = run(ou0, max_steps=200, seed=7)
+    assert prices(ra) == prices(rb)  # exact float equality, not approx
+    assert ca.rng.bit_generator.state == cb.rng.bit_generator.state
+
+
+def test_ou_update_rule_and_one_draw_per_step():
+    kappa, sigma, base = 0.05, 0.01, 1.0
+    env = ReferencePrice(base_price=base, volatility_per_step=sigma, mean_reversion_per_step=kappa)
+    ctx, result = run(env, max_steps=50, seed=7)
+    rng = RunContext.from_config(make_config(seed=7)).rng
+    expected, lp = [], math.log(base)
+    for _ in range(50):
+        lp += kappa * (math.log(base) - lp) + sigma * float(rng.standard_normal())
+        expected.append(math.exp(lp))
+    assert prices(result) == pytest.approx(expected, rel=1e-15)
+    assert ctx.rng.bit_generator.state == rng.bit_generator.state  # one draw per step
+
+
+def test_ou_without_volatility_draws_nothing_and_decays_a_shock():
+    env = ReferencePrice(
+        base_price=1.0, volatility_per_step=0.0, shocks={0: -10.0}, mean_reversion_per_step=0.5
+    )
+    ctx = RunContext.from_config(make_config(max_steps=20))
+    ctx.registry.register(env)
+    before = ctx.rng.bit_generator.state
+    result = Engine(ctx).run()
+    assert ctx.rng.bit_generator.state == before
+    ps = prices(result)
+    assert ps[0] == pytest.approx(0.9)
+    # each step halves the log gap to base
+    assert math.log(ps[1]) == pytest.approx(0.5 * math.log(0.9))
+    assert abs(math.log(ps[-1])) < 1e-5
+
+
+def test_kappa_one_pins_the_price_to_base():
+    # the class accepts kappa = 1 (the config field stops below 1)
+    flat = ReferencePrice(base_price=1.02, volatility_per_step=0.0, mean_reversion_per_step=1.0,
+                          shocks={3: 5.0})  # fmt: skip
+    _, r = run(flat, max_steps=10)
+    assert prices(r) == pytest.approx([1.02] * 3 + [1.02 * 1.05] + [1.02] * 6, rel=1e-15)
+    noisy = ReferencePrice(base_price=1.02, volatility_per_step=0.01, mean_reversion_per_step=1.0)
+    _, r = run(noisy, max_steps=30, seed=3)
+    rng = RunContext.from_config(make_config(seed=3)).rng
+    assert prices(r) == pytest.approx(
+        [1.02 * math.exp(0.01 * float(rng.standard_normal())) for _ in range(30)], rel=1e-14
+    )
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_ou_recovers_its_ar1_coefficient_and_stationary_sd(seed):
+    kappa, sigma = 0.02, 0.001
+    env = ReferencePrice(base_price=1.0, volatility_per_step=sigma, mean_reversion_per_step=kappa)
+    _, r = run(env, max_steps=40_000, seed=seed)
+    x = np.log(np.array(prices(r)))[1_000:]  # drop the burn-in from base
+    phi = float(np.dot(x[:-1], x[1:]) / np.dot(x[:-1], x[:-1]))
+    assert phi == pytest.approx(1 - kappa, abs=0.004)
+    assert float(x.std()) == pytest.approx(sigma / math.sqrt(1 - (1 - kappa) ** 2), rel=0.1)
+
+
+@pytest.mark.parametrize("bad", [-0.1, 1.5, float("nan")])
+def test_invalid_mean_reversion_raises(bad):
+    with pytest.raises(ValueError, match="mean_reversion_per_step"):
+        ReferencePrice(base_price=1.0, volatility_per_step=0.0, mean_reversion_per_step=bad)
+
+
+@pytest.mark.parametrize("bad", [-0.1, 1.0, 2.0])
+def test_config_field_is_in_zero_one(bad):
+    with pytest.raises(ValidationError, match="mean_reversion_per_step"):
+        EnvironmentConfig(mean_reversion_per_step=bad)
+
+
+def test_series_forbids_mean_reversion(tmp_path):
+    path = write_series(tmp_path / "s.csv", [0.98, 0.99])
+    with pytest.raises(ValidationError, match="mean_reversion_per_step must be 0"):
+        EnvironmentConfig(price_series_path=path, mean_reversion_per_step=0.01)
+
+
+def test_from_config_passes_kappa():
+    env = ReferencePrice.from_config(
+        EnvironmentConfig(volatility_per_step=0.001, mean_reversion_per_step=0.01)
+    )
+    assert env.mean_reversion_per_step == 0.01
+
+
+def test_kappa_enters_the_hash_only_when_set():
+    from depeg_sim.kernel.config import ScenarioConfig, load_scenario
+
+    base = load_scenario("scenarios/calibrated-baseline.yaml")
+    assert base.content_hash()[:12] == "44ac03c60e5f"
+    data = base.model_dump(mode="json")
+    data["environment"]["mean_reversion_per_step"] = 0.0
+    assert ScenarioConfig.model_validate(data).content_hash() == base.content_hash()
+    data["environment"]["mean_reversion_per_step"] = 0.001
+    assert ScenarioConfig.model_validate(data).content_hash() != base.content_hash()
+
+
+def test_explicit_kappa_zero_run_is_byte_identical(tmp_path):
+    from depeg_sim.experiments.runner import run_scenario
+    from depeg_sim.kernel.config import ScenarioConfig, load_scenario
+
+    base = load_scenario("scenarios/soros-volatile.yaml")  # draws every step
+    data = base.model_dump(mode="json")
+    data["environment"]["mean_reversion_per_step"] = 0.0
+    a = run_scenario(base, output_dir=tmp_path / "a", chart=False)
+    b = run_scenario(ScenarioConfig.model_validate(data), output_dir=tmp_path / "b", chart=False)
+    for name in ("timeseries.parquet", "summary.json", "events.jsonl", "decisions.jsonl"):
+        assert (a.run_dir / name).read_bytes() == (b.run_dir / name).read_bytes(), name
