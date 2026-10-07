@@ -5,15 +5,18 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the nine sweeps in full, then scripts/make_figures.py (~9 min on 12 cores)
-make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn
+make figures         # runs the nine sweeps in full, then scripts/make_figures.py (~12 min on 12 cores)
+make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn;
+                     # a warning (exit 0) if the package code changed
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
 
 The guard compares source hashes, not pixels: `content_hash()` for a scenario,
 `sweep_spec_hash()` (spec file bytes + base scenario hash) for a sweep. Each figure's
 footer prints the same hash (`hash=` for a scenario, `spec_hash=` for a sweep), so a
-reader can match a picture to its manifest entry. CI runs `make figures-check` on every
+reader can match a picture to its manifest entry. The manifest also records `code_hash`,
+sha256 over `src/depeg_sim/**/*.py` at drawing time; a mismatch only warns, and the
+freeze checklist in [`docs/REPRODUCIBILITY.md`](../REPRODUCIBILITY.md) clears it. CI runs `make figures-check` on every
 push.
 
 Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).

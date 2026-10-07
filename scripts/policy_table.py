@@ -33,7 +33,10 @@ def table(sweep_dir: Path) -> pd.DataFrame:
     runs = pd.read_parquet(sweep_dir / SWEEP_PARQUET)
     interval = manifest["base_config"]["steps"]["interval_seconds"]
     runs["arb_redeemed"] = runs["arbitrageur_redeemed"]
-    runs["holder_redeemed"] = runs["redemption_paid_total"] - runs["arbitrageur_redeemed"]
+    # the difference of two float sums: clip the ~1e-9 residue where the holder never redeemed
+    runs["holder_redeemed"] = (runs["redemption_paid_total"] - runs["arbitrageur_redeemed"]).clip(
+        lower=0.0
+    )
     runs["hours"] = (
         (runs["step_of_max_depeg"] + runs["steps_to_first_band_entry"]) * interval / 3600
     )
