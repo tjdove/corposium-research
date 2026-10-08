@@ -265,3 +265,33 @@ HASHES_3_7 = {
 def test_existing_scenario_hashes_unchanged(name):
     h = load_scenario(Path("scenarios") / f"{name}.yaml").content_hash()
     assert h == HASHES_3_7[name]
+
+
+# the scenario (AC 4) ------------------------------------------------------------------
+
+LP_SCENARIO = Path("scenarios/calibrated-baseline-lp.yaml")
+
+
+def test_lp_scenario_hash_is_pinned():
+    assert load_scenario(LP_SCENARIO).content_hash() == (
+        "4707a65abb67784c2b21d5f178cbc207c4db6ca99d487b861bf13ff6e4b3fe16"
+    )
+
+
+def test_lp_scenario_is_ou_plus_one_lp():
+    ou = load_scenario(Path("scenarios/calibrated-baseline-ou.yaml")).model_dump(mode="json")
+    lp_ = load_scenario(LP_SCENARIO).model_dump(mode="json")
+    assert lp_["name"] == "calibrated-baseline-lp"
+    *rest, added = lp_["agents"]
+    assert added == LP
+    for d in (ou, lp_):
+        del d["name"]
+    lp_["agents"] = rest
+    assert lp_ == ou
+
+
+def test_lp_scenario_header_states_the_assumptions():
+    header = LP_SCENARIO.read_text(encoding="utf-8").split("version:")[0]
+    assert "ASSUMPTIONS WITH NO PUBLIC ANCHOR" in header and "ADR-0031" in header
+    for line in ("share 0.5", "threshold 5%", "pace 0.1", "holder's 2% entry"):
+        assert line in header, line

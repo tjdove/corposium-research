@@ -1,0 +1,106 @@
+# Calibrated baseline, OU reference, flighty LP — calibrated-baseline-ou with half the pool
+# owned by a liquidity provider who pulls liquidity when the peg looks lost (Story 3.8).
+# Identical to scenarios/calibrated-baseline-ou.yaml except `name` and one added agent:
+#   lp-1  share 0.5, panic_threshold_pct 5, pace 0.1  (agents/lp.py)
+# It owns half the pool at the start; every step that AMM spot is more than 5% below par it
+# withdraws 10% of what it still has (removed shares / outstanding shares = the fraction of
+# the current pool; both reserves scale, spot does not move). One-way: it never re-adds.
+# ALL THREE NUMBERS ARE ASSUMPTIONS WITH NO PUBLIC ANCHOR (status assumption; ADR-0031).
+# There is no public series for how much of March-2023 USDC liquidity was flighty or how
+# fast it left; Curve 3pool's USDC leg did shrink, but the model's pool stands for aggregate
+# depth (F-05), not one venue. Why these values:
+#   share 0.5  "half the pool is flighty": the midpoint of the sweep's 0.25-0.75 axis.
+#   threshold 5%  above the holder's 2% entry (the believers buy first, so an LP that
+#              panics at 2% would be reacting to a price the holder is already defending)
+#              and below the calibrated trough (about -1,250 bps at D*, F-05), so the LP
+#              does act in the base run. 2/5/10/20% are the sweep's axis.
+#   pace 0.1   10% of what is left per step, the attacker's pace: the LP leaves at the
+#              speed the selling arrives, out within ~25 steps (5 minutes) of a deep dip.
+# The rest of the header is calibrated-baseline-ou's, unchanged:
+#
+# Calibrated baseline, OU reference — calibrated-baseline with a mean-reverting reference
+# price (Story 3.6). Identical to scenarios/calibrated-baseline.yaml except `name` and
+# environment.mean_reversion_per_step = 0.001634 (status fitted): each 12 s step pulls the
+# log reference price 0.1634% of the way back to log 1.0 (an Ornstein-Uhlenbeck / AR(1)
+# reference instead of a driftless random walk). Fit: scripts/fit_reversion.py on
+# data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv (the series sigma comes from), AR(1)
+# through the origin on hourly ln(close): phi = 0.6123, se 0.0728 (unit-root stat -5.33 <
+# Dickey-Fuller 5% -1.95: significantly below 1); kappa_step = 1 - phi^(1/300) = 0.00163402
+# -> 0.001634; half-life 1.41 h; stationary sd 5.40 bps with sigma 3.086e-05 (data: 6.07).
+# Caveat: the calm series is thin (13 zero-volume hours, isolated prints), so phi is rough;
+# SOURCES.md#environment. sigma is unchanged. peg_recovered.reference stays par.
+# Every value is sourced in docs/calibration/SOURCES.md; judgment calls are in ADR-0018.
+# The model is scale-free: the calibrated quantities are ratios. Unit anchor: 1,000,000
+# model units = the USDC leg of Curve 3pool on 2023-03-10 ($510M x 46% = $234.6M); every
+# balance below is dollars x 1e6 / 234.6e6 (= s).
+# Aggregate depth (F-05, Story 2.4): the pool is one constant-product venue standing for
+# aggregate USDC market depth, not one Curve pool. market_depth_multiple = D* / 1,000,000
+# = 16,666,667 / 1,000,000 = 16.67 (status assumption), fitted by scripts/fit_depth.py so
+# that max_depeg_bps reproduces the observed March-2023 trough ($0.87, -1300 bps):
+# achieved -1253.2 bps. Re-fit after attacker re-anchor (ADR-0019 amendment, Story 2.5).
+# In dollars D* is ~$3.91B per side, 16.7x the $234.6M Curve leg; see SOURCES.md#pool.
+#
+#   time         SOURCES.md#time         12 s slots; 18,000 steps = the ~60 h episode
+#   pool         SOURCES.md#pool         D* = market_depth_multiple x 1,000,000, fitted to the
+#                                        observed trough; fee 1 bp read on-chain (March 2023)
+#   oracle       SOURCES.md#oracle       Chainlink USDC/USD: 0.25% deviation, 82,800 s heartbeat
+#   redemption   SOURCES.md#redemption   1:1, no fee (2023); capacity = observed net burn
+#                                        11-14 Mar 2023; reserves = Circle's T-bill share
+#   environment  SOURCES.md#environment  calm-week (27 Feb - 3 Mar 2023) realised USDC vol
+#   attacker     SOURCES.md#attacker     capital = net USDC burn 10-13 Mar 2023 ($2.71B), the
+#                                        episode flow (replaces the ADR-0017 ratio 1.0);
+#                                        pace and start_step unchanged
+#   defender     SOURCES.md#defender     budget = Circle's cash share (23:77 vs reserves); policy
+#                                        parameters are assumptions
+#   arbitrageur  SOURCES.md#arbitrageur  unchanged from soros-baseline (assumptions)
+#   holder       SOURCES.md#holder       par-expecting buyer (Story 2.6): capital = C* x (depth / D*)
+#                                        = 9,166,667 x 16,666,667 / 16,666,667 = 9,166,667; C* fitted
+#                                        on usdc-2023 to the observed trough; entry, pace assumptions;
+#                                        Story 3.1 re-fit with buys capped at entry: C* unchanged
+#   termination  SOURCES.md#termination  tolerance = fee 1 + min profit 20 + 10 bps margin
+#                                        (ADR-0013); for_steps = one Chainlink heartbeat
+version: 1
+name: calibrated-baseline-lp
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 18000
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 16_666_667
+  reserve_reference: 16_666_667
+  fee_bps: 1
+oracle:
+  heartbeat_steps: 6900
+  deviation_threshold_pct: 0.25
+redemption:
+  reserves: 138_107_417
+  spread_bps: 0
+  capacity_per_step: 605.79
+  peg_price: 1.0
+environment:
+  base_price: 1.0
+  volatility_per_step: 3.086e-05
+  mean_reversion_per_step: 0.001634
+  shocks: []
+agents:
+  - { type: attacker, id: attacker-1, capital: 11_540_596, start_step: 50, pace: 0.1 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 1.0, spend_pace: 0.2 }
+  - type: holder
+    id: holder-1
+    capital: 9_166_667
+    entry_discount_pct: 2.0
+    pace: 0.05
+    redeem_when_capacity: true
+  - { type: lp, id: lp-1, share: 0.5, panic_threshold_pct: 5, pace: 0.1 }
+termination:
+  reserves_exhausted: true
+  peg_recovered: { for_steps: 6900, tolerance: 0.0031 }
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: false
+  checkpoint_every: 6900

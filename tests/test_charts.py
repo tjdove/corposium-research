@@ -569,3 +569,67 @@ def test_reversion_heading_only_when_the_reference_reverts():
     assert _reversion({"volatility_per_step": 3e-5}) == ""  # pre-3.6 manifests
     assert _reversion({"mean_reversion_per_step": 0.0}) == ""
     assert _reversion({"mean_reversion_per_step": 0.001634}) == "; OU reference, κ 0.001634/step"
+
+
+# Story 3.8: liquidity flight --------------------------------------------------------------
+
+CAP, SHARE, THR = (
+    "agents[type=attacker].capital",
+    "agents[type=lp].share",
+    "agents[type=lp].panic_threshold_pct",
+)
+
+
+def _lp_flight_dir(tmp_path):
+    """3 capitals x 2 shares x 2 thresholds; time to parity falls with share, the largest
+    capital never re-enters at the smaller share."""
+    d = tmp_path / "lpflight"
+    d.mkdir()
+    caps, shares, thrs = [89_727_196, 125_618_074, 179_454_391], [0.25, 0.75], [2.0, 20.0]
+    rows = []
+    for c in caps:
+        for s in shares:
+            for t in thrs:
+                never = c == caps[-1] and s == 0.25
+                entry = None if never else 1_000 * (caps.index(c) + 1) / s
+                rows.append(
+                    {
+                        CAP: c, SHARE: s, THR: t, "n": 8,
+                        "step_of_max_depeg_std": 0.0,
+                        "step_of_max_depeg_p05": 82.0,
+                        "step_of_max_depeg_p50": 82.0,
+                        "step_of_max_depeg_p95": 82.0,
+                        "steps_to_first_band_entry_p50": float("nan") if never else entry,
+                        "steps_to_first_band_entry_n": 0 if never else 8,
+                        "pool_depth_at_trough_mean": 0.43 * (1 - s),
+                        "pool_liquidity_at_trough_mean": 1 - s,
+                    }
+                )  # fmt: skip
+    pd.DataFrame(rows).to_parquet(d / "mc.parquet", index=False)
+    axes = [
+        {"name": CAP, "paths": [CAP], "values": caps},
+        {"name": SHARE, "paths": [SHARE], "values": shares},
+        {"name": THR, "paths": [THR], "values": thrs},
+    ]
+    _manifest(d, "lpflight", "scenarios/calibrated-baseline-lp.yaml", axes, seeds=8)
+    return d
+
+
+def test_lp_flight_png(tmp_path):
+    from depeg_sim.analysis.charts import plot_lp_flight
+
+    png = plot_lp_flight(_lp_flight_dir(tmp_path))
+    assert png.name == "lp_flight.png" and png.stat().st_size > 20_000
+    assert plt.imread(png).shape[:2] == (900, 3450)  # (6 x 3 + 5) x 6 in at 150 dpi
+    assert plt.get_fignums() == []
+
+
+def test_lp_flight_needs_the_lp_axes(tmp_path):
+    from depeg_sim.analysis.charts import plot_lp_flight
+
+    d = _lp_flight_dir(tmp_path)
+    m = json.loads((d / "manifest.json").read_text())
+    m["axes"] = m["axes"][:2]
+    (d / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="no axis setting"):
+        plot_lp_flight(d)

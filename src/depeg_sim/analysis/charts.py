@@ -1706,3 +1706,105 @@ def plot_pace_ratio(sweep_dir: Path) -> Path:
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+# -- liquidity flight (Story 3.8) -----------------------------------------------------------
+
+LP_FLIGHT = "lp_flight.png"
+LP_SHARE_PATH = "agents[type=lp].share"
+LP_THRESHOLD_PATH = "agents[type=lp].panic_threshold_pct"
+
+
+def plot_lp_flight(sweep_dir: Path) -> Path:
+    """One heatmap per attacker capital (in the sweep's axis order) of median hours from
+    run start to first re-entry (``time_to_parity_hours``) over the LP's flighty share
+    (rows) x its panic threshold (columns): "never" hatched, the deadline after which a
+    re-entry cannot hold ``for_steps`` by ``max_steps`` dashed. A smaller last panel: pool
+    depth at the trough at the largest attacker capital, coloured by
+    ``pool_depth_at_trough`` (reference reserve at the trough / start; falls with price
+    impact as well as flight) and labelled with ``pool_liquidity_at_trough`` too
+    (``sqrt(k / k0)``: the share of the pool still there; 1.0 with no LP). Means over seeds.
+    Reads only ``mc.parquet`` + manifest."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    cap_col = _axis_named(manifest, CAPITAL_PATH)
+    share_col = _axis_named(manifest, LP_SHARE_PATH)
+    thr_col = _axis_named(manifest, LP_THRESHOLD_PATH)
+    cap_axis = next(a for a in manifest["axes"] if a["name"] == cap_col)
+    lp = next(a for a in base["agents"] if a["type"] == "lp")
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.sort_values([cap_col, share_col, thr_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    shares = sorted(mc[share_col].unique())
+    thrs = sorted(mc[thr_col].unique())
+    caps = list(cap_axis["values"])
+    top = max(caps)
+
+    def grid(g: pd.DataFrame, values: str) -> np.ndarray:
+        return g.pivot(index=share_col, columns=thr_col, values=values).loc[shares, thrs].to_numpy()
+
+    fig, axes = plt.subplots(
+        1,
+        len(caps) + 1,
+        figsize=(6 * len(caps) + 5, 6),
+        dpi=150,
+        constrained_layout=True,
+        gridspec_kw={"width_ratios": [1] * len(caps) + [0.8]},
+    )
+    for ax, cap in zip(axes, caps, strict=False):
+        im = _parity_grid(ax, grid(mc[mc[cap_col] == cap], "hours"), deadline_h, horizon_h)
+        ax.set_title(f"attacker {cap / resources:.2g}× resources ({_usd(cap, USD_PER_UNIT)})")
+    fig.colorbar(
+        im, ax=list(axes[:-1]), label="median hours from run start to first re-entry", shrink=0.9
+    )
+
+    ax = axes[-1]
+    at_top = mc[mc[cap_col] == top]
+    depth = grid(at_top, "pool_depth_at_trough_mean")
+    liquidity = grid(at_top, "pool_liquidity_at_trough_mean")
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE[::-1])
+    ax.imshow(depth, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=1)
+    for i in range(len(shares)):
+        for j in range(len(thrs)):
+            ax.text(
+                j, i, f"{depth[i, j]:.2f}\nliq {liquidity[i, j]:.2f}", ha="center",
+                va="center", fontsize=8, color="white" if depth[i, j] <= 0.45 else DARK,
+            )  # fmt: skip
+    ax.set_title(
+        f"pool depth at the trough, attacker {top / resources:.2g}×\n"
+        "colour: reference reserve / start\nliq = √(k/k₀): share of the pool still there",
+        fontsize=10,
+    )
+    for ax in axes:
+        ax.set_xticks(range(len(thrs)))
+        ax.set_xticklabels([f"{t:g}%" for t in thrs], fontsize=8)
+        ax.set_yticks(range(len(shares)))
+        ax.set_yticklabels([f"{s:g}" for s in shares], fontsize=8)
+        ax.set_xlabel("LP panic threshold (% below par)")
+        ax.set_ylabel("flighty LP share of the pool")
+
+    fig.suptitle(
+        f"{manifest['sweep_name']}: liquidity flight, criterion {_criterion(rec)} "
+        f"({len(manifest['seeds'])} seeds per cell{_reversion(base['environment'])}; "
+        f"LP withdraws {lp['pace']:g} of what it has left per step, never re-adds)\n"
+        f"median hours from run start to first re-entry within ±{rec['tolerance'] * BPS:g} bps "
+        f"of {_against(rec)}; orange dashed = {deadline_h:.0f} h, the latest first re-entry that "
+        f"can still hold {rec['for_steps']:,} steps by step {horizon:,}; hatched = never "
+        f"re-enters by {horizon_h:.0f} h",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / LP_FLIGHT
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out

@@ -236,3 +236,42 @@ def test_fit_holder_parse_tranches_and_holder():
         if a.type == "holder"
     ]
     assert single.tranches is None and single.entry_discount_pct == 2.0
+
+
+def test_lp_flight_table_counts_withdrawals_against_panic_steps(tmp_path):
+    """Story 3.8 AC 6: withdrawals come from each LP cell's events; panic steps from the
+    matching no-LP run (same seed) after the attack starts."""
+    import json
+    from pathlib import Path
+
+    import pandas as pd
+
+    sys.path.insert(0, str(Path("scripts").resolve()))
+    import lp_flight_table as t
+
+    def cell(name, kinds, devs):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "events.jsonl").write_text("".join(json.dumps({"kind": k}) + "\n" for k in kinds))
+        pd.DataFrame({"step": range(len(devs)), "peg_deviation": devs}).to_parquet(
+            d / "timeseries.parquet"
+        )
+        return d
+
+    common = {"step_of_max_depeg": 2, "steps_to_first_band_entry": 300.0,
+              "steps_to_sustained_recovery": 300.0, "terminated_by": "peg_recovered",
+              "defender_spent": 1e6, "pool_liquidity_at_trough": 1.0}  # fmt: skip
+    nolp = pd.DataFrame(
+        [common | {"seed": 1, "max_depeg_bps": -1000.0,
+                   "cell": cell("n", [], [0.0, 0.0, -0.06, -0.06, -0.01])}]
+    )  # fmt: skip
+    lp = pd.DataFrame(
+        [common | {"seed": 1, "max_depeg_bps": -1100.0, t.LP_SHARE_PATH: 0.5,
+                   t.LP_THRESHOLD_PATH: 5.0,
+                   "cell": cell("l", ["liquidity_removed"] * 3 + ["swap_executed"], [0.0])}]
+    )  # fmt: skip
+    df = t.table(lp, nolp, [t.LP_SHARE_PATH, t.LP_THRESHOLD_PATH], 12, start_step=1)
+    no, row = df.iloc[0], df.iloc[1]
+    assert no["cell"] == "no LP" and row["cell"] == "LP"
+    assert row["withdrawals"] == 3 and row["panic_steps"] == 2
+    assert row["vs_no_lp"] == "+10.0%" and row["hours"] == "1.0"

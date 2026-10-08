@@ -34,6 +34,18 @@ calibrated scale; Story 2.7's absorbed ratio is ``capital`` over their sum.
 arbitrageur: ``redeem_fulfilled.paid_reference`` summed over events whose requester is
 that agent (0.0 when it never redeemed; ``None`` without an arbitrageur or a redemption
 module). It is the part of ``redemption_paid_total`` a defense did not pay to believers.
+
+Pool depth at the trough (Story 3.8), both as a fraction of the start, both ``None`` when
+there is no AMM or no recorded deviation:
+
+- ``pool_depth_at_trough``: ``amm_reserve_reference`` at ``step_of_max_depeg`` over the
+  configured ``amm.reserve_reference``, as the story context defines it. It falls with
+  price impact as well as with liquidity flight: a sale that takes spot to ``p`` leaves
+  ``sqrt(p)`` of the reference reserve in an untouched pool.
+- ``pool_liquidity_at_trough``: ``sqrt(reserve_stable * reserve_reference)`` at the same
+  step over its starting value, i.e. ``sqrt(k / k0)``. Swaps do not move it (fees nudge it
+  up); a removal of ``f`` scales it by ``1 - f``. It is the share of the pool still there,
+  whatever the price; 1.0 with no liquidity provider.
 """
 
 from __future__ import annotations
@@ -70,6 +82,8 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "defender_bought_stable",
     "holder_bought_stable",
     "holder_pnl",
+    "pool_depth_at_trough",
+    "pool_liquidity_at_trough",
     "phase_order_version",
     "package_version",
 )
@@ -112,9 +126,19 @@ def summarize(
     dev = metrics_df["peg_deviation"]
     steps = metrics_df["step"]
     max_depeg = step_of_max = final = first_entry = sustained = None
+    depth_at_trough = liquidity_at_trough = None
     if dev.notna().any():
         i = int(dev.idxmin())
         max_depeg = float(dev.loc[i]) * BPS
+        if world.get("amm") is not None:
+            rs, rr = (
+                metrics_df.loc[i, "amm_reserve_stable"],
+                metrics_df.loc[i, "amm_reserve_reference"],
+            )
+            depth_at_trough = _float(rr / cfg.amm.reserve_reference)
+            liquidity_at_trough = _float(
+                math.sqrt(rs * rr / (cfg.amm.reserve_stable * cfg.amm.reserve_reference))
+            )
         step_of_max = int(steps.loc[i])
         final = float(dev.dropna().iloc[-1]) * BPS
         rec = cfg.termination.peg_recovered
@@ -156,6 +180,8 @@ def summarize(
         "defender_bought_stable": None if dfn is None else _float(dfn.bought_stable),
         "holder_bought_stable": None if hld is None else _float(hld.bought_stable),
         "holder_pnl": None if hld is None else _float(hld.pnl_last),
+        "pool_depth_at_trough": depth_at_trough,
+        "pool_liquidity_at_trough": liquidity_at_trough,
         "phase_order_version": PHASE_ORDER_VERSION,
         "package_version": __version__,
     }

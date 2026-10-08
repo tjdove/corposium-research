@@ -30,6 +30,8 @@ EXPECTED = [
     "defender_bought_stable",
     "holder_bought_stable",
     "holder_pnl",
+    "pool_depth_at_trough",
+    "pool_liquidity_at_trough",
     "phase_order_version",
     "package_version",
 ]
@@ -64,6 +66,10 @@ def test_keys_exact_and_values():
     assert s["holder_bought_stable"] is None and s["holder_pnl"] is None  # no holder
     assert s["phase_order_version"] == PHASE_ORDER_VERSION
     assert s["package_version"] == __version__
+    i = int(df["peg_deviation"].idxmin())
+    assert s["pool_depth_at_trough"] == df["amm_reserve_reference"][i] / 1_000_000
+    assert s["pool_depth_at_trough"] < 1  # the dump took reference out of the pool
+    assert s["pool_liquidity_at_trough"] == pytest.approx(1.0, abs=1e-3)  # no LP: only fees
     json.dumps(s, allow_nan=False)  # strict JSON
 
 
@@ -181,3 +187,37 @@ def test_arbitrageur_redeemed_is_its_share_of_redemption_paid():
 def test_arbitrageur_redeemed_zero_when_it_never_redeems():
     s, _, _ = summary_for(cfg_with(max_steps=10))  # attack starts at step 50
     assert s["arbitrageur_redeemed"] == 0.0
+
+
+# Story 3.8 AC 5: pool depth at the trough ---------------------------------------------
+
+
+def test_pool_depth_none_without_an_amm_reading():
+    cfg = cfg_with(max_steps=5)
+    _, world, result, _ = run(cfg)
+    empty = pd.DataFrame({"step": [], "peg_deviation": []})
+    s = summarize(cfg, result, empty, world)
+    assert s["pool_depth_at_trough"] is None and s["pool_liquidity_at_trough"] is None
+    world = {k: v for k, v in world.items() if k != "amm"}
+    _, _, result, df = run(cfg)
+    s = summarize(cfg, result, df, world)
+    assert s["pool_depth_at_trough"] is None and s["pool_liquidity_at_trough"] is None
+
+
+def test_pool_liquidity_follows_lp_flight_and_depth_mixes_in_price():
+    data = cfg_with(max_steps=120).model_dump(mode="json")
+    data["agents"].append(
+        {"type": "lp", "id": "lp-1", "share": 0.5, "panic_threshold_pct": 1.0, "pace": 1.0}
+    )
+    cfg = ScenarioConfig.model_validate(data)
+    s, world, df = summary_for(cfg)
+    i = int(df["peg_deviation"].idxmin())
+    rs, rr = df["amm_reserve_stable"][i], df["amm_reserve_reference"][i]
+    assert s["pool_depth_at_trough"] == rr / 1_000_000
+    assert s["pool_liquidity_at_trough"] == pytest.approx((rs * rr) ** 0.5 / 1_000_000)
+    # the LP left (all of its half) at step 51; the attacker's later sales hit a half pool
+    # and set a deeper trough at step 53 (no LP: -573 bps at step 50, liquidity 1.0)
+    assert s["step_of_max_depeg"] == 53 and s["max_depeg_bps"] < -700
+    assert s["pool_liquidity_at_trough"] == pytest.approx(0.5, abs=1e-3)
+    assert s["pool_depth_at_trough"] < s["pool_liquidity_at_trough"]  # price impact too
+    assert world["lp-1"].share_remaining == 0.0

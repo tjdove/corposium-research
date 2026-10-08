@@ -1,0 +1,29 @@
+# Liquidity flight at calibrated scale, Monte Carlo (Story 3.8 AC 5).
+# Base: scenarios/calibrated-baseline-lp.yaml = calibrated-baseline-ou (OU reference,
+# kappa 0.001634/step; par criterion, no reference override) plus one flighty LP
+# (lp-1: share 0.5, panic_threshold_pct 5, pace 0.1; all three are assumptions with no
+# public anchor, ADR-0031). Question: what does reflexive liquidity flight do to the
+# time to parity the earlier surfaces drew with depth held fixed (F-03, F-11)?
+# Numbers and their origins:
+#   LP panic_threshold_pct in {2, 5, 10, 20}: it withdraws while AMM spot is more than
+#        this far below par. 2 = the holder's entry discount; 20 = deeper than the
+#        episode attack's -1,253 bps trough.
+#   LP share in {0.25, 0.5, 0.75}: the part of the D* pool that is flighty; the rest of
+#        the pool never moves. pace stays 0.1 (the base).
+#   attacker capital = ratio x (defender budget + redemption reserves)
+#        = ratio x (41,346,974 + 138,107,417) = ratio x 179,454,391, ratio in
+#        {0.5, 0.7, 1.0}, rounded (as in threshold-surface-ou-mc and pace-x-trigger-mc).
+#   seeds 1000..1007 (8 per grid point); max_steps 18,000 = the ~60 h horizon (base).
+# Metric: median hours from run start to first re-entry (charts.time_to_parity_hours),
+# and pool depth at the trough (summary pool_depth_at_trough / pool_liquidity_at_trough).
+# AMM fee and arbitrageur min profit are not varied (ADR-0013 guard not triggered).
+# 4 x 3 x 3 = 36 grid points x 8 seeds = 288 runs.
+version: 1
+name: lp-flight-mc
+base: scenarios/calibrated-baseline-lp.yaml
+axes:
+  agents[type=attacker].capital: [89727196, 125618074, 179454391]
+  agents[type=lp].share: [0.25, 0.5, 0.75]
+  agents[type=lp].panic_threshold_pct: [2, 5, 10, 20]
+seeds: { count: 8, start: 1000 }
+max_steps: 18000

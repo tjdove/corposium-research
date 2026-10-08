@@ -18,9 +18,10 @@ Statistics use only non-null values (a metric is null where it has no meaning, e
 ``ddof=1`` and is NaN with fewer than 2 values. Percentiles are
 ``numpy.percentile(method="linear")``. ``m_n`` counts the non-null values of a nullable
 metric. A metric absent from ``sweep.parquet`` (a sweep run before Story 2.7 added the
-bought-stable and holder columns) aggregates to NaN. ``p_reserves_exhausted`` is the
-share of runs whose ``reserves_exhausted`` flag is set, with Wilson 95% bounds. The three
-``terminated_by`` shares sum to 1. Rows are sorted by the axis columns in spec order.
+bought-stable and holder columns, or before Story 3.8 added the two pool-depth columns)
+aggregates to NaN. ``p_reserves_exhausted`` is the share of runs whose
+``reserves_exhausted`` flag is set, with Wilson 95% bounds. The three ``terminated_by``
+shares sum to 1. Rows are sorted by the axis columns in spec order.
 """
 
 from __future__ import annotations
@@ -53,6 +54,8 @@ METRICS: tuple[str, ...] = (
     "defender_bought_stable",
     "holder_bought_stable",
     "holder_pnl",
+    "pool_depth_at_trough",
+    "pool_liquidity_at_trough",
 )
 NULLABLE = frozenset({"steps_to_first_band_entry", "steps_to_sustained_recovery"})
 STATS = ("mean", "std", "p05", "p50", "p95")
