@@ -272,7 +272,7 @@ $ ruff format --check .
 ruff format exit=0
 ```
 
-**CI:** recorded after push (follow-up commit).
+**CI:** run [37781242502](https://github.com/tjdove/corposium-research/actions/runs/37781242502) on `4211309`: `test` success (2 m 30 s), `figures-quick` success (21 m 45 s).
 
 **Process note.** Commit `5a55cec` went in with 4 failing tests: my command chain checked
 `pytest | tail`'s exit code, not pytest's. Fixed in `6f2859d` before anything was pushed

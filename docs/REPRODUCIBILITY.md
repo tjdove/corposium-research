@@ -56,7 +56,7 @@ six scenario figures itself (seconds each), draws all nineteen figures and write
 | `python -m depeg_sim.sweep sweeps/pace-x-trigger-mc.yaml --mc` | `pace_trigger.png` | 256 | 92 s | 25 s | 191 s |
 | `python -m depeg_sim.sweep sweeps/pace-ratio-mc.yaml --mc` | `pace_ratio.png` | 112 | 23 s | 7 s | 52 s |
 | `python -m depeg_sim.sweep sweeps/threshold-surface-ou-mc.yaml --mc` | `threshold_surface_ou.png`, `time_to_parity_ou.png` | 640 | 127 s | 17 s | 144 s |
-| `python -m depeg_sim.sweep sweeps/lp-flight-mc.yaml --mc` | `lp_flight.png` | 288 | 51 s | (not measured) | (pending CI) |
+| `python -m depeg_sim.sweep sweeps/lp-flight-mc.yaml --mc` | `lp_flight.png` | 288 | 51 s | (not measured) | (not split out; whole job 1,305 s, run 37781242502) |
 | `python scripts/make_figures.py` | all 19 (runs the 6 scenario figures: `peg_trajectory_*.png`, `validation_overlay_usdc_2023.png`, `validation_overlay_usdc_2023_tranches.png`) | — | ≈ 10 s | (included) | (included) |
 | **`make figures`** / **`make figures-quick`** | all 19 | 3,977 | **893 s** | **147 s** | **1,155 s** |
 
