@@ -273,8 +273,21 @@ class HolderConfig(StrictModel):
         return self
 
 
+class LPConfig(StrictModel):
+    """Flighty liquidity provider (Story 3.8): owns ``share`` of the AMM pool at the start
+    and, each step that AMM spot is more than ``panic_threshold_pct`` below peg, withdraws
+    ``pace`` of what it has left. One-way: it never re-adds. A new type, so no existing
+    scenario's hash moves."""
+
+    type: Literal["lp"]
+    id: str
+    share: float = Field(gt=0, le=1)
+    panic_threshold_pct: float = Field(gt=0)
+    pace: float = Field(gt=0, le=1)
+
+
 AgentConfig = Annotated[
-    AttackerConfig | ArbitrageurConfig | DefenderConfig | HolderConfig,
+    AttackerConfig | ArbitrageurConfig | DefenderConfig | HolderConfig | LPConfig,
     Field(discriminator="type"),
 ]
 
