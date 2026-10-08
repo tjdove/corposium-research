@@ -1,0 +1,93 @@
+{
+  "inputs": {
+    "args": {
+      "extension": [
+        1000000000,
+        2000000000,
+        5000000000
+      ],
+      "grid": [
+        1000000,
+        2000000,
+        5000000,
+        10000000,
+        20000000,
+        50000000,
+        100000000,
+        200000000,
+        500000000
+      ],
+      "refine_points": 5,
+      "scenario": "scenarios/calibrated-baseline.yaml",
+      "target_bps": -1300.0
+    },
+    "data": null,
+    "data_sha256": null,
+    "scenario": "scenarios/calibrated-baseline.yaml",
+    "scenario_hash": "44ac03c60e5f561cc88e9d2a3e00a11dfccf3893ef95e326c2348195ec1c9d4a"
+  },
+  "result": {
+    "d_star": 16666667,
+    "runs": [
+      {
+        "max_depeg_bps": -7844.699461503238,
+        "pool_depth": 1000000
+      },
+      {
+        "max_depeg_bps": -5978.981316289349,
+        "pool_depth": 2000000
+      },
+      {
+        "max_depeg_bps": -3398.7716349312204,
+        "pool_depth": 5000000
+      },
+      {
+        "max_depeg_bps": -1962.1745280305336,
+        "pool_depth": 10000000
+      },
+      {
+        "max_depeg_bps": -1719.20114821269,
+        "pool_depth": 11666667
+      },
+      {
+        "max_depeg_bps": -1529.6676263654729,
+        "pool_depth": 13333333
+      },
+      {
+        "max_depeg_bps": -1377.7172801643367,
+        "pool_depth": 15000000
+      },
+      {
+        "max_depeg_bps": -1253.1935970172935,
+        "pool_depth": 16666667
+      },
+      {
+        "max_depeg_bps": -1149.2931527806227,
+        "pool_depth": 18333333
+      },
+      {
+        "max_depeg_bps": -1061.2886460302573,
+        "pool_depth": 20000000
+      },
+      {
+        "max_depeg_bps": -446.09808757046676,
+        "pool_depth": 50000000
+      },
+      {
+        "max_depeg_bps": -226.865815956393,
+        "pool_depth": 100000000
+      },
+      {
+        "max_depeg_bps": -154.66945272978427,
+        "pool_depth": 200000000
+      },
+      {
+        "max_depeg_bps": -115.97839672421118,
+        "pool_depth": 500000000
+      }
+    ],
+    "trough_bps": -1253.1935970172935
+  },
+  "script": "scripts/fit_depth.py",
+  "script_sha256": "77fe6f1a8d4901c1be59c09881fa75a8997fc886ad39e208942b65b960502d3b"
+}

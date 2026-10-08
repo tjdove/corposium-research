@@ -131,16 +131,32 @@ source, and one command that regenerates every figure.
 
 ## Figure list (committed, `docs/figures/`)
 
+One row per figure; must match `docs/figures/README.md` one-to-one, "record only" rows
+with its Record only section (`tests/test_note_figures.py`). Rows marked † were added at
+the Story 4.1 figure pass so the list matches the README's note set (every committed
+figure not moved to the record); the dev manager may move any of them to the record.
+
 | # | file | section | finding(s) | status |
 |---|---|---|---|---|
-| 1 | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final after 3.1 |
-| 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final (OU reference, par criterion; `time_to_parity.png` is the random-walk record) |
-| — | `threshold_surface.png`, `budget_depth.png` | 4 (supporting) | F-11 refinement | final; may drop one for length |
-| 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | panel (b) → price paid (Epic 4) |
+| 1 | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final |
+| 1b | `validation_overlay_usdc_2023_tranches.png` | 3 | F-09 refinement | final |
+| — | `peg_trajectory_calibrated.png` † | 4 | F-06, F-03 | final |
+| 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final |
+| — | `threshold_surface_ou.png` † | 4 (supporting) | F-11, F-04 resolution | final |
+| — | `budget_depth.png` | 4 (supporting) | F-11 refinement | final; may drop for length |
+| — | `budget_attack.png` | 4 (supporting) | F-11 second refinement | final (3.4) |
+| — | `lp_flight.png` † | 4 | F-15, F-03, F-11 | final |
+| 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | final (panel (b) = price paid, 4.1) |
+| — | `pace_trigger.png` | 5 (supporting) | F-13 refinement | final (3.4) |
+| — | `pace_ratio.png` | 5 (supporting) | F-13 refinement | final (3.4) |
+| — | `peg_trajectory_baseline.png` † | 5 | F-01 | final |
 | 4 | `oracle_sensitivity.png` | 6 | F-10 | final |
-| 5 | `peg_trajectory_1992.png` (+ no-defense) | 7 | F-07, F-12, F-14 | final |
-| — | `holder_exit.png`, `threshold_surface_par.png` | record only | F-14, F-11 | not in the note |
-| — | 3.4 figures | 4, 5 | F-11, F-13 | pending |
+| 5 | `peg_trajectory_1992.png` | 7 | F-07, F-12, F-14 | final |
+| 5b | `peg_trajectory_1992_no_defense.png` | 7 | counterfactual | final |
+| — | `threshold_surface_par.png` | record only | F-11 | not in the note |
+| — | `threshold_surface.png` | record only | F-11, F-03 | not in the note (random-walk, oracle criterion) |
+| — | `time_to_parity.png` | record only | F-11 | not in the note (random-walk) |
+| — | `holder_exit.png` | record only | F-14 | not in the note |
 
 ## Word budget
 
@@ -162,3 +178,4 @@ sentences if needed.
 ## Change Log
 
 - 2026-10-06: Outline drafted by dev manager from FINDINGS F-01…F-14 during Epic 3 (Story 3.4 in build).
+- 2026-10-08: Figure list only, Story 4.1 (builder): one row per committed figure, matching `docs/figures/README.md`; `threshold_surface.png` and `time_to_parity.png` moved to record only; rows marked † added. Outline text not edited.

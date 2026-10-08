@@ -17,7 +17,8 @@ Selection rule (story 2.4 AC 2), applied mechanically:
    apply to the extended grid. If that still misses, ``D*`` is undefined (exit 1).
 
 Prints the grid table, the refinement table if any, then ``D* = <depth> (trough <bps>)``.
-``--dry-run`` prints the grid and exits without running.
+``--dry-run`` prints the grid and exits without running. ``--write PATH`` (Story 4.1) also
+writes the fit record (``scripts/fit_record.py``): inputs, every depth run and ``D*``.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from fit_record import fit_record, script_path, write_fit
 
 from depeg_sim.experiments.sweep import (
     SWEEP_PARQUET,
@@ -102,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--output", type=Path, default=Path("output"))
     p.add_argument("--dry-run", action="store_true", help="List the grid and exit")
+    p.add_argument("--write", type=Path, default=None, help="write the fit record here")
     args = p.parse_args(argv)
 
     if args.dry_run:
@@ -129,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         print("no grid depth reaches the target; D* undefined", file=sys.stderr)
         return 1
     best = grid.loc[i]
+    runs = grid
     if i > 0:
         lo, hi = int(grid.loc[i - 1, "pool_depth"]), int(grid.loc[i, "pool_depth"])
         spec = spec_for("fit-depth-refine", args.scenario, refine_between(lo, hi))
@@ -136,7 +140,21 @@ def main(argv: list[str] | None = None) -> int:
         show(f"refine pass between {lo:,} and {hi:,}:", refined)
         candidates = pd.concat([grid.loc[[i - 1, i]], refined]).reset_index(drop=True)
         best = closest(candidates, args.target_bps)
+        runs = pd.concat([grid, refined])
     print(f"D* = {int(best['pool_depth'])} (trough {best['max_depeg_bps']:.1f} bps)")
+    if args.write is not None:
+        runs = runs.sort_values("pool_depth")
+        result = {
+            "d_star": int(best["pool_depth"]),
+            "trough_bps": float(best["max_depeg_bps"]),
+            "runs": [
+                {"pool_depth": int(d), "max_depeg_bps": float(b)}
+                for d, b in zip(runs["pool_depth"], runs["max_depeg_bps"], strict=True)
+            ],
+        }
+        args_ = {"scenario": args.scenario.as_posix(), "target_bps": args.target_bps,
+                 "grid": GRID, "extension": EXTENSION, "refine_points": REFINE_POINTS}  # fmt: skip
+        write_fit(args.write, fit_record(script_path(__file__), args.scenario, None, args_, result))
     return 0
 
 

@@ -16,6 +16,11 @@ Source hash: ``content_hash()`` for a scenario (``scenarios/*.yaml``); ``sweep_s
 for a sweep (``sweeps/*.yaml``). The guard never runs a scenario or a sweep and never
 compares PNG bytes: matplotlib output is not byte-stable across versions and platforms.
 ``make figures-quick`` is the separate smoke test that the pipeline still executes.
+
+Fit records (Story 4.1): every ``docs/calibration/fits/*.json`` written by a fit script's
+``--write`` is checked with ``fit_record.check_fit``: a scenario or data file whose hash
+no longer matches the record, or a missing input, fails like a stale figure; a changed
+fit script only warns, like the code hash.
 """
 
 from __future__ import annotations
@@ -26,6 +31,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+from fit_record import FITS, check_fits
 
 MANIFEST = Path("docs/figures/manifest.json")
 CODE_HASH = "code_hash"  # top-level manifest key; every other key is a figure
@@ -102,6 +109,7 @@ def stale_figures(manifest_path: Path) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--manifest", type=Path, default=MANIFEST)
+    p.add_argument("--fits", type=Path, default=FITS)
     args = p.parse_args(argv)
     if not args.manifest.is_file():
         print(f"figures-check: {args.manifest} not found", file=sys.stderr)
@@ -109,18 +117,24 @@ def main(argv: list[str] | None = None) -> int:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     n = len(figures_of(manifest))
     warning = code_warning(manifest)
-    if warning:
-        print(f"figures-check: {warning}", file=sys.stderr)
+    fit_problems, fit_warnings, n_fits = check_fits(args.fits)
+    for line in ([warning] if warning else []) + fit_warnings:
+        print(f"figures-check: {line}", file=sys.stderr)
         if os.environ.get("GITHUB_ACTIONS"):
-            print(f"::warning title=figures-check::{warning}")
-    problems = stale_figures(args.manifest)
+            print(f"::warning title=figures-check::{line}")
+    problems = stale_figures(args.manifest) + fit_problems
     if problems:
         for line in problems:
             print(f"figures-check: {line}", file=sys.stderr)
-        print(f"figures-check: FAIL, {len(problems)} problem(s) in {n} figures", file=sys.stderr)
+        print(
+            f"figures-check: FAIL, {len(problems)} problem(s) in {n} figures and {n_fits} fits",
+            file=sys.stderr,
+        )
         return 1
     code = "code differs, see warning" if warning else "code_hash matches"
+    fits = "a fit script differs, see warning" if fit_warnings else "script hashes match"
     print(f"figures-check: ok, {n} figures match their sources ({code})")
+    print(f"figures-check: ok, {n_fits} fits match their inputs ({fits})")
     return 0
 
 

@@ -26,6 +26,10 @@ three ladders' runs do not overwrite each other.
 
 ``--at-multiples-of C`` (Story 3.7's cliff test) skips the fit: it runs the holder at
 ``round(C x m)`` for ``m`` in ``MULTIPLES`` and prints that one table.
+
+``--write PATH`` (Story 4.1) also writes the fit record (``scripts/fit_record.py``): the
+scenario and its replay series with their hashes, the holder arguments, every capital run
+and ``C*``. Not with ``--at-multiples-of`` (that is not a fit).
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from fit_record import fit_record, script_path, write_fit
 
 from depeg_sim.experiments.sweep import SWEEP_PARQUET, SweepSpec, run_sweep
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
@@ -161,7 +166,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--output", type=Path, default=Path("output"))
     p.add_argument("--dry-run", action="store_true", help="List the grid and exit")
+    p.add_argument("--write", type=Path, default=None, help="write the fit record here")
     args = p.parse_args(argv)
+    if args.write is not None and args.at_multiples_of is not None:
+        p.error("--write records a fit; --at-multiples-of is not one")
 
     entry = (
         f"entry_discount_pct={args.entry_discount:g}"
@@ -202,7 +210,40 @@ def main(argv: list[str] | None = None) -> int:
         f"C* = {c_star} (trough {best['max_depeg_bps']:.1f} bps) ≈ ${c_star / S:,.0f} "
         f"at s = {S:.10f} units/$"
     )
+    if args.write is not None:
+        series = load_scenario(args.scenario).environment.price_series_path
+        result = {
+            "c_star": c_star,
+            "c_star_usd": round(c_star / S),
+            "trough_bps": float(best["max_depeg_bps"]),
+            "step_of_max_depeg": int(best["step_of_max_depeg"]),
+            "runs": [
+                {"holder_capital": int(c), "max_depeg_bps": float(b)}
+                for c, b in zip(seen["holder_capital"], seen["max_depeg_bps"], strict=True)
+            ],
+        }
+        args_ = {
+            "scenario": args.scenario.as_posix(),
+            "target_bps": args.target_bps,
+            "entry_discount_pct": None if args.tranches else args.entry_discount,
+            "tranches": None if args.tranches is None else [list(t) for t in args.tranches],
+            "pace": args.pace,
+            "grid": GRID,
+            "refine_points": REFINE_POINTS,
+            "units_per_usd": S,
+        }
+        data = None if series is None else _repo_relative(Path(series))
+        record = fit_record(script_path(__file__), args.scenario, data, args_, result)
+        write_fit(args.write, record)
     return 0
+
+
+def _repo_relative(path: Path) -> Path:
+    """The scenario's (absolute) series path relative to the working directory."""
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        return path
 
 
 if __name__ == "__main__":

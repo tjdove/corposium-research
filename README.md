@@ -12,7 +12,7 @@ command, `make figures`.
 ![Observed vs simulated USDC/USD, March 2023](docs/figures/validation_overlay_usdc_2023.png)
 
 ```bash
-make figures   # every figure sweep, then all 18 committed figures: 14 min on 12 cores
+make figures   # every figure sweep, then all 19 committed figures and the 4 fit records: 15 min on 12 cores
 ```
 
 **Status:** pre-alpha, research note in preparation (target 2026-11-01). MIT licensed.
@@ -147,8 +147,8 @@ defaults to the number of cores.
 |---|---|
 | `make test` | `pytest`, failing if line coverage of `protocol/` and `agents/` drops below 85% |
 | `make lint` | `ruff check .` and `ruff format --check .` |
-| `make figures` | Runs every figure sweep in full, redraws every committed figure, writes `docs/figures/manifest.json` |
-| `make figures-check` | The stale-figure guard (CI runs it): fails if a figure's scenario or sweep changed since it was drawn; warns if the package code did |
+| `make figures` | Runs every figure sweep in full, redraws every committed figure, writes `docs/figures/manifest.json`, re-runs the four fits into `docs/calibration/fits/` |
+| `make figures-check` | The stale-figure guard (CI runs it): fails if a figure's scenario or sweep, or a fit's scenario or data, changed since it was made; warns if the package code or a fit script did |
 | `make figures-quick` | Smoke test: every figure sweep at 2 seeds into a temp directory; writes nothing under `docs/` |
 
 ## Figures

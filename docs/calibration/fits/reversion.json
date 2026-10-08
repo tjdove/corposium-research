@@ -1,0 +1,26 @@
+{
+  "inputs": {
+    "args": {
+      "df_critical_5pct": -1.95,
+      "interval": 12.0,
+      "sigma": 3.086e-05
+    },
+    "data": "data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv",
+    "data_sha256": "e91187416173753c14ad563e0942989307fe8c83ef02ba2611190f713e033bcf",
+    "scenario": null,
+    "scenario_hash": null
+  },
+  "result": {
+    "half_life_h": 1.4128396007529505,
+    "kappa_step": 0.0016340159186636338,
+    "n_pairs": 119,
+    "phi": 0.612255430392895,
+    "se": 0.07278628968444933,
+    "significant": true,
+    "stationary_sd_bps_data": 6.070082017592344,
+    "stationary_sd_bps_model": 5.400453933717951,
+    "unit_root_stat": -5.327164927462238
+  },
+  "script": "scripts/fit_reversion.py",
+  "script_sha256": "cc71f74b122d2e9333ffa441290b4e11fe4f70a6e7945c46f17ad9e1fac8eec9"
+}

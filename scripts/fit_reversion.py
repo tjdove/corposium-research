@@ -29,7 +29,11 @@ Caveat (docs/calibration/SOURCES.md, Environment): the calm series is Bitstamp's
 book; 13 zero-volume hours repeat the previous close and isolated prints move it, both
 of which bias a fit on 120 points. ``phi`` is a rough number; its se is the honest part.
 
-    python scripts/fit_reversion.py [--csv PATH] [--interval 12] [--sigma 3.086e-05] [--dry-run]
+``--write PATH`` (Story 4.1) also writes the fit record (``scripts/fit_record.py``): the
+series and its sha256, the arguments and the numbers printed.
+
+    python scripts/fit_reversion.py [--csv PATH] [--interval 12] [--sigma 3.086e-05]
+        [--dry-run] [--write docs/calibration/fits/reversion.json]
 """
 
 from __future__ import annotations
@@ -42,6 +46,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from fit_record import fit_record, script_path, write_fit
 
 CALM = Path("data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv")
 DF_CRITICAL_5PCT = -1.95  # Dickey-Fuller, no constant, n = 100, 5% (Fuller 1976)
@@ -106,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--interval", type=float, default=12.0, help="model step, seconds")
     p.add_argument("--sigma", type=float, default=SIGMA_STEP, help="model sigma per step")
     p.add_argument("--dry-run", action="store_true", help="describe the fit; do not run it")
+    p.add_argument("--write", type=Path, default=None, help="write the fit record here")
     args = p.parse_args(argv)
 
     steps_per_hour = 3600.0 / args.interval
@@ -139,6 +145,21 @@ def main(argv: list[str] | None = None) -> int:
           f"{stationary_sd(args.sigma, 1.0 - k) * BPS:.2f}")  # fmt: skip
     if not fit.significant:
         print("undetermined from this series")
+    if args.write is not None:
+        result = {
+            "n_pairs": fit.n,
+            "phi": fit.phi,
+            "se": fit.se,
+            "unit_root_stat": fit.unit_root_stat,
+            "significant": fit.significant,
+            "kappa_step": k,
+            "half_life_h": half_life_hours(fit.phi),
+            "stationary_sd_bps_data": stationary_sd(fit.resid_sd, fit.phi) * BPS,
+            "stationary_sd_bps_model": stationary_sd(args.sigma, 1.0 - k) * BPS,
+        }
+        args_ = {"interval": args.interval, "sigma": args.sigma,
+                 "df_critical_5pct": DF_CRITICAL_5PCT}  # fmt: skip
+        write_fit(args.write, fit_record(script_path(__file__), None, args.csv, args_, result))
     return 0
 
 

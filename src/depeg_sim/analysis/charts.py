@@ -1001,16 +1001,36 @@ def _base_axis(manifest: dict) -> dict:
     raise ValueError(f"sweep {manifest['sweep_name']!r} has no base axis")
 
 
+def _price_paid(sweep_dir: Path, keys: list[str]) -> pd.DataFrame:
+    """Per cell of ``keys``: mean, p05 and p95 over seeds of the price the defender paid per
+    stable, ``defender_spent / defender_bought_stable`` per run (``sweep.parquet``). A run
+    that bought nothing has no price (NaN), so a cell where no run bought is NaN."""
+    from depeg_sim.experiments.sweep import SWEEP_PARQUET
+
+    cols = [*keys, "defender_spent", "defender_bought_stable"]
+    runs = pd.read_parquet(sweep_dir / SWEEP_PARQUET, columns=cols)
+    bought = runs["defender_bought_stable"].where(runs["defender_bought_stable"] > 0)
+    runs = runs.assign(paid=runs["defender_spent"] / bought)
+    g = runs.groupby(keys, sort=False)["paid"]
+    return pd.DataFrame({
+        "paid_mean": g.mean(), "paid_p05": g.quantile(0.05), "paid_p95": g.quantile(0.95),
+    }).reset_index()  # fmt: skip
+
+
 def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> Path:
     """Three panels over attacker capital (× the reference base's defender budget +
     redemption reserves), one line per policy (the sweep's base axis), the reference
     policy ``calibrated`` drawn heavier: (a) median hours from run start to first re-entry
     into the recovery band (``time_to_parity_hours``), cells where fewer than half the
     seeds re-enter drawn as "never" at the horizon with an open marker, plus the deadline
-    after which a re-entry cannot hold ``for_steps`` by ``max_steps``; (b) mean defender
-    spend with its p05–p95 band (no defender = 0); (c) ``p_stays_broken`` with Wilson 95%
-    bars. Points are dodged sideways per policy so coinciding series stay visible. Reads
-    only ``mc.parquet`` + manifest."""
+    after which a re-entry cannot hold ``for_steps`` by ``max_steps``; (b) the average
+    price the defender paid per stable, ``defender_spent / defender_bought_stable`` per
+    run, mean with its p05–p95 band over seeds (from ``sweep.parquet``, the per-run
+    table), one line per buying policy: a policy that never buys (no defender, or
+    spread-only) has no price and is left out of that panel, with a legend note; (c)
+    ``p_stays_broken`` with Wilson 95% bars. Points are dodged sideways per policy so
+    coinciding series stay visible. Reads ``mc.parquet``, ``sweep.parquet`` and the
+    manifest."""
     from matplotlib.ticker import FuncFormatter
 
     sweep_dir = Path(sweep_dir)
@@ -1033,6 +1053,9 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     mc["ratio"] = mc[cap_col] / resources
     p, lo, hi = _p_broken(mc)
     mc["p"], mc["p_lo"], mc["p_hi"] = p, lo, hi
+    paid = _price_paid(sweep_dir, [policy_col, cap_col])
+    mc = mc.merge(paid, on=[policy_col, cap_col], how="left")
+    buyers = [n for n in policies if mc.loc[mc[policy_col] == n, "paid_mean"].notna().any()]
     ratios = sorted(mc["ratio"].unique())
     # Policies often coincide (every buyer spends its whole budget; no-defense and
     # spread-only share p = 1): dodge each policy sideways by a fixed share of the
@@ -1084,17 +1107,10 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
             zorder=st["zorder"] + 1,
         )
 
-        # (b) defender spend, mean with p05-p95 band; no defender = 0
-        mean = g["defender_spent_mean"].fillna(0).to_numpy()
-        ax_s.fill_between(
-            x,
-            g["defender_spent_p05"].fillna(0),
-            g["defender_spent_p95"].fillna(0),
-            color=st["color"],
-            alpha=0.15,
-            lw=0,
-        )
-        ax_s.plot(x, mean, marker=st["marker"], ms=st["ms"], **line)
+        # (b) average price paid per stable, mean with p05-p95 band; buyers only
+        if name in buyers:
+            ax_s.fill_between(x, g["paid_p05"], g["paid_p95"], color=st["color"], alpha=0.15, lw=0)
+            ax_s.plot(x, g["paid_mean"], marker=st["marker"], ms=st["ms"], label=name, **line)
 
         # (c) p_stays_broken with Wilson bars
         ax_p.errorbar(
@@ -1129,23 +1145,24 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     )
     ax_t.set_ylim(0, horizon_h * 1.08)
     ax_t.set_ylabel("median hours from run start to first re-entry")
-    ax_t.set_title("(a) time to parity (open marker = never)", fontsize=10)
+    ax_t.set_title("(a) hours to parity (open marker = never)", fontsize=10)
 
-    ax_s.axhline(budget, color=GREY, ls=":", lw=1.0, zorder=1)
-    ax_s.text(
-        ratios[0],
-        budget,
-        f" budget {_usd(budget, usd_per_unit)} (calibrated)",
-        va="bottom",
-        ha="left",
-        fontsize=8,
-        color=DARK,
+    peg = base["redemption"]["peg_price"]
+    ax_s.axhline(peg, color=GREY, ls=":", lw=1.0, zorder=1)
+    ax_s.text(ratios[0], peg, " par", va="bottom", ha="left", fontsize=8, color=DARK)
+    ax_s.set_ylim(0, peg * 1.12)
+    ax_s.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.2f}"))
+    ax_s.set_ylabel(
+        "average price paid per stable\n(defender spent / stable bought; mean, p05–p95)"
     )
-    ax_s.set_ylim(0, budget * 1.12)
-    ax_s.set_yticks([budget * q for q in (0, 0.25, 0.5, 0.75, 1.0)])
-    ax_s.yaxis.set_major_formatter(FuncFormatter(lambda v, _: _usd(v, usd_per_unit) if v else "0"))
-    ax_s.set_ylabel("defender spend ($; mean, p05–p95 band)")
-    ax_s.set_title("(b) defender spend", fontsize=10)
+    ax_s.set_title("(b) price the defender paid per stable", fontsize=10)
+    skipped = [n for n in policies if n not in buyers]
+    if buyers:
+        ax_s.legend(
+            title="buying policies" + (f"\n(not shown, never buy: {', '.join(skipped)})"
+                                       if skipped else ""),
+            fontsize=8, title_fontsize=8, loc="upper right",
+        )  # fmt: skip
 
     ax_p.set_ylim(-0.03, 1.03)
     ax_p.set_ylabel("p(stays broken), Wilson 95%")
@@ -1161,7 +1178,8 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
         ax.set_axisbelow(True)
     ax_t.legend(title="policy", fontsize=8, title_fontsize=8, loc="lower right")
     fig.suptitle(
-        f"{manifest['sweep_name']}: defender policies, criterion {_criterion(rec)} "
+        f"{manifest['sweep_name']}: defender policies, time to parity, price paid per stable "
+        f"and p(stays broken), criterion {_criterion(rec)} "
         f"({len(manifest['seeds'])} seeds per point)\n"
         f"re-entry = first step within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}; "
         f"recovered = held for {rec['for_steps']:,} steps by step {horizon:,}",

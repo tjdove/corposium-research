@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from depeg_sim.analysis.charts import plot_policy_comparison
+from depeg_sim.analysis.charts import _price_paid, plot_policy_comparison
 from depeg_sim.experiments.mc import aggregate_mc
 from depeg_sim.experiments.sweep import (
     SweepSpec,
@@ -177,6 +177,23 @@ def _synthetic(sweep_dir: Path) -> None:
                 "p_peg_recovered": 1.0 - 0.25 * j if i == 0 else 0.0,
             })  # fmt: skip
     pd.DataFrame(rows).to_parquet(sweep_dir / "mc.parquet", index=False)
+    runs = []
+    for i, pol in enumerate(spec.base_axis.bases):
+        for cap in spec.axes[ATK]:
+            for seed in m["seeds"]:
+                spent = {"no-defense": np.nan, "spread-only": 0.0}.get(pol, 4e7)
+                bought = {"no-defense": np.nan, "spread-only": 0.0}.get(pol, 1e8 / (i + 1))
+                runs.append({"policy": pol, ATK: cap, "seed": seed, "defender_spent": spent,
+                             "defender_bought_stable": bought})  # fmt: skip
+    pd.DataFrame(runs).to_parquet(sweep_dir / "sweep.parquet", index=False)
+
+
+def test_price_paid_per_run_and_never_buyers_have_none(tmp_path):
+    _synthetic(tmp_path)
+    paid = _price_paid(tmp_path, ["policy", ATK]).set_index("policy")
+    assert paid.loc["calibrated", "paid_mean"].tolist() == [0.4] * 3
+    assert paid.loc["early-aggressive", "paid_p95"].tolist() == pytest.approx([0.8] * 3)
+    assert paid.loc[["spread-only", "no-defense"], "paid_mean"].isna().all()
 
 
 def test_policy_comparison_png(tmp_path):

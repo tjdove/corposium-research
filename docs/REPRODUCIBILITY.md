@@ -42,7 +42,9 @@ figures were not compared.
 
 `make figures` runs every figure sweep, then `scripts/make_figures.py`, which runs the
 six scenario figures itself (seconds each), draws all nineteen figures and writes
-`docs/figures/manifest.json`. Wall times:
+`docs/figures/manifest.json`, then re-runs the four fits with `--write` into
+`docs/calibration/fits/` (`fit_depth`, `fit_holder` single entry and ladder B,
+`fit_reversion`; about 40 s on Seoul). Wall times:
 
 | Command | Figures | Runs (full) | Seoul full, 12 workers | Seoul quick, 12 workers | CI quick, 4 workers |
 |---|---|---:|---:|---:|---:|
@@ -103,6 +105,7 @@ mkdir -p output/tmp && export TMPDIR=$PWD/output/tmp
 | Each figure's source hash (scenario `content_hash()` or sweep `sweep_spec_hash()`) | `docs/figures/manifest.json`, and in each figure's footer | `make figures-check` (fails on mismatch) |
 | Package code hash, sha256 over `src/depeg_sim/**/*.py` | `docs/figures/manifest.json` `code_hash` | `make figures-check` (warns on mismatch) |
 | A sweep output's spec | `output/<sweep>/manifest.json` `spec_hash` | `scripts/make_figures.py` refuses a mismatch |
+| Each fit record's inputs (scenario `content_hash()`, data file sha256) and fit script sha256 | `docs/calibration/fits/*.json` ([index](calibration/README.md)) | `make figures-check` (fails on an input mismatch, warns on a script mismatch); `make figures` re-writes them |
 | `soros-baseline` seed 42 `summary.json` | `tests/test_reference_recovery.py` | `pytest`; `sha256sum output/soros-baseline-42-2e09f431/summary.json` |
 
 At that commit: `code_hash` =

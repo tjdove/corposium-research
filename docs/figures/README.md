@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the eleven sweeps in full, then scripts/make_figures.py (~14 min on 12 cores)
+make figures         # runs the eleven sweeps in full, then scripts/make_figures.py and the four fits (~15 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn;
                      # a warning (exit 0) if the package code changed
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
@@ -19,166 +19,178 @@ sha256 over `src/depeg_sim/**/*.py` at drawing time; a mismatch only warns, and 
 freeze checklist in [`docs/REPRODUCIBILITY.md`](../REPRODUCIBILITY.md) clears it. CI runs `make figures-check` on every
 push.
 
-Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
+Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md). The first table is the research
+note's figure set, in the order of [`docs/NOTE.md`](../NOTE.md), and must match the note's
+figure list one-to-one (`tests/test_note_figures.py`). The second is the record: figures
+that are regenerated and guarded like the others but are not in the note.
 
-| Figure | Source | Findings |
-|---|---|---|
-| [`validation_overlay_usdc_2023.png`](validation_overlay_usdc_2023.png) | `scenarios/usdc-2023.yaml` | F-08, F-08 confirmation |
-| [`validation_overlay_usdc_2023_tranches.png`](validation_overlay_usdc_2023_tranches.png) | `scenarios/usdc-2023-tranches.yaml` | F-09 (ADR-0030 candidate) |
-| [`time_to_parity.png`](time_to_parity.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement |
-| [`threshold_surface.png`](threshold_surface.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement, F-03 |
-| [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 refinement |
-| [`threshold_surface_ou.png`](threshold_surface_ou.png) | `sweeps/threshold-surface-ou-mc.yaml` | F-04 root cause, F-11 (ADR-0029 candidate) |
-| [`time_to_parity_ou.png`](time_to_parity_ou.png) | `sweeps/threshold-surface-ou-mc.yaml` | F-11 (ADR-0029 candidate) |
-| [`lp_flight.png`](lp_flight.png) | `sweeps/lp-flight-mc.yaml` | F-03, F-11 (ADR-0031 candidate) |
-| [`budget_depth.png`](budget_depth.png) | `sweeps/budget-x-depth-mc.yaml` | F-11 refinement |
-| [`oracle_sensitivity.png`](oracle_sensitivity.png) | `sweeps/oracle-lag-mc.yaml` | F-10, F-04 |
-| [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | ADR-0026 candidate (F-12, F-07) |
-| [`budget_attack.png`](budget_attack.png) | `sweeps/budget-x-attack-mc.yaml` | ADR-0027 candidate (F-11 refinement) |
-| [`pace_trigger.png`](pace_trigger.png) | `sweeps/pace-x-trigger-mc.yaml` | ADR-0027 candidate (F-13) |
-| [`pace_ratio.png`](pace_ratio.png) | `sweeps/pace-ratio-mc.yaml` | F-13 refinement |
-| [`policy_comparison.png`](policy_comparison.png) | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | ADR-0025 candidates (F-07, F-11, F-12) |
-| [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
-| [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | `scenarios/soros-1992.yaml` | F-07 (+ refinement) |
-| [`peg_trajectory_1992_no_defense.png`](peg_trajectory_1992_no_defense.png) | `scenarios/soros-1992-no-defense.yaml` | none of its own: the counterfactual to `soros-1992` (ADR-0019, ADR-0021) |
-| [`peg_trajectory_baseline.png`](peg_trajectory_baseline.png) | `scenarios/soros-baseline.yaml` | F-01 |
+## Figures in the note
+
+| Figure | Note § | Source | Findings |
+|---|---|---|---|
+| [`validation_overlay_usdc_2023.png`](validation_overlay_usdc_2023.png) | 3 | `scenarios/usdc-2023.yaml` | F-08 |
+| [`validation_overlay_usdc_2023_tranches.png`](validation_overlay_usdc_2023_tranches.png) | 3 | `scenarios/usdc-2023-tranches.yaml` | F-09 |
+| [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | 4 | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
+| [`time_to_parity_ou.png`](time_to_parity_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
+| [`threshold_surface_ou.png`](threshold_surface_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
+| [`budget_depth.png`](budget_depth.png) | 4 | `sweeps/budget-x-depth-mc.yaml` | F-11 |
+| [`budget_attack.png`](budget_attack.png) | 4 | `sweeps/budget-x-attack-mc.yaml` | F-11 |
+| [`lp_flight.png`](lp_flight.png) | 4 | `sweeps/lp-flight-mc.yaml` | F-15, F-03, F-11 |
+| [`policy_comparison.png`](policy_comparison.png) | 5 | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | F-13, F-07 |
+| [`pace_trigger.png`](pace_trigger.png) | 5 | `sweeps/pace-x-trigger-mc.yaml` | F-13 |
+| [`pace_ratio.png`](pace_ratio.png) | 5 | `sweeps/pace-ratio-mc.yaml` | F-13 |
+| [`peg_trajectory_baseline.png`](peg_trajectory_baseline.png) | 5 | `scenarios/soros-baseline.yaml` | F-01 |
+| [`oracle_sensitivity.png`](oracle_sensitivity.png) | 6 | `sweeps/oracle-lag-mc.yaml` | F-10 |
+| [`peg_trajectory_1992.png`](peg_trajectory_1992.png) | 7 | `scenarios/soros-1992.yaml` | F-07, F-12 |
+| [`peg_trajectory_1992_no_defense.png`](peg_trajectory_1992_no_defense.png) | 7 | `scenarios/soros-1992-no-defense.yaml` | the counterfactual to `soros-1992` |
+
+## Record only
+
+| Figure | Source | Findings | Why it is kept |
+|---|---|---|---|
+| [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 | F-11 as first observed, with a reference that wanders; why the criterion was questioned |
+| [`threshold_surface.png`](threshold_surface.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11, F-03 | the oracle-criterion surface on the random-walk reference; superseded by `threshold_surface_ou.png` |
+| [`time_to_parity.png`](time_to_parity.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 | the random-walk time-to-parity record; `time_to_parity_ou.png` has the same hours |
+| [`holder_exit.png`](holder_exit.png) | `sweeps/holder-exit-1992-mc.yaml` | F-14, F-12 | the switch-sides test under the wrong mapping; the note states F-14 in words |
 
 Each is regenerated by `make figures`; a sweep figure alone by
 `python -m depeg_sim.sweep <source> --mc` and then `python scripts/make_figures.py`.
 
-## Captions
+## Captions: figures in the note
 
-**`validation_overlay_usdc_2023.png`.** Observed USDC/USD hourly closes (blue) and the
-simulated AMM price (black) for 10–14 March 2023, in bps from par against hours from the
-series start: with one par-expecting buyer fitted to the replay, the simulated trough is
-−1,138 bps at 34.2 h against −1,373 bps observed at 31.0 h, and from 35 h to 49 h the two
-paths lie on each other.
+**`validation_overlay_usdc_2023.png`.** With one buyer who expects redemption at par,
+fitted to the trough, the simulated price (black) follows the observed USDC/USD hourly
+closes (blue) for 10–14 March 2023: the simulated trough is −1,138 bps at 34.2 h against
+−1,373 bps observed at 31.0 h, and from 35 h to 49 h the two paths lie on each other.
 
-**`validation_overlay_usdc_2023_tranches.png`.** The same replay with the believers spread
-over four entry prices (2, 5, 10 and 20% below par, a quarter of the capital each; total
-capital fitted): the simulated price steps down through the entries (−220, −510, −1,005
-bps) within 1.6 h of the attack, falls to its trough of −1,323 bps at 31.2 h against
+**`validation_overlay_usdc_2023_tranches.png`.** With the same believers spread over four
+entry prices (2, 5, 10 and 20% below par, a quarter of the capital each, an assumption;
+total capital fitted), the simulated price steps down through the entries (−220, −510,
+−1,005 bps) within 1.6 h of the attack, reaches its trough of −1,323 bps at 31.2 h against
 −1,373 bps observed at 31.0 h, and from ≈ 36 h follows the single-entry path.
 
-**`time_to_parity.png`.** Median hours from run start to the first time the AMM is back
-within ±31 bps of the published oracle price, over pool depth (rows) and attacker capital
-(columns), 16 seeds per cell. Cells outside the dashed outline, including every cell at
-or below 0.5× D\*, re-enter early enough that they can still recover. The outline is drawn at 37 h, the latest first re-entry that
-can still hold 6,900 in-band steps by step 18,000. **Clock** cells are finite but beyond
-it: the 1× D\* row at attacks ≥ 0.8× resources (41.9–56.5 h) and the 2× D\* cell at 0.6×
-(42.6 h); the issuer gets the price back and runs out of time. **Price** cells are
-hatched "never": 2× and 4× D\* at attacks ≥ 0.8× resources, where no seed re-enters the
-band by 60 h.
+**`peg_trajectory_calibrated.png`.** At calibrated depth, with the episode-size attack
+(seed 42), the price falls to −1,253 bps and the defender buys it back within minutes; the
+run ends recovered. Bottom: the defender spends 7.7M of its 41.3M budget; redemption pays
+3.2M of 138.1M reserves.
 
-**`threshold_surface.png`.** Left: p(stays broken) over pool depth × attacker capital under
-the oracle-relative criterion, with the 0.5 contour; right: the same cells against the
-absorbed ratio. Read with `time_to_parity.png`: the dark 1× D\* cells are lost on the
-clock, the dark 2× and 4× D\* cells are lost on the price, and nothing at ≤ 0.5× D\*
-breaks (max 0.25).
+**`time_to_parity_ou.png`.** With a calm reference that reverts to par (half-life 1.41 h,
+fitted), median hours from run start to the first return within ±31 bps of par, over pool
+depth (rows) × attacker capital (columns), 16 seeds per cell. Every pool at or below
+0.5× D\* is back in time at every attack. The dashed outline is the 37 h deadline, the
+latest first return that can still hold 6,900 in-band steps by step 18,000. At D\* the
+issuer gets the price back too late at attacks ≥ 0.8× resources (41.9–56.4 h, "clock");
+2× D\* does at 0.6× (42.5 h); at 2× and 4× D\* from 0.8× no seed returns ("price"). The
+hours are the same as with a random-walk reference: first return is set by the attack and
+the defense, not by the reference.
 
-**`threshold_surface_par.png`.** The same surface under the original par criterion, kept
-as the record of F-11 as first observed: here "stays broken" mixes three things, the
-clock, the price, and the calm reference wandering more than the band away from par over
-60 h (F-04 refinement). It is why the criterion was changed to oracle-relative in Story
-2.8; do not read its contour as the defense boundary.
+**`threshold_surface_ou.png`.** With the same reverting reference, p(stays broken) over
+pool depth × attacker capital (left) and against the absorbed ratio (right): every cell is
+0 or 1. Nothing breaks at ≤ 0.5× D\* at any attack; 1× and 4× D\* break from 0.8×
+resources, 2× D\* from 0.6× (0.5-crossings 0.70 / 0.55 / 0.70). The collapse fit puts the
+crossing at an absorbed ratio of 1.03.
 
-**`threshold_surface_ou.png`.** The par-criterion surface again, with a reference that
-mean-reverts to par (OU, κ = 0.001634 per step fitted from the calm series: half-life
-1.41 h, stationary sd 5.4 bps) instead of a random walk. Every cell is 0 or 1. Nothing
-breaks at ≤ 0.5× D\* at any attack, where the random-walk par surface had up to 0.56 and
-the oracle criterion up to 0.25. 1× D\* and 4× D\* go to 1.0 from 0.8×, 2× D\* from 0.6×
-(crossings 0.70 / 0.55 / 0.70, against the oracle criterion's 0.68 / 0.54 / 0.69). On the
-right every point sits at p = 0 or 1; the collapse fit puts 0.5 at an absorbed ratio of
-1.03.
+**`budget_depth.png`.** At an attack of 1.0× nominal resources, p(stays broken) over pool
+depth × defender budget (left), and each depth's 0.5-crossing budget against depth on
+log–log axes (right): the budget needed rises with depth at slope 0.47, not 1. Pools
+≤ 0.5× D\* hold at every budget; at 2× and 4× D\* the price fails at 1× budget and holds
+at 2×.
 
-**`time_to_parity_ou.png`.** Median hours to first re-entry within ±31 bps of par on the
-OU surface. The hours are identical to the random-walk par surface's in every cell (and
-within 0.04 h of the oracle surface's): first re-entry is set by the attack and the
-defense, not by the reference. 1× D\* re-enters
-after the 37 h deadline at ≥ 0.8× (41.9–56.4 h, "clock"); 2× D\* at 0.6× too (42.5 h);
-2× and 4× D\* never re-enter from 0.8× ("price").
-
-**`lp_flight.png`.** A flighty LP at D\* (OU reference, par criterion, 8 seeds per
-cell): median hours to first re-entry over the LP's share of the pool (rows) × its panic
-threshold (columns), one panel per attack (0.5, 0.7, 1.0× resources), and pool depth at
-the trough at 1.0×. Every cell re-enters before the 37 h deadline and every run recovers;
-with no LP the 0.7× and 1.0× attacks re-enter at 37.0 h and 48.2 h and none of 8 recovers.
-Time to parity falls with share (1.0×: 35.4 / 22.5 / 9.5 h at 0.25 / 0.5 / 0.75) and not
-at all with threshold, because the first dump takes spot below every threshold. The pool
-still there at the trough at 1.0× is 0.76 / 0.52 / 0.28 (`liq`); the reference-reserve
-measure (colour) also falls with price impact (0.43 with no LP).
-
-**`budget_depth.png`.** p(stays broken) over pool depth × defender budget at a fixed attack
-of 1.0× nominal resources (left), and each depth's 0.5-crossing budget against depth on
-log–log axes (right): the crossing rises with slope 0.47, not 1. Pools ≤ 0.5× D\* hold
-at every budget; at 2× and 4× D\* the price fails at 1× budget and holds at 2×.
-
-**`budget_attack.png`.** At 2× D\* (oracle criterion, 8 seeds per cell), p(never
-re-enters) over defender budget × attack size (left) is 0 or 1 in every cell: the price is
-either held or lost in every seed. The 0.5-crossing budget (right) is 1.25×, 1.75× and
-2.5× the calibrated budget at attacks of 0.8×, 1.0× and 1.5× resources (log–log slope
-1.08, on the slope-1 line): the budget that holds the price is about 0.38× the attack.
+**`budget_attack.png`.** At 2× D\* (8 seeds per cell), p(never returns) over defender
+budget × attack size (left) is 0 or 1 in every cell. The 0.5-crossing budget (right) is
+1.25×, 1.75× and 2.5× the calibrated budget at attacks of 0.8×, 1.0× and 1.5× resources
+(log–log slope 1.08): above D\*, the budget that holds the price is about 0.38× the attack.
 The 0.5× attack holds at every budget; at 2× no budget in the grid (≤ 3×) holds.
 
-**`pace_trigger.png`.** The 1.0× attack at D\* (oracle criterion, 8 seeds per cell):
-median hours to first re-entry over defender spend pace × trigger, at attacker pace 0.1
-(left) and 0.02 (middle). On the left, rows differ and columns do not: pace 0.05 is back
-in 0.4–1.3 h, 0.1 in 29.9 h, and 0.2 and 0.5 only after the 37 h deadline (48.2 and
-53.1 h), at every trigger from 0.5% to 4%. The first sale crosses all of them. In the
-middle, against the same attack sold five times more slowly, every cell is hatched
-"never". Right: the average price paid per stable at attacker pace 0.1 falls with slower
-pace (0.358 → 0.264) and does not depend on the trigger.
+**`lp_flight.png`.** When the liquidity provider that flees keeps what it withdraws, flight
+helps the defender. At D\* (8 seeds per cell): median hours to first return over the LP's
+share of the pool (rows) × its panic threshold (columns), one panel per attack (0.5, 0.7,
+1.0× resources), and pool depth at the trough at 1.0×. Every cell returns before the 37 h
+deadline and every run recovers; with no LP the 0.7× and 1.0× attacks return at 37.0 h and
+48.2 h and none of 8 recovers. Time to parity falls with share (1.0×: 35.4 / 22.5 / 9.5 h
+at 0.25 / 0.5 / 0.75) and not at all with threshold, because the first dump takes the price
+below every threshold. The pool left at the trough at 1.0× is 0.76 / 0.52 / 0.28 (`liq`);
+the reference-reserve measure (colour) also falls with price impact (0.43 with no LP).
 
-**`pace_ratio.png`.** The 1.0× attack at D\* (oracle criterion, trigger 1%, 8 seeds per
-point): median hours to first re-entry against defender spend pace / attacker pace, one
-line per attacker pace. Against the base attacker (pace 0.1, blue) every defender at or
-below half its pace is back in under an hour (0.38–0.85 h), and an equal-pace defender
-in 29.9 h, still inside the 37 h deadline. Against the five-times-slower attacker (0.02,
-orange) the defender is back in 2.0 h at a ratio of 0.125–0.25, 7.9 h at 0.5 and 47.1 h
-at 1.0, crossing the deadline at a ratio of about 0.84 (log-interpolated); from 1.5 up
-no seed re-enters. Below the attacker's pace the defense is fast; at it, the defense is
-late; above it, against the slow attacker, it never comes back.
+**`policy_comparison.png`.** When every buying defender spends its whole budget, the
+defense is decided by the price it pays. Five defender policies at calibrated scale against
+attacks of 0.5, 0.7 and 1.0× (budget + reserves), 16 seeds each, recovery measured against
+the oracle. (a) Median hours to first return: late-conservative (2% trigger, 10% pace) is
+fastest at every attack (6.6 / 19.2 / 29.9 h) and the only policy under the 37 h deadline
+at 1.0×; early-aggressive (0.5%, 50%) is the slowest buyer; no-defense comes back on
+redemption alone after the deadline (49–59 h); spread-only trails it by about an hour and
+at 1.0× never returns (open marker). (b) Average price paid per stable (defender spend /
+stable bought) by the three buying policies, which all spend the whole $9.70B budget: the
+slow buyer pays least at every attack, 0.552 / 0.402 / 0.283 (late-conservative) against
+0.574 / 0.442 / 0.323 (calibrated) and 0.579 / 0.464 / 0.358 (early-aggressive), and every
+price falls as the attack grows; the p05–p95 band has no width. Spread-only and no-defense
+never buy and are not drawn. (c) p(stays broken): only late-conservative stays below 0.5
+at 0.7× and 1.0×; spread-only and no-defense are 1.0 everywhere. Points are dodged sideways
+per policy so coinciding series stay visible.
 
-**`oracle_sensitivity.png`.** Mean trough (top) and p(stays broken) (bottom) against oracle
-heartbeat, one line per deviation threshold, on the stress base: the mean trough moves
-by 10.7 bps across all 20 cells and the calibrated oracle sits within 0.5 bps of zero
-lag. The bottom panel's ~0.7 is F-04's stress-volatility floor, not an oracle effect.
+**`pace_trigger.png`.** Against the 1.0× attack at D\* (8 seeds per cell): median hours to
+first return over defender spend pace × trigger, at attacker pace 0.1 (left) and 0.02
+(middle). On the left, rows differ and columns do not: pace 0.05 is back in 0.4–1.3 h, 0.1
+in 29.9 h, and 0.2 and 0.5 only after the 37 h deadline (48.2 and 53.1 h), at every trigger
+from 0.5% to 4%; the first sale crosses all of them. In the middle, against the same
+attack sold five times more slowly, every cell is hatched "never". Right: the average price
+paid per stable at attacker pace 0.1 falls with slower pace (0.358 → 0.264) and does not
+depend on the trigger.
 
-**`policy_comparison.png`.** Five defender policies at calibrated scale against attacks of
-0.5, 0.7 and 1.0× (budget + reserves), 16 seeds each, recovery against the oracle. (a)
-Median hours to first re-entry: late-conservative (2% trigger, 10% pace) is fastest at
-every ratio (6.6 / 19.2 / 29.9 h) and the only policy under the 37 h deadline at 1.0;
-early-aggressive (0.5%, 50%) is the slowest buyer; no-defense comes back on redemption
-alone after the deadline (49–59 h); spread-only trails it by about an hour and at 1.0
-never re-enters (open marker). (b) Every buying policy spends the whole $9.70B budget at
-every ratio; the p05–p95 band has no width. (c) p(stays broken): only late-conservative
-stays below 0.5 at 0.7× and 1.0×; spread-only and no-defense are 1.0 everywhere. Points
-are dodged sideways per policy so coinciding series stay visible.
+**`pace_ratio.png`.** Against the 1.0× attack at D\* (trigger 1%, 8 seeds per point):
+median hours to first return against defender spend pace / attacker pace, one line per
+attacker pace. Against the base attacker (pace 0.1, blue) every defender at or below half
+its pace is back in under an hour (0.38–0.85 h), and an equal-pace defender in 29.9 h,
+inside the 37 h deadline. Against the five-times-slower attacker (0.02, orange) the
+defender is back in 2.0 h at a ratio of 0.125–0.25, 7.9 h at 0.5 and 47.1 h at 1.0,
+crossing the deadline at a ratio of about 0.84 (log-interpolated); from 1.5 up no seed
+returns. Below the attacker's pace the defense is fast; at it, late; above it, against the
+slow attacker, it never comes back.
 
-**`holder_exit.png`.** The 1992 analogue at 6× Quantum (1.27× budget + reserves), 8 seeds
-per cell: the holder's exit rule (never sells; sells everything once spot is below −5,
-−10, −20, −40%) against its capital (1×, 5×, 25× C\*). Left: every cell exhausts reserves
-(p = 1.00). Top right: exhaustion comes at 31.8–32.2 h in every cell, the redemption
-channel's capacity clock; whether the believer sells does not move it. Bottom right: the
-holder that sells loses, $0.8–1.2B at 1× C\* and about $8B at 5× C\*; the 25× holder never
-reaches any exit price (it holds the trough at −256 bps) and earns +$0.13B; at 5× the −40%
-exit is never reached either.
+**`peg_trajectory_baseline.png`.** Under a 10 bps tolerance, a peg can stay slightly
+broken with no one paid to fix it. The toy pool (1M/1M, seed 42): a 300k attack drops the
+price to −573 bps, the defender buys it back, and the run ends recovered at step 192 under
+a 60 bps tolerance; under 10 bps the same path parks at about −18 bps forever.
 
-**`peg_trajectory_calibrated.png`.** The calibrated baseline (seed 42): the attack takes the
-AMM to −1,253 bps; the defender buys it back within minutes and the run ends
-`peg_recovered`. Bottom: the defender spends 7.7M of its 41.3M budget; redemption pays
-3.2M of 138.1M reserves (Story 3.1: the holder, capped at its $0.98 entry, absorbs less).
+**`oracle_sensitivity.png`.** Under deviation-triggered updates, oracle lag does not move
+the depeg. Mean trough (top) and p(stays broken) (bottom) against oracle heartbeat, one
+line per deviation threshold, on the stress base: the mean trough moves by 10.7 bps across
+all 20 cells and the calibrated oracle sits within 0.5 bps of zero lag. The bottom panel's
+~0.7 is the stress-volatility floor (F-04), not an oracle effect.
 
-**`peg_trajectory_1992.png`.** The 1992 analogue (seed 42) with the defender: the defender's
-budget is gone by ~440 min, the price falls to −5,975 bps, then redemption pays out at its
-capacity and the run ends `reserves_exhausted` with the price at −144 bps.
+**`peg_trajectory_1992.png`.** The 1992 analogue (seed 42) with the defender: the
+defender's budget is gone by ~440 min, the price falls to −5,975 bps, then redemption pays
+out at its capacity and the run ends with reserves exhausted and the price at −144 bps.
 
-**`peg_trajectory_1992_no_defense.png`.** The same attack with no defender (no AMM buying,
-no spread rise): the trough is deeper (−7,690 bps) and comes at step 1,546 rather than
-3,344, and redemption alone exhausts the reserves at step 7,805, 1,748 steps sooner;
+**`peg_trajectory_1992_no_defense.png`.** The same attack with no defender (no venue
+buying, no spread rise): the trough is deeper (−7,690 bps) and comes at step 1,546 rather
+than 3,344, and redemption alone exhausts the reserves at step 7,805, 1,748 steps sooner;
 final −135 bps.
 
-**`peg_trajectory_baseline.png`.** The toy Soros baseline (1M/1M pool, seed 42): a 300k
-attack drops the price to −573 bps, the defender buys it back, and the run ends
-`peg_recovered` at step 192 under the 60 bps tolerance. Under the original 10 bps
-tolerance the same path parks at about −18 bps forever (F-01, the dead zone).
+## Captions: record only
+
+**`threshold_surface_par.png`.** With a random-walk reference and recovery measured
+against par, p(stays broken) over pool depth × attacker capital mixes three things: the
+clock, the price, and the calm reference wandering more than the band away from par over
+60 h. Kept as F-11 as first observed; do not read its contour as the defense boundary.
+
+**`threshold_surface.png`.** With the random-walk reference and recovery measured against
+the oracle: p(stays broken) over pool depth × attacker capital with the 0.5 contour (left),
+and the same cells against the absorbed ratio (right). The dark 1× D\* cells are lost on
+the clock, the dark 2× and 4× D\* cells on the price, and nothing at ≤ 0.5× D\* breaks
+(max 0.25). Superseded in the note by `threshold_surface_ou.png`.
+
+**`time_to_parity.png`.** With the random-walk reference, median hours to first return
+within ±31 bps of the oracle price, over depth × attack, 16 seeds per cell: the 1× D\* row
+at ≥ 0.8× resources returns at 41.9–56.5 h and the 2× D\* cell at 0.6× at 42.6 h, after the
+37 h deadline ("clock"); 2× and 4× D\* at ≥ 0.8× never return ("price"). Within 0.04 h of
+`time_to_parity_ou.png` in every cell.
+
+**`holder_exit.png`.** When the believer's exit is a sale on the venue, its exit rule does
+not move the reserves. The 1992 analogue at 6× Quantum (1.27× budget + reserves), 8 seeds
+per cell: the holder's exit rule (never sells; sells everything below −5, −10, −20, −40%)
+against its capital (1×, 5×, 25× C\*). Every cell exhausts reserves (p = 1.00), at
+31.8–32.2 h, the redemption channel's capacity clock. The holder that sells loses,
+$0.8–1.2B at 1× C\* and about $8B at 5× C\*; the 25× holder never reaches any exit price
+(it holds the trough at −256 bps) and earns +$0.13B; at 5× the −40% exit is never reached
+either.

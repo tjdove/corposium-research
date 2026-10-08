@@ -1,6 +1,6 @@
 # Story 4.1: Figure Pass and Freeze
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
