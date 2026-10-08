@@ -12,7 +12,7 @@ command, `make figures`.
 ![Observed vs simulated USDC/USD, March 2023](docs/figures/validation_overlay_usdc_2023.png)
 
 ```bash
-make figures   # every figure sweep, then all 17 committed figures: 14 min on 12 cores
+make figures   # every figure sweep, then all 18 committed figures: 14 min on 12 cores
 ```
 
 **Status:** pre-alpha, research note in preparation (target 2026-11-01). MIT licensed.

@@ -24,6 +24,7 @@ Findings refer to [`docs/FINDINGS.md`](../FINDINGS.md).
 | Figure | Source | Findings |
 |---|---|---|
 | [`validation_overlay_usdc_2023.png`](validation_overlay_usdc_2023.png) | `scenarios/usdc-2023.yaml` | F-08, F-08 confirmation |
+| [`validation_overlay_usdc_2023_tranches.png`](validation_overlay_usdc_2023_tranches.png) | `scenarios/usdc-2023-tranches.yaml` | F-09 (ADR-0030 candidate) |
 | [`time_to_parity.png`](time_to_parity.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement |
 | [`threshold_surface.png`](threshold_surface.png) | `sweeps/threshold-surface-ref-mc.yaml` | F-11 refinement, F-03 |
 | [`threshold_surface_par.png`](threshold_surface_par.png) | `sweeps/threshold-surface-mc.yaml` | F-11, F-04 refinement |
@@ -51,6 +52,12 @@ simulated AMM price (black) for 10–14 March 2023, in bps from par against hour
 series start: with one par-expecting buyer fitted to the replay, the simulated trough is
 −1,138 bps at 34.2 h against −1,373 bps observed at 31.0 h, and from 35 h to 49 h the two
 paths lie on each other.
+
+**`validation_overlay_usdc_2023_tranches.png`.** The same replay with the believers spread
+over four entry prices (2, 5, 10 and 20% below par, a quarter of the capital each; total
+capital fitted): the simulated price steps down through the entries (−220, −510, −1,005
+bps) within 1.6 h of the attack, falls to its trough of −1,323 bps at 31.2 h against
+−1,373 bps observed at 31.0 h, and from ≈ 36 h follows the single-entry path.
 
 **`time_to_parity.png`.** Median hours from run start to the first time the AMM is back
 within ±31 bps of the published oracle price, over pool depth (rows) and attacker capital

@@ -229,3 +229,80 @@ a single thin line easing from −215 to −204 bps until ≈ 30.3 h. It then pl
 ≈ −1,100 at 31.5 h and continues as before. Nothing in the figure is above zero after the
 attack starts, and the y-axis now tops out at +100. From 31.5 h on, the figure is
 unchanged.
+
+---
+
+## Story 3.7: a holder with a ladder of entry prices
+
+Story 3.7 replaces the single 2% entry with a ladder: the holder's capital is split into
+tranches, each buying only below its own entry price, from its own share, with the 3.1
+fill-price cap applied per tranche. Redeem and exit rules are unchanged and act on the
+pooled stable. Three ladders were fixed before any run (assumptions, not fitted):
+**A** 1/2/5% at 50/30/20%, **B** 2/5/10/20% at 25% each, **C** 1/2/5/10/15% at 20% each.
+For each, `scripts/fit_holder.py --tranches …` fitted total capital `C*` with the
+unchanged two-pass rule. The closest is **B: C\* = 10,833,333 (−1,323.3 bps)**, which is
+now `scenarios/usdc-2023-tranches.yaml` (hash `da3383d4e156`). `usdc-2023.yaml` is untouched.
+
+| fit (`C*`, units / $ at s / × attacker net burn) | trough at `C*` | distance from −1,373 | trough time |
+|---|---|---|---|
+| single 2% entry (2.6 / 3.1): 9,166,667 / $2.15B / 0.79× | −1,137.8 bps | +235.2 bps (17.1% shallow) | 34.2 h (step 10,269) |
+| A 1/2/5%: 8,333,333 / $1.95B / 0.72× | −1,602.7 bps | −229.7 bps (16.7% deep) | 32.8 h (step 9,831) |
+| **B 2/5/10/20%: 10,833,333 / $2.54B / 0.94×** | **−1,323.3 bps** | **+49.7 bps (3.6% shallow)** | **31.2 h (step 9,346)** |
+| C 1/2/5/10/15%: 10,000,000 / $2.35B / 0.87× | −1,489.0 bps | −116.0 bps (8.4% deep) | 32.8 h (step 9,836) |
+
+| replay | trough depth | trough time | at the capacity change (85 h) | first in band after 85 h | holder bought / spent | holder redeemed before / after 85 h | arbitrageur redeemed | holder PnL |
+|---|---|---|---|---|---|---|---|---|
+| observed | −1,373 bps | 31.0 h | −36 bps | 86.0 h | n/a | n/a | n/a | n/a |
+| 3.1 (single entry, C\* 9,166,667) | −1,137.8 bps | 34.2 h | −52 bps | 85.3 h | 9.42M / 9.21M | 6.49M / 2.93M | 2.10M | +209.4k |
+| **3.7 (ladder B, C\* 10,833,333)** | **−1,323.3 bps** | **31.2 h** | **−52 bps** | **85.3 h** | **8.66M / 8.14M** | **6.47M / 2.19M** | **2.85M** | **+522.6k** |
+
+**The cliff test.** Trough at `C* × {0.8 … 1.2}` for ladder B, beside the single entry at
+the same multiples of its own `C*` (run now with the 3.1 capped holder, `fit_holder.py
+--at-multiples-of`; 2.6's refinement table had no points at these multiples and predates
+the cap, so its nearest points are given for reference):
+
+| multiple | ladder B capital | ladder B trough | single-entry capital | single-entry trough (3.1 holder) | 2.6 table, nearest point (uncapped) |
+|---|---|---|---|---|---|
+| 0.8 | 8,666,666 | −2,003.1 | 7,333,334 | −2,257.6 | 7.5M (0.82×): −2,206.7 |
+| 0.9 | 9,750,000 | −2,000.8 | 8,250,000 | −1,662.3 | 8.33M (0.91×): −1,652.8 |
+| 1.0 | 10,833,333 | −1,323.3 | 9,166,667 | −1,137.8 | 9.17M: −1,137.8 |
+| 1.1 | 11,916,666 | −1,007.8 | 10,083,334 | −885.1 | 10M (1.09×): −224.6 |
+| 1.2 | 13,000,000 | −1,006.7 | 11,000,000 | −225.9 | none (12.5M, 1.36×: −215.8) |
+
+**The cliff is not gone; it is a staircase.** Over ±20% of `C*` the ladder's trough spans
+996 bps against the single entry's 2,032, but it does not move smoothly: it sits flat on
+a tread at or near each tranche's entry price (−2,000 at 0.8–0.9×, −1,007 at 1.1–1.2×; the
+fit tables show the others near −500, −200 and −130 bps) and jumps between them. The
+largest step per 10% of `C*` is **677 bps** for ladder B (0.9 → 1.0×) against **659 bps** for
+the single entry (1.1 → 1.2×). A tread is a tranche that still has reference when the
+attack ends, holding spot at its entry; a riser is the capital range in which the
+shallower tranche runs out before the attack does and the attacker sets the trough, the
+same mechanism as F-09 at a quarter of the size. `C*` lands on a riser: at −1,323 the 10%
+tranche has spent its whole share (2.71M) and the 20% tranche has not yet bought.
+
+**What the ladder fixed.** The trough depth, to 3.6% (one fitted number, as before; the
+ladder is an assumption and the best of three fixed ones). The trough time: 31.2 h
+against 31.0 h observed, where the single entry was 3.2 h late. With one buyer at 2% the
+price parked at −200 bps for 3.5 h before falling; with the ladder it steps down through
+the entries (−1,000 by 28.6 h) and the 10% tranche runs out at ≈ 30.6 h, so the fall to
+the trough comes when the observed one did. Pace (0.002) was not re-fitted.
+
+**What it didn't fix.** The fit still cannot land on −1,373 by construction of the rule;
+it lands within the riser that contains it. Which riser, and the trough on it, depend on
+where the ladder puts its entries, which no public source pins down. From ≈ 48.6 h the
+path agrees with 3.1 to within 0.05 bps (−173 flat from 49 h to 69 h, −52 at the capacity
+change, back in band at 85.3 h). The holder's PnL more than doubles (+522.6k) because the deep
+tranches bought at 5–10% discounts, and the arbitrageur redeems more (2.85M vs 2.10M)
+because the holder no longer holds the price at $0.98.
+
+**Figure** (`docs/figures/validation_overlay_usdc_2023_tranches.png`, its own figure; the
+single-entry overlay is unchanged). The black simulated line leaves 0 at the 27 h marker
+and steps down a staircase: a short tread at ≈ −220 bps, one at ≈ −510 bps by 27.6 h, and
+a long flat tread at −1,005 bps from 28.6 h to 30.6 h. It then drops to its trough,
+−1,323 at 31.2 h, 9 minutes after and 50 bps above the blue observed trough (−1,373 at
+31.0 h). It bounces to ≈ −1,150 and then traces a shallow U drawn as a narrow band (≤ 43 bps
+peak to peak over 4 steps), down to −1,311 at 32.9 h and back to −1,180 by 34.4 h, while
+the blue line rebounds to −800 at 32 h and falls back to
+−1,164 at 34 h, then climbs to meet the blue line at ≈ −955 at 36 h. From there it is
+the 3.1 figure: on the observed path to ≈ 45 h, flat at −173 from 49 h to 69 h, into the
+grey band at the 85 h capacity marker.
