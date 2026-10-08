@@ -1,0 +1,46 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId><storyId>3.8</storyId><title>LP Withdrawal Agent (stretch)</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-07</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/3-8-lp-withdrawal-agent.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>researcher</asA>
+    <iWant>liquidity providers who pull their liquidity when the peg looks lost</iWant>
+    <soThat>pool depth becomes endogenous and the note can say what reflexive liquidity flight does to the thresholds</soThat>
+    <tasks>- AMM remove_liquidity (AC: 1) - LP agent (AC: 2, 3) - Scenario and sweep (AC: 4, 5) - Verdict, ADR, figures, close out (AC: 6–8)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–8. The share-vs-fraction arithmetic in Dev Notes is normative; swap behaviour must be byte-identical.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/stories/3-8-lp-withdrawal-agent.md" section="Dev Notes">Arithmetic; predictions; why last.</doc>
+      <doc path="docs/stories/1-4-constant-product-amm.md" section="Dev Notes">AMM invariants and the drain guard.</doc>
+      <doc path="docs/stories/1-7-agents.md" section="Dev Notes">Agent pattern and tests.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/protocol/amm.py" symbol="AMM.swap, execute, snapshot" reason="Add remove_liquidity and the execute branch; keep swap untouched."/>
+      <existing path="src/depeg_sim/agents/base.py, holder.py" symbol="Agent" reason="Pattern for the LP agent; holder is the nearest one-way agent."/>
+      <existing path="src/depeg_sim/agents/factory.py, kernel/config.py" reason="LPConfig and dispatch."/>
+      <existing path="src/depeg_sim/analysis/summary.py" reason="pool_depth_at_trough."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="_parity_grid" reason="Reuse for plot_lp_flight."/>
+      <existing path="tests/test_properties.py" reason="Amend the k-invariant test."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - kernel/ untouched except config.py; PHASE_ORDER_VERSION stays 1; swap path byte-identical (fixtures); every existing scenario hash unchanged.
+    - One-way LP; share-based state; never calls ctx.rng.
+    - Charts read parquet + manifest only.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="AMM.remove_liquidity" kind="method" path="src/depeg_sim/protocol/amm.py">remove_liquidity(fraction: float) -> LiquidityResult(stable_out, reference_out, reserve_stable_after, reserve_reference_after)</interface>
+    <interface name="LPConfig" kind="pydantic model" path="src/depeg_sim/kernel/config.py">type: Literal["lp"]; id; share gt 0 le 1; panic_threshold_pct gt 0; pace gt 0 le 1</interface>
+    <interface name="plot_lp_flight" kind="function" path="src/depeg_sim/analysis/charts.py">plot_lp_flight(sweep_dir: Path) -> Path</interface>
+    <interface name="summary.pool_depth_at_trough" kind="key" path="src/depeg_sim/analysis/summary.py">float | None (reserve_reference at step_of_max_depeg / initial)</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; real AMM, manual phases per 1.7; two consecutive withdrawals pin the share arithmetic; fixtures prove swap byte-identity; hash test; synthetic parquet for the chart.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>
