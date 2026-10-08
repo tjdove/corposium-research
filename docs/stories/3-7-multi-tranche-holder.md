@@ -392,7 +392,7 @@ names get a `-tranches-<entries>` suffix with `--tranches`. The propagated scena
 **ADR:** [0030](../adr/0030-multi-tranche-holder-and-the-cliff.md), Proposed (finding).
 Index not edited.
 
-**Tests:** 818 passed (773 collected at `d97e51b`: +45); `ruff check .` and `ruff format --check .` clean; `make figures` 843 s; guard green. CI: see below.
+**Tests:** 818 passed (773 collected at `d97e51b`: +45); `ruff check .` and `ruff format --check .` clean; `make figures` 843 s; guard green. CI run [37714039078](https://github.com/tjdove/corposium-research/actions/runs/37714039078) on `70269a2`: `test` success (1 m 49 s), `figures-quick` success (20 m 0 s).
 
 ### File List
 
