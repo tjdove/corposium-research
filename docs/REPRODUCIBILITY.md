@@ -41,7 +41,7 @@ figures were not compared.
 ## Commands that produce figures
 
 `make figures` runs every figure sweep, then `scripts/make_figures.py`, which runs the
-six scenario figures itself (seconds each), draws all eighteen figures and writes
+six scenario figures itself (seconds each), draws all nineteen figures and writes
 `docs/figures/manifest.json`. Wall times:
 
 | Command | Figures | Runs (full) | Seoul full, 12 workers | Seoul quick, 12 workers | CI quick, 4 workers |
@@ -56,11 +56,12 @@ six scenario figures itself (seconds each), draws all eighteen figures and write
 | `python -m depeg_sim.sweep sweeps/pace-x-trigger-mc.yaml --mc` | `pace_trigger.png` | 256 | 92 s | 25 s | 191 s |
 | `python -m depeg_sim.sweep sweeps/pace-ratio-mc.yaml --mc` | `pace_ratio.png` | 112 | 23 s | 7 s | 52 s |
 | `python -m depeg_sim.sweep sweeps/threshold-surface-ou-mc.yaml --mc` | `threshold_surface_ou.png`, `time_to_parity_ou.png` | 640 | 127 s | 17 s | 144 s |
-| `python scripts/make_figures.py` | all 18 (runs the 6 scenario figures: `peg_trajectory_*.png`, `validation_overlay_usdc_2023.png`, `validation_overlay_usdc_2023_tranches.png`) | — | ≈ 10 s | (included) | (included) |
-| **`make figures`** / **`make figures-quick`** | all 18 | 3,689 | **843 s** | **147 s** | **1,155 s** |
+| `python -m depeg_sim.sweep sweeps/lp-flight-mc.yaml --mc` | `lp_flight.png` | 288 | 51 s | (not measured) | (pending CI) |
+| `python scripts/make_figures.py` | all 19 (runs the 6 scenario figures: `peg_trajectory_*.png`, `validation_overlay_usdc_2023.png`, `validation_overlay_usdc_2023_tranches.png`) | — | ≈ 10 s | (included) | (included) |
+| **`make figures`** / **`make figures-quick`** | all 19 | 3,977 | **893 s** | **147 s** | **1,155 s** |
 
-Totals are from 2026-10-07 (Seoul `make figures` 843 s at code `b1352c8`, Story 3.7, which
-adds one scenario figure of ≈ 3 s; `make figures-quick` 147 s at `8c5fdf3`, not re-measured; CI run
+Totals are from 2026-10-08 (Seoul `make figures` 893 s at code `6f2859d`, Story 3.8, which
+adds the 288-run `lp-flight-mc` sweep, 51 s; Story 3.7's was 843 s at `b1352c8`; `make figures-quick` 147 s at `8c5fdf3`, not re-measured; CI run
 [37657607713](https://github.com/tjdove/corposium-research/actions/runs/37657607713),
 `figures-quick` 1,155 s). The per-sweep rows other than `threshold-surface-ou-mc` are the
 2026-10-06 measurements below; on 2026-10-07 each was within 10 s of them.
@@ -105,8 +106,9 @@ mkdir -p output/tmp && export TMPDIR=$PWD/output/tmp
 | `soros-baseline` seed 42 `summary.json` | `tests/test_reference_recovery.py` | `pytest`; `sha256sum output/soros-baseline-42-2e09f431/summary.json` |
 
 At that commit: `code_hash` =
-`01754f98382a7a72f98c7684d16dd4ab3a5598a87ff244130ef22cf605f78c7c`; `soros-baseline` seed 42
-`summary.json` sha256 = `f2428bdb6b6fc52188e7761f9170fbddda5cb501a74849e7c7f1284e73677865`,
+`c72e8639692acd59e43b1dc9fcfc9cc044f67f1e9613c46dfa7bff2215551415`; `soros-baseline` seed 42
+`summary.json` sha256 = `be7d32669a8fe6e2efb933bfca6ed213240b9eb85c26a2ee7aef4bea6cdc2fa9`
+(Story 3.8 added two keys; without those lines it is the 3.5 value `f2428bdb…`),
 run directory `output/soros-baseline-42-2e09f431/`.
 
 ## Before the freeze

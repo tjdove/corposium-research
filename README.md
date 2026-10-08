@@ -100,6 +100,7 @@ One YAML file per scenario; every value's source is in the file's header. The ha
 | `scenarios/soros-volatile.yaml` | `soros-baseline` with a noisy reference price, so the seed matters | `84ad0b810807` |
 | `scenarios/calibrated-baseline.yaml` | USDC / SVB, March 2023, at calm volatility and fitted pool depth D\*, with a par-expecting holder; the base of most sweeps | `44ac03c60e5f` |
 | `scenarios/calibrated-baseline-ou.yaml` | `calibrated-baseline` with a reference price that mean-reverts to par (fitted from the calm series, half-life 1.4 h) instead of a random walk | `741f1bdd0012` |
+| `scenarios/calibrated-baseline-lp.yaml` | `calibrated-baseline-ou` plus a liquidity provider who owns half the pool and pulls it while the price is more than 5% below par (share, threshold and pace are assumptions) | `4707a65abb67` |
 | `scenarios/calibrated-stress.yaml` | `calibrated-baseline` at the stress-window volatility (24.5× calm) | `17b24b458e47` |
 | `scenarios/usdc-2023.yaml` | Replay of the observed USDC/USD series, 10–13 March 2023: the validation run | `2c3aeaa9825d` |
 | `scenarios/soros-1992.yaml` | Black Wednesday, 16 September 1992, as ratios of capital, budget, reserves and depth | `f4e26ae66440` |
@@ -122,6 +123,7 @@ sweeps feed the committed figures and run in `make figures`. The last two run wi
 |---|---|---:|---:|
 | `sweeps/threshold-surface-ref-mc.yaml` ★ | Time to parity and p(stays broken) over pool depth × attacker capital, recovery measured against the oracle price | 640 | 138 s |
 | `sweeps/threshold-surface-ou-mc.yaml` ★ | The par surface again with the mean-reverting reference: what was the model and what was the random walk | 640 | 127 s |
+| `sweeps/lp-flight-mc.yaml` ★ | Liquidity flight at D\*: the flighty LP's share × its panic threshold × attack size | 288 | 51 s |
 | `sweeps/threshold-surface-mc.yaml` ★ | The same surface with recovery measured against par | 640 | 136 s |
 | `sweeps/budget-x-depth-mc.yaml` ★ | Defender budget needed to hold the price, over pool depth | 200 | 52 s |
 | `sweeps/budget-x-attack-mc.yaml` ★ | Defender budget needed, over attack size, at twice the fitted depth | 200 | 57 s |
