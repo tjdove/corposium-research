@@ -192,29 +192,82 @@ class DefenderConfig(StrictModel):
     max_spread_bps: int | None = Field(default=None, ge=0, lt=10_000)
 
 
+class Tranche(StrictModel):
+    """One entry price of a multi-tranche holder (Story 3.7): ``share`` of the holder's
+    ``capital`` buys strictly below ``1 - entry_discount_pct/100``."""
+
+    entry_discount_pct: float = Field(ge=0)
+    share: float = Field(gt=0, le=1)
+
+
+SHARE_TOLERANCE = 1e-9  # tranche shares must sum to 1 within this
+
+
 class HolderConfig(StrictModel):
     """Par-expecting buyer (Story 2.6): buys below ``1 - entry_discount_pct/100``, redeems
     in tranches the redemption channel can pay. ``redeem_horizon_steps`` is a constructor
     default on the agent, not a config field. ``exit_discount_pct`` (Story 3.3): once spot
     falls below ``1 - exit_discount_pct/100`` it sells everything on the AMM and never
-    re-enters; ``None`` (default) never sells."""
+    re-enters; ``None`` (default) never sells.
+
+    ``tranches`` (Story 3.7) replaces the single ``entry_discount_pct`` with a ladder of
+    entry prices: exactly one of the two is set, shares sum to 1 and entry discounts are
+    strictly increasing. With tranches, ``exit_discount_pct`` must exceed the deepest
+    tranche's entry discount."""
 
     type: Literal["holder"]
     id: str
     capital: float = Field(gt=0)
-    entry_discount_pct: float = Field(ge=0)
+    entry_discount_pct: float | None = Field(default=None, ge=0)
     pace: float = Field(gt=0, le=1)
     redeem_when_capacity: bool = True
     exit_discount_pct: float | None = Field(default=None, gt=0, lt=100)
+    tranches: list[Tranche] | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def _one_entry_form(self) -> HolderConfig:
+        if self.tranches is None and self.entry_discount_pct is None:
+            raise ValueError(f"holder {self.id!r}: set entry_discount_pct or tranches")
+        if self.tranches is not None and self.entry_discount_pct is not None:
+            raise ValueError(
+                f"holder {self.id!r}: entry_discount_pct must be absent when tranches is set "
+                "(each tranche carries its own entry_discount_pct)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _tranche_ladder(self) -> HolderConfig:
+        if self.tranches is None:
+            return self
+        total = sum(t.share for t in self.tranches)
+        if abs(total - 1) > SHARE_TOLERANCE:
+            raise ValueError(
+                f"holder {self.id!r}: tranche shares must sum to 1 within {SHARE_TOLERANCE:g}, "
+                f"got {total!r}"
+            )
+        discounts = [t.entry_discount_pct for t in self.tranches]
+        if any(b <= a for a, b in zip(discounts, discounts[1:], strict=False)):
+            raise ValueError(
+                f"holder {self.id!r}: tranche entry_discount_pct must be strictly increasing, "
+                f"got {discounts}"
+            )
+        return self
+
+    @property
+    def deepest_entry_discount_pct(self) -> float:
+        """The single entry discount, or the deepest tranche's."""
+        if self.tranches is None:
+            return self.entry_discount_pct
+        return self.tranches[-1].entry_discount_pct
 
     @model_validator(mode="after")
     def _exit_below_entry(self) -> HolderConfig:
-        if self.exit_discount_pct is not None and not (
-            self.exit_discount_pct > self.entry_discount_pct
-        ):
+        entry = self.deepest_entry_discount_pct
+        if self.exit_discount_pct is not None and not (self.exit_discount_pct > entry):
+            name = "entry_discount_pct" if self.tranches is None else "the deepest tranche's"
             raise ValueError(
                 f"holder {self.id!r}: exit_discount_pct ({self.exit_discount_pct}) must exceed "
-                f"entry_discount_pct ({self.entry_discount_pct}): the exit price must sit below "
+                f"{name} ({entry}): the exit price must sit below "
                 "the entry price, or the holder sells at the price it buys"
             )
         return self
@@ -258,7 +311,9 @@ class ScenarioConfig(StrictModel):
         its path, so the hash follows the data and does not depend on the machine. A
         defender's ``buy`` and ``max_spread_bps`` enter only when not at their defaults
         (``True``, ``None``; Story 3.2). A holder's ``exit_discount_pct`` enters only when set
-        (Story 3.3). ``environment.mean_reversion_per_step`` enters only when > 0 (Story 3.6)."""
+        (Story 3.3). ``environment.mean_reversion_per_step`` enters only when > 0 (Story 3.6).
+        A holder's ``tranches`` enters only when set, and then replaces its (absent)
+        ``entry_discount_pct`` (Story 3.7)."""
         data = self.model_dump(mode="json")
         env = data["environment"]
         if env["mean_reversion_per_step"] == 0:
@@ -276,8 +331,13 @@ class ScenarioConfig(StrictModel):
                     del agent["buy"]
                 if agent["max_spread_bps"] is None:
                     del agent["max_spread_bps"]
-            elif agent["type"] == "holder" and agent["exit_discount_pct"] is None:
-                del agent["exit_discount_pct"]  # Story 3.3: never-sells leaves hashes unchanged
+            elif agent["type"] == "holder":
+                if agent["exit_discount_pct"] is None:
+                    del agent["exit_discount_pct"]  # Story 3.3: never-sells keeps hashes
+                if agent["tranches"] is None:
+                    del agent["tranches"]  # Story 3.7: the scalar form keeps its hash
+                else:
+                    del agent["entry_discount_pct"]  # absent by the validator
         payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 

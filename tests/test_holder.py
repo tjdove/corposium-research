@@ -298,11 +298,11 @@ def test_dust_cap_falls_through_to_done():
 class _UncappedHolder(Holder):
     """The pre-3.1 rule (ADR-0021): ``pace x reference`` whenever spot < entry price."""
 
-    def _buy_amount(self, ctx):
+    def _buys(self, ctx):
         amm = self._amm(ctx)
         if amm is None or not amm.spot_price < self.entry_price:
-            return 0.0
-        return self.pace * self.balances["reference"]
+            return []
+        return [(0, self.pace * self.balances["reference"])]
 
 
 def _two_steps(h):

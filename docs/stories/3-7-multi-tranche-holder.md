@@ -1,6 +1,6 @@
 # Story 3.7 (stretch): Multi-Tranche Holder
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
