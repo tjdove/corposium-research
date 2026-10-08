@@ -88,6 +88,7 @@ def test_every_scenario_hash_unchanged():
     later = {  # pinned where they were added
         "calibrated-baseline-ou.yaml",  # Story 3.6, test_calibrated_scenarios.py
         "usdc-2023-tranches.yaml",  # Story 3.7, test_holder_tranches.py
+        "calibrated-baseline-lp.yaml",  # Story 3.8, test_lp.py
     }
     found = {
         p.name: load_scenario(p).content_hash()
@@ -223,16 +224,24 @@ def test_flat_reference_oracle_equals_par(tmp_path):
 
 
 def test_soros_baseline_summary_bytes_unchanged(tmp_path):
-    # summary.json sha256 re-captured in Story 3.5 (one new key, arbitrageur_redeemed).
-    # Without that line the bytes are the ones captured at b29c7c0, before Story 2.8.
+    # summary.json sha256 re-captured in Story 3.8 (two new keys, pool_depth_at_trough and
+    # pool_liquidity_at_trough); without those lines it is the Story 3.5 capture (one new
+    # key, arbitrageur_redeemed), and without that line the bytes captured at b29c7c0,
+    # before Story 2.8.
     art = run_scenario(
         load_scenario(Path("scenarios/soros-baseline.yaml")), output_dir=tmp_path, chart=False
     )
     raw = (art.run_dir / "summary.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "f2428bdb6b6fc52188e7761f9170fbddda5cb501a74849e7c7f1284e73677865"
+        "be7d32669a8fe6e2efb933bfca6ed213240b9eb85c26a2ee7aef4bea6cdc2fa9"
     )
     lines = raw.splitlines(keepends=True)
+    pool = [ln for ln in lines if ln.startswith((b'  "pool_depth_at', b'  "pool_liquidity_at'))]
+    assert len(pool) == 2
+    lines = [ln for ln in lines if ln not in pool]
+    assert hashlib.sha256(b"".join(lines)).hexdigest() == (
+        "f2428bdb6b6fc52188e7761f9170fbddda5cb501a74849e7c7f1284e73677865"
+    )
     added = [ln for ln in lines if b'"arbitrageur_redeemed"' in ln]
     assert len(added) == 1
     before = b"".join(ln for ln in lines if ln not in added)

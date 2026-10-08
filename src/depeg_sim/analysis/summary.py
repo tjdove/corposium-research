@@ -130,7 +130,7 @@ def summarize(
     if dev.notna().any():
         i = int(dev.idxmin())
         max_depeg = float(dev.loc[i]) * BPS
-        if world.get("amm") is not None:
+        if world.get("amm") is not None and "amm_reserve_reference" in metrics_df:
             rs, rr = (
                 metrics_df.loc[i, "amm_reserve_stable"],
                 metrics_df.loc[i, "amm_reserve_reference"],

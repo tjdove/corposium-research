@@ -344,7 +344,8 @@ C_STAR_B = 10_833_333  # scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,
 
 def test_every_scenario_but_the_new_one_is_pinned_above():
     found = {p.stem for p in SCENARIO_DIR.glob("*.yaml")}
-    assert found - set(HASHES_BEFORE_3_7) == {"usdc-2023-tranches"}
+    # Story 3.8 adds calibrated-baseline-lp, pinned in tests/test_lp.py
+    assert found - set(HASHES_BEFORE_3_7) == {"usdc-2023-tranches", "calibrated-baseline-lp"}
 
 
 def test_tranches_scenario_is_the_replay_with_ladder_b():
