@@ -52,6 +52,10 @@ source, and one command that regenerates every figure.
 - One fitted buyer at $2.15B (0.79× the attack) → −1,138 bps; the simulated path lies on
   the observed one from 35 h to 49 h; trough 3.2 h late (pace not re-fitted); first hours
   clean after the fill-price fix (ADR-0024).
+- Believers at a ladder of prices (2/5/10/20%, an assumption; best of three fixed ladders)
+  with one fitted capital ($2.54B, 0.94× the attack) → −1,323 bps at 31.2 h (observed
+  −1,373 at 31.0). **Figure 1b: `validation_overlay_usdc_2023_tranches.png`.** Both shown:
+  what one parameter buys, what a stated assumption adds (F-09 refinement).
 - What validation does and does not claim: one event, one fitted parameter, the hourly
   series cannot resolve the first-hour shape; F-09 (a single-entry buyer gives a cliff).
 - **Headline 1:** the depth of a depeg is set by the attacker against everyone who
@@ -151,6 +155,9 @@ sentences if needed.
 2. How much 1992 narrative in §7 — the note's own retelling, or a pointer to BACKGROUND
    published alongside?
 3. Named author(s) and the Corposium Research framing in the first paragraph.
+4. Hero image for the README and the site page: the single-entry overlay (one parameter,
+   17%) or the ladder overlay (one parameter + an assumed ladder, 4%, timing to nine
+   minutes)? The note shows both in §3 either way.
 
 ## Change Log
 

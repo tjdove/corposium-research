@@ -1,6 +1,6 @@
 # Story 3.7 (stretch): Multi-Tranche Holder
 
-Status: review
+Status: done
 
 ## Story
 
@@ -418,6 +418,86 @@ Index not edited.
   and regenerated PNGs, `docs/REPRODUCIBILITY.md`, `README.md` (figure counts, timings)
 - `docs/stories/3-7-multi-tranche-holder.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-07
+**Outcome:** **APPROVE** ✅ — the closest the model has come to March 2023, with the
+assumption that got it there named as one.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `818 passed`;
+`ruff check .` → `All checks passed!`; `ruff format --check .` → `94 files already
+formatted`; `make figures-check` → ok, 18 figures, code hash matches. `usdc-2023-tranches`
+hash `da3383d4e156`, trough **−1,323.3 at 31.15 h** (observed −1,373.3 at 31.0 h);
+`usdc-2023` unchanged at −1,137.8 / `2c3aeaa9825d`. **Ladder B fit re-run** (1m04s):
+C\* = 10,833,333 by the same path (refine 2 between 10M and 15M). **Cliff test re-run**
+at 1.0 / 1.1 / 1.2: −1,323.3 / −1,007.8 / −1,006.7, matching. Overlay read: the two
+troughs sit on top of each other; the simulated descent is a staircase (−220, −510,
+−1,005) where the observed hourly points pass through the same levels.
+
+### Rulings
+
+1. **ADR-0030 → Accepted (finding, amended).** The four judgment calls (equal-share buying
+   across eligible tranches, proportional return of proceeds, single tranche writes no
+   per-tranche fields, exit deeper than the deepest tranche) are accepted as pinned.
+   Amendment: the cliff verdict is "staircase" and F-09 is **narrowed, not resolved** —
+   the model matches March 2023's depth to the spacing of a ladder no public data pins
+   down, which is the limitation sentence the builder wrote and the note will use.
+2. **Re-running the single entry at exact multiples** instead of using 2.6's table
+   (which predates the fill cap and has no points at those multiples) → correct; the
+   comparison is like-for-like now.
+3. **Which overlay the note shows.** Both, in §3, in this order: the single-entry overlay
+   first (one fitted number, 17% short, the clean claim), then the ladder-B overlay (one
+   fitted number plus an assumed four-step ladder, best of three fixed ladders, within 4%
+   and nine minutes). The reader sees what one parameter buys and what an assumption adds.
+   Added to NOTE.md's open decisions as a question for Tim: which of the two is the hero
+   image on the README and the site page.
+4. **Trough timing moved 3.1 h earlier to within 9 minutes** without re-fitting pace —
+   the deeper tranches absorb later, so the trough arrives when the attacker's selling
+   ends rather than when the single buyer runs dry. Recorded in the F-09 refinement as
+   the mechanism; pace stays as fitted in 2.5.
+5. **Ladder A on the too-deep side at the same distance as the single entry** —
+   recorded; a front-loaded ladder behaves like the single entry.
+6. **`--at-multiples-of` on `fit_holder.py`** → accepted; it is the reproducible form of
+   the cliff test.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `tranches` with validators; per-tranche cap; pooled stable; `tranche` in the decision record; hashes unchanged |
+| 2 | ✅ | three-tranche test; single-tranche byte-identity on usdc-2023; validators |
+| 3 | ✅ | three ladders, three fit tables; C\* in three units; B reproduced here |
+| 4 | ✅ | cliff table at 0.8–1.2 vs single entry re-run at its own multiples; reproduced at 1.0–1.2 |
+| 5 | ✅ | `usdc-2023-tranches.yaml`; replay; own overlay figure; VALIDATION 3.7 row; SOURCES assumption row |
+| 6 | ✅ | verdict and limitations sentence |
+| 7 | ✅ | ADR-0030 |
+| 8 | ✅ | figure registered; `make figures` 843 s; guard ok; 818 tests; both CI jobs green (70269a2) |
+
+**8 of 8 ACs met.**
+
+### Key Findings
+
+- **F-09 narrowed:** with believers at a ladder of entry prices (2/5/10/20%, equal shares)
+  and one fitted total capital ($2.54B, 0.94× the attack), the replay comes within 3.6% of
+  the observed depth and within nine minutes of its timing. The cliff becomes a
+  staircase: depth sits at a tranche's entry while that tranche still has money and jumps
+  when it runs out; the largest step is 677 bps per 10% of capital, about the single
+  entry's 659, over a range half as wide. Depth is set by where the believers' money sits
+  on the price ladder, and no public data says where that was.
+- The single-entry and ladder results together make the validation claim honest in both
+  directions: one parameter gets within 17%; one parameter plus a stated assumption gets
+  within 4%.
+
+### Learnings for Story 3.8
+
+- An assumption that moves a result from 17% to 4% is an assumption to show, not to hide
+  or to promote: both overlays, both captions.
+- Timing results that improve without re-fitting are more convincing than depth results
+  that improve with fitting; say which is which.
+
 ## Change Log
 
 - 2026-10-07: Story drafted by dev manager after Story 3.6 review (second Epic 3 stretch story)
@@ -425,3 +505,4 @@ Index not edited.
   ladder fits (B best: C\* 10,833,333, −1,323.3 bps, 31.2 h); cliff test: a staircase, not a
   curve (F-09 narrowed); `usdc-2023-tranches.yaml`, replay, overlay figure; VALIDATION.md,
   SOURCES.md; ADR-0030 Proposed. Status → review
+- 2026-10-07: Senior review APPROVE; ADR-0030 accepted (finding, amended); F-09 narrowed; both overlays in the note; Status done

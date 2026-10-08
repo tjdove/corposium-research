@@ -691,6 +691,28 @@ note explains one reference and one criterion.
 
 ---
 
+## F-09 refinement (2026-10-07, from 3.7)
+
+**Reproduce:** `python scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,20:0.25`
+(C\* = 10,833,333); `python run.py scenarios/usdc-2023-tranches.yaml`; the cliff test
+`--at-multiples-of 10833333`.
+
+Three fixed ladders of entry prices, each with one fitted total capital: front-loaded
+(1/2/5%) lands 16.7% too deep; fine-uniform (1/2/5/10/15%) 8.4% too deep; **wide-uniform
+(2/5/10/20%, equal shares) lands at −1,323 bps, 3.6% shallow, at 31.2 h against the
+observed 31.0 h** — the trough timing moves 3.1 h earlier without pace being re-fitted,
+because the deeper tranches absorb later and the trough now arrives when the attacker's
+selling ends, not when a single buyer runs dry. C\* = 10.8M units ≈ $2.54B, 0.94× the
+attack. The cliff becomes a **staircase**: depth sits at a tranche's entry price while that
+tranche still has money when the attack ends, and jumps when it runs out first (677 bps
+per 10% of capital at the largest step; the single entry's was 659 over a range twice as
+wide). **F-09 narrowed, not resolved:** the model matches March 2023's depth to the
+spacing of a ladder no public data pins down. The single-entry result (one parameter,
+17%) and the ladder result (one parameter plus a stated assumption, 4%) go in the note
+together.
+
+---
+
 ## Headline candidates (ranked, 2026-10-06, revised after 3.4)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

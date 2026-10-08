@@ -1,6 +1,6 @@
 # ADR-0030: Multi-tranche holder; ladder B fits the replay trough to 3.6% and on time; the cliff becomes a staircase, not a curve (F-09 narrowed)
 
-**Status:** Proposed
+**Status:** Accepted (finding, amended in review 2026-10-07: F-09 narrowed, not resolved; both overlays go in the note; timing mechanism recorded)
 **Date:** 2026-10-07
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.7

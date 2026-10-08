@@ -512,7 +512,7 @@ Replace the calm random walk with an OU process calibrated from the calm USDC se
 
 ### Story 3.8 (stretch): LP Withdrawal Agent
 
-Single `panic_threshold_pct`; pool depth becomes endogenous; re-run the calibrated baseline and the 1992 analogue.
+Single `panic_threshold_pct`; pool depth becomes endogenous; re-run the calibrated baseline and the 1992 analogue. Story file drafted 2026-10-07: `AMM.remove_liquidity`, `LiquidityProvider(share, panic_threshold_pct, pace)`, `calibrated-baseline-lp.yaml`, `lp-flight-mc` sweep (threshold × share × attack), `pool_depth_at_trough`; the 1992 re-run is dropped from this story (the analogue's depth is already a fitted aggregate).
 
 **Dropped:** Anvil/Foundry replay. A forked-chain execution check touches no finding and costs 2–3 days of plumbing; recorded in the charter decision log 2026-10-05.
 
