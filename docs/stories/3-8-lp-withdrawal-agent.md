@@ -1,6 +1,6 @@
 # Story 3.8 (stretch): LP Withdrawal Agent
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 

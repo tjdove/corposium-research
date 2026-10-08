@@ -20,17 +20,28 @@ from depeg_sim.protocol.redemption import RedemptionModule
 SEEDS = range(20)
 
 
-# -- AMM: k never decreases ---------------------------------------------------------------
+# -- AMM: k never decreases between liquidity events --------------------------------------
 
 
 @pytest.mark.parametrize("fee_bps", [0, 4, 30, 100])
 @pytest.mark.parametrize("seed", SEEDS)
-def test_amm_k_non_decreasing_over_random_trades(seed, fee_bps):
+def test_amm_k_non_decreasing_between_liquidity_events(seed, fee_bps):
+    """Random swaps with random liquidity removals mixed in (Story 3.8): across a swap ``k``
+    never decreases; across a removal of ``f`` it scales by exactly ``(1 - f)**2`` and spot
+    is unchanged. The swap draws come first in each iteration, so the swap sequence is the
+    one this test drew before removals existed."""
     rng = np.random.default_rng(seed)
     amm = ConstantProductAMM(
         reserve_stable=1_000_000.0, reserve_reference=1_000_000.0, fee_bps=fee_bps
     )
+    removal_rng = np.random.default_rng(10_000 + seed)
     for _ in range(300):
+        if removal_rng.random() < 0.05:
+            f = float(10 ** removal_rng.uniform(-6, math.log10(0.5)))
+            k0, spot0 = amm.k, amm.spot_price
+            amm.remove_liquidity(f)
+            assert math.isclose(amm.k, k0 * (1 - f) ** 2, rel_tol=1e-12)
+            assert math.isclose(amm.spot_price, spot0, rel_tol=1e-12)
         side = SELL_STABLE if rng.random() < 0.5 else BUY_STABLE
         r_in = amm.reserve_stable if side == SELL_STABLE else amm.reserve_reference
         # sizes from dust to half the input reserve, log-uniform
