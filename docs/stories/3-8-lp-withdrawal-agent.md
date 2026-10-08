@@ -1,6 +1,6 @@
 # Story 3.8 (stretch): LP Withdrawal Agent
 
-Status: review
+Status: done
 
 ## Story
 
@@ -411,7 +411,83 @@ candidate F-15). Index not edited.
 - `docs/REPRODUCIBILITY.md`, `README.md`
 - `docs/stories/3-8-lp-withdrawal-agent.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager, Fable 5.1)
+**Date:** 2026-10-08
+**Outcome:** **APPROVE** ✅ — Epic 3 complete. The result inverts the charter's premise
+about liquidity flight, with a mechanism and a stated condition.
+
+### Summary
+
+Reproduced on the review box (Python 3.13.15, fresh install): `pytest` → `886 passed`;
+`ruff check .` → `All checks passed!`; `ruff format --check .` → `98 files already
+formatted`; `make figures-check` → ok, 19 figures, code hash matches. Both scenarios:
+`calibrated-baseline-ou` unchanged (`741f1bdd0012`, 7024, −1,253.2);
+`calibrated-baseline-lp` `4707a65abb67`, 7099, −1,253.2. **LP sweep re-run in full** (288
+runs, 2 workers, 5m27s): time-to-parity 35.4 / 22.5 / 9.5 h by share at ratio 1.0, 27.2 /
+17.0 / 6.7 at 0.7, 11.5 / 3.8 / 0.4 at 0.5, identical across all four thresholds;
+`p_peg_recovered` 1.0 in every cell; trough −8,191 / −8,226 / −8,196 at 1.0. Matches the
+builder's report to the decimal.
+
+### Rulings
+
+1. **ADR-0031 → Accepted (finding, amended).** F-15 is accepted with its condition moved
+   into the first sentence: *liquidity that flees and sits on what it withdrew* helps the
+   defender. The builder's "not tested" list already names the alternative — an LP that
+   dumps or redeems its withdrawn stable is a second attacker — and that is the next
+   model, not this one. The note states the condition every time it quotes F-15.
+2. **`pool_liquidity_at_trough` (√(k/k₀)) → keep.** It is the right depth measure; the
+   specified `pool_depth_at_trough` moves with price alone (0.43 at 1.0× with no LP) and
+   stays as the record of why a second one was needed.
+3. **`lp_supply` on the AMM → accepted.** Share-to-fraction conversion needs it; swap
+   path proven byte-identical.
+4. **`scripts/lp_flight_table.py` → keep**; the AC 6 answers depend on the no-LP rerun.
+5. **Process slip** (a commit with four failing tests because the check read `tail`'s exit
+   code, fixed before push) → recorded; PROCESS L-17: pipe pytest through nothing when
+   reading its exit code, or use `set -o pipefail`.
+6. **F-11 qualified**, as the builder says: "at D\* the issuer loses the clock" holds when
+   the pool keeps the attacker's stable. Flight removes it. Headline 4 is restated.
+7. **F-03 confirmed from the other side and qualified**: the cheaper-defense half holds
+   and is larger (flight removes stable as well as depth); the deeper-depeg half barely
+   appears because a reactive LP is one step behind the dump that sets the trough.
+8. **The panic threshold is inert** at every attack that matters — the third inert
+   trigger in the model (defender trigger, holder exit, LP panic): a first dump that puts
+   the price near $0.23 crosses everything. Recorded as a cross-finding note.
+
+### Acceptance Criteria Coverage
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | ✅ | `remove_liquidity`; execute branch; events; swap byte-identical (fixtures); k test amended + scaling pinned |
+| 2 | ✅ | `LiquidityProvider`, share arithmetic in docstring and pinned by two withdrawals; `LPConfig`; dispatch; hashes unchanged |
+| 3 | ✅ | holds / withdraws / stops / price unchanged / k scales / larger impact / records |
+| 4 | ✅ | `calibrated-baseline-lp.yaml` with assumptions stated; before/after table |
+| 5 | ✅ | `lp-flight-mc`; `plot_lp_flight`; `pool_depth_at_trough` (+ liquidity); reproduced |
+| 6 | ✅ | three answers with numbers; F-03 verdict |
+| 7 | ✅ | ADR-0031 |
+| 8 | ✅ | figure registered; `make figures` 893 s; guard ok; 886 tests; both CI jobs green |
+
+**8 of 8 ACs met.**
+
+### Key Findings
+
+- **F-15:** liquidity that flees a depeg and sits on what it withdrew helps the defender —
+  it leaves holding the attacker's stable. At calibrated depth a half-flighty pool takes a
+  1×-resources attack from never holding par to recovered in 22 h and deepens the trough
+  by under 1%. Share is the operative quantity; the panic threshold does nothing.
+- F-11 qualified (the clock at D\* assumes the pool keeps the stable); F-03 confirmed from
+  the other side.
+
+### Learnings for Epic 4
+
+- Three inert triggers now: when the first dump crosses every threshold, "when" never
+  matters, only "how much" and "how fast". The note can say this once, for all three.
+- A premise the charter stated as the "core Soros dynamic" came out inverted under a
+  stated condition. Write the condition first.
+
 ## Change Log
 
 - 2026-10-07: Story drafted by dev manager after Story 3.7 review (third and last Epic 3 stretch story)
 - 2026-10-08: Implemented (Claude Code on Seoul): AMM `remove_liquidity`, LP agent, `calibrated-baseline-lp`, `lp-flight-mc`, `plot_lp_flight`, ADR-0031 Proposed; Status: review
+- 2026-10-08: Senior review APPROVE; ADR-0031 accepted (finding, amended); F-15 added; F-03 and F-11 qualified; Status done; Epic 3 complete

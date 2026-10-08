@@ -1,0 +1,36 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>4</epicId><storyId>4.1</storyId><title>Figure Pass and Freeze</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-08</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/4-1-figure-pass-and-freeze.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader</asA><iWant>every figure the note uses final, captioned and regenerable, and the code frozen</iWant><soThat>the note is written against figures that will not change</soThat>
+    <tasks>- Policy panel and captions (AC: 1, 2) - Fits under the guard (AC: 3) - Note/figure set test (AC: 4) - Freeze (AC: 5, 6)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–6. No model changes; if one is needed, block.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/NOTE.md" section="Figure list">The note's set.</doc>
+      <doc path="docs/REPRODUCIBILITY.md" section="before the freeze">The checklist to execute.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_policy_comparison" reason="Panel (b)."/>
+      <existing path="scripts/fit_depth.py, fit_holder.py, fit_reversion.py" reason="--write."/>
+      <existing path="scripts/check_figures.py, make_figures.py" reason="Fit files."/>
+      <existing path="docs/figures/README.md, docs/calibration/" reason="Captions; fits index."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>
+    - No changes under src/depeg_sim/ except analysis/charts.py; every scenario hash unchanged; every run output byte-identical.
+    - Python 3.12-compatible.
+  </constraints>
+  <interfaces>
+    <interface name="docs/calibration/fits/*.json" kind="file">{script, script_sha256, inputs: {scenario, scenario_hash, data, data_sha256, args}, result}</interface>
+  </interfaces>
+  <tests>
+    <standards>pytest; the NOTE/figures one-to-one test; check_figures on a tmp fit file with a changed input.</standards>
+    <locations>tests/</locations>
+  </tests>
+</story-context>

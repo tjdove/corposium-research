@@ -27,7 +27,7 @@ one file per story, worked one at a time by Claude Code per `CLAUDE.md`.
 | 1. Kernel + first scenario | Oct 2–6 | Running engine, three agents, one scenario, first chart |
 | 2. Runner, calibration, validation | Oct 3–15 | Sweeps, Monte Carlo, calibrated parameters, USDC-2023 validation, headline threshold |
 | 3. What the model asked for | Oct 6–20 | Fill-price fix, defense-policy chart, 1992 switch-sides test, budget vs attack, repo hardening; stretch OU reference, multi-tranche holder, LP agent |
-| 4. Publication | Oct 22–31 | Research note, final charts, site page, one-pager, launch thread |
+| 4. Publication | Oct 9–31 (proposed freeze Oct 9) | Figure pass + freeze, research note, site page, one-pager, launch thread + outside read |
 
 ---
 
@@ -524,15 +524,76 @@ Single `panic_threshold_pct`; pool depth becomes endogenous; re-run the calibrat
 
 **Expanded Goal:**
 
-Ship the artifact. No new mechanics.
+Ship the artifact. No new mechanics. Code is frozen at the end of Story 4.1 (proposed
+**Oct 9**, charter decision); after that only figure polish, docs and the site change.
+The note is the product; the dev manager writes it from FINDINGS and NOTE.md; the builder's
+stories are the figure pass and the site build.
 
-**Story Count:** 5 stories (drafted at Epic 3 retro)
+**Dates:** Oct 9–28 · **Buffer:** Oct 29–31 (outside reader, scheduling) · **Publish:** Nov 1
 
-- **4.1 Research note** — 2,000–3,500 words, `docs/NOTE.md`, every chart reproduced by a named scenario
-- **4.2 Final charts** — consistent style, captions, source lines
-- **4.3 Site page** — static results page on corposium site
-- **4.4 One-pager** — media reuse
-- **4.5 Launch thread** — drafted, reviewed, scheduled for Nov 1
+**Story Count:** 5 stories (drafted at Epic 3 retro, 2026-10-08)
+
+---
+
+### Story 4.1: Figure Pass and Freeze
+
+As a **reader**,
+I want every figure the note uses to be final, captioned, and regenerable,
+So that the note can be written against figures that will not change.
+
+**Acceptance Criteria (summary):**
+1. `policy_comparison.png` panel (b) → average price paid per stable (3.2 review ruling 4); `threshold_surface_par.png` dropped from the note's set (stays in the record); captions in `docs/figures/README.md` rewritten to the note's wording (condition first)
+2. Fit-script outputs under the guard: `scripts/fit_depth.py`, `fit_holder.py` (single and ladder B), `fit_reversion.py` write `docs/calibration/fits/<name>.json` with inputs, result and script hash; `figures-check` verifies them like figures (3.5 review ruling 6)
+3. The note's figure set listed in `docs/NOTE.md` matches `docs/figures/README.md` one-to-one; each figure's footer carries scenario/sweep + hash; `make figures` clean; `make figures-check` clean with code hash
+4. `docs/REPRODUCIBILITY.md` freeze checklist executed and ticked, with the freeze commit hash recorded; a `v0.9-freeze` git tag
+5. `pytest`, `ruff`; both CI jobs green
+
+**Prerequisites:** Story 3.8
+
+---
+
+### Story 4.2: Research Note
+
+Dev manager writes `docs/NOTE.md` v1.0 from the outline (2,000–3,500 words) against the
+frozen figures; every number traced to a FINDINGS entry and a figure or a fit file; Tim's
+three open decisions resolved; one builder task: a `scripts/check_note.py` that verifies
+every figure path and hash cited in the note exists in the manifest.
+
+**Prerequisites:** Story 4.1
+
+---
+
+### Story 4.3: Site Page
+
+Static results page on the corposium site: abstract, the hero figure, three more figures
+with captions, links to the repo and the note; built from `docs/NOTE.md` and
+`docs/figures/`; Tim deploys.
+
+**Prerequisites:** Story 4.2
+
+---
+
+### Story 4.4: One-Pager
+
+One page for media reuse: the question, the validation figure, three findings in plain
+language, the reproduce-it-yourself command, contact. PDF generated from a source file in
+the repo.
+
+**Prerequisites:** Story 4.2
+
+---
+
+### Story 4.5: Launch Thread and Outside Read
+
+Launch thread drafted (eight to twelve posts, one figure each), reviewed by Tim; outside
+reader's comments logged and addressed in the note; posts scheduled for Nov 1 (Muse).
+
+**Prerequisites:** Stories 4.2–4.4
+
+---
+
+**Epic 4 Complete:** repo tagged `v1.0`, note published, site page live, one-pager and
+thread out.
 
 ---
 

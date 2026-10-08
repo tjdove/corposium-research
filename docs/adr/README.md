@@ -37,6 +37,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0028](0028-figure-guard-code-hash.md) | Stale-figure guard: fail on source hash, warn on code hash; freeze checklist is the hard gate | Accepted | 2026-10-06 |
 | [0029](0029-ou-reference-and-the-clock.md) | Mean-reverting reference (κ fitted, half-life 1.4 h); OU + par surface is clean 0/1; clock at D* unchanged; re-entry time reference-independent; F-04 resolved | Accepted (finding, amended) | 2026-10-07 |
 | [0030](0030-multi-tranche-holder-and-the-cliff.md) | Multi-tranche holder; ladder B (2/5/10/20%) fits −1,323 bps at 31.2 h (observed −1,373 at 31.0); the cliff becomes a staircase (F-09 narrowed) | Accepted (finding, amended) | 2026-10-07 |
+| [0031](0031-lp-withdrawal-and-liquidity-flight.md) | AMM remove_liquidity; LP withdrawal agent; liquidity that flees and holds what it withdrew helps the defender (F-15); panic threshold inert; F-03/F-11 qualified | Accepted (finding, amended) | 2026-10-08 |
 
 ## Template
 

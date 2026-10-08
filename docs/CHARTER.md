@@ -1,5 +1,5 @@
 # Corposium Research — Soros/ERM Stablecoin Depeg Simulator
-## Project Charter (v0.4 — 2026-10-05)
+## Project Charter (v0.5 — 2026-10-08)
 
 Owner: Tim Dove · Dev manager: Claude · Business ops: Muse (Meta)
 
@@ -92,9 +92,9 @@ Principle: credibility comes from grounded parameters and a validated trajectory
 - **Oct 2–6 — Epic 1, Kernel.** One scenario end to end; first chart; first build-in-public post.
 - **Oct 7–13 — Epic 2, Finding.** Runner, sweeps, Monte Carlo, calibration sources documented, USDC validation run. Headline threshold identified. *(Actual: Oct 3–5, nine stories, eleven findings.)*
 - **Oct 14 checkpoint:** if no clear finding, cut scope, not time (fall back to well-documented sensitivity study). *(Met early, 2026-10-05: F-08 validated against USDC March 2023; F-03/F-11 mechanism; F-10.)*
-- **Oct 6–20 — Epic 3, What the model asked for** (re-planned 2026-10-05). Holder fill-price fix; defender policy comparison; 1992 switch-sides test; budget vs attack; test hardening and repo polish. Stretch: mean-reverting reference, multi-tranche holder, LP agent. Anvil dropped.
-- **Oct 21 — Feature freeze.**
-- **Oct 22–28 — Epic 4, Write-up.** Note, charts final, site page, one-pager, launch thread. *(Note outline drafted from FINDINGS during Epic 3 so Epic 4 is editing, not writing.)*
+- **Oct 6–20 — Epic 3, What the model asked for** (re-planned 2026-10-05). Holder fill-price fix; defender policy comparison; 1992 switch-sides test; budget vs attack; test hardening and repo polish. Stretch: mean-reverting reference, multi-tranche holder, LP agent. Anvil dropped. *(Actual: Oct 5–8, all eight stories including stretch.)*
+- **Oct 21 — Feature freeze.** *(Proposed 2026-10-08: freeze at the end of Story 4.1, Oct 9 — all planned mechanics are built; Tim to confirm.)*
+- **Oct 9–28 — Epic 4, Write-up** (proposed). Figure pass and freeze (4.1), note (4.2), site page (4.3), one-pager (4.4), launch thread and outside read (4.5).
 - **Oct 29–31 — Buffer.** Outside reader review (reader to be lined up by Oct 15 — Tim/Muse); schedule posts.
 - **Nov 1 — Publish.**
 
@@ -176,3 +176,4 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-05 | Anvil/Foundry replay dropped from stretch: no finding depends on it and it costs 2–3 days of plumbing | Claude, Tim agreed |
 | 2026-10-05 | Note outline (`docs/NOTE.md`) drafted during Epic 3, not after the freeze; outside reader to be secured by Oct 15 | Claude, Tim agreed |
 | 2026-10-06 | Principle added: the analogy is a tool, not a thesis; divergences from 1992 are results and structure the note | Tim |
+| 2026-10-08 | Epic 3 closed in three days with all stretch items. Proposed: freeze at the end of Story 4.1 (Oct 9) instead of Oct 21; Epic 4 runs Oct 9–28; buffer and Nov 1 unchanged | Claude; Tim to confirm |

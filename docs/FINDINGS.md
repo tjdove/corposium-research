@@ -713,7 +713,53 @@ together.
 
 ---
 
-## Headline candidates (ranked, 2026-10-06, revised after 3.4)
+## F-15 · Liquidity that flees a depeg — and sits on what it withdrew — helps the defender
+
+**Date:** 2026-10-08 · **ADR:** [0031](adr/0031-lp-withdrawal-agent.md) · **Story:** 3.8
+**Reproduce:** `python -m depeg_sim.sweep sweeps/lp-flight-mc.yaml --mc --workers 8` (≈ 1 min;
+5.5 min on 2 cores); `python scripts/lp_flight_table.py` for the no-LP comparison;
+`plot_lp_flight`.
+
+**Expected.** Liquidity providers who pull out below a panic threshold — the charter's
+"core Soros dynamic" — would deepen the depeg by 30–60% and, by F-03, make the defense
+cheaper; their own withdrawals would feed their own panic.
+
+**Observed.** At calibrated depth, a pool of which 25 / 50 / 75% flees takes a 1×-resources
+attack from "never holds par" (0 of 8 runs) to recovered in 35.4 / 22.5 / 9.5 h (8 of 8);
+at 0.7× from 0/8 to 8/8. The trough deepens by at most 0.9% (and 0% at the episode-size
+attack). The panic threshold (2–20%) changes nothing at any attack size; share is the
+operative quantity. Flight feeds its own panic weakly below ≈ 10% (up to 2.25× more
+withdrawal steps) but never cascades and never deepens the trough it reacts to. The
+defender spends less (−5.5% in the base scenario).
+
+**Why.** F-02 said depth could matter only if the attacker's stable had a third place to
+go. A withdrawing LP is that place: it leaves pro rata with the pool *as it stands after
+the dump*, which is full of the attacker's stable — at ratio 1.0, share 0.5, it leaves
+with 13.0M stable against the 8.3M it put in. The redemption channel then has 8.2M to
+clear instead of 10.9M, and the remaining pool is half as deep, so half as much buying
+brings it back to par. The trough is untouched because a reactive LP is one step behind
+the first dump that sets it.
+
+**The condition.** The LP in this model holds what it withdraws. An LP that dumped its
+withdrawn stable on the venue, or redeemed it, would be a second attacker or a second
+redeemer, and the sign could reverse. That is the next model (after Nov 1); the finding is
+stated with its condition every time.
+
+**What it changed.** F-11 is qualified: "at D\* the issuer loses the clock" holds when the
+pool keeps the attacker's stable; with any flighty share, the 0.7× and 1.0× cells go from
+0/8 to 8/8 recovered. F-03 is confirmed from the other side (cheaper defense, larger than
+the price channel alone) and qualified (the deeper-depeg half barely appears). Three
+triggers are now known to be inert when the first dump crosses them — defender (F-13),
+holder exit (F-14), LP panic (F-15): *when* never matters, only how much and how fast.
+
+**For the note.** The reflexive loop the 1992 story is built on — liquidity leaving when
+it is needed — does not, on its own, break a peg on-chain. It moves the attacker's stable
+out of the venue and into hands that, if they sit still, have absorbed the attack. What
+would break the peg is what those hands do next.
+
+---
+
+## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
    (F-08, confirmed) — validation chart; lead.
@@ -725,9 +771,9 @@ together.
 3. **"Spend slower than the attacker sells."** (F-13 + refinement) — the policy result in
    five words; the trigger does nothing; the slow attacker is the hard one; the 1992 echo
    writes itself.
-4. **"At issuer scale the binding constraint is not reserves but the clock."** (F-06 +
-   F-11) — throughput; explains why validation needed the buyer and why "recovery" is a
-   speed question.
+4. **"At issuer scale the binding constraint is not reserves but the clock — as long as
+   the venue keeps the attacker's stable."** (F-06 + F-11, qualified by F-15) — throughput;
+   explains why validation needed the buyer and why "recovery" is a speed question.
 5. **"Oracle lag is not a depeg risk factor at Chainlink's settings."** (F-10) — short,
    quotable, a flat chart.
 6. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
@@ -737,7 +783,10 @@ together.
 8. **"A disciplined believer is a redeemer in waiting."** (F-12) — now folded into 9.
 9. **"On-chain a believer who loses faith has two exits: the venue or the issuer. One
    breaks the price; only the other breaks the peg."** (F-12 + F-14) — the 1992 section's
-   result and the closing argument; could rise to 2 if the note is built around belief. — the 1992 section's
+   result and the closing argument; could rise to 2 if the note is built around belief.
+10. **"Liquidity that flees and sits still has absorbed the attack; what breaks the peg is
+    what it does next."** (F-15, with its condition) — the stretch result; inverts the
+    charter's premise; the note's bridge from Soros to on-chain. — the 1992 section's
    bridge to the switch-sides test (3.3).
 
 The note leads with 1 (overlay as figure 1), gives 2 and 4 as the two mechanisms with the

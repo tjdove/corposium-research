@@ -1,6 +1,6 @@
 # ADR-0031: LP withdrawal agent; liquidity flight helps the defender: the fleeing LP carries the attacker's stable out of the pool, and at D* the clock goes (F-03 confirmed from the other side, qualified)
 
-**Status:** Proposed (finding candidate)
+**Status:** Accepted (finding, amended in review 2026-10-08: F-15's condition — the LP holds what it withdrew — moved into the finding's first sentence; second depth metric kept; F-11 and F-03 qualified) (finding candidate)
 **Date:** 2026-10-08
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 3.8

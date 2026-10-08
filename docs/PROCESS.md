@@ -231,6 +231,9 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
   At each review: `list_thoughts` for the last few days, log any lead in
   `docs/LITERATURE.md` with its verification status, and never cite a relayed source
   until it is verified against the primary.
+- **L-17 — Read pytest's exit code, not the pipe's.** A 3.8 commit went in with four
+  failing tests because `pytest | tail` reported `tail`'s status. Builders use
+  `set -o pipefail` or read the summary line; reviewers re-run anyway.
 
 ---
 
