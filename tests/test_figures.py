@@ -94,7 +94,7 @@ def test_guard_fails_on_missing_png_or_source(tmp_path):
 
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 17
+    assert len(files) == len(set(files)) == 18
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
     assert {f.function_name for f in make_figures.FIGURES} == {

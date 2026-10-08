@@ -11,7 +11,10 @@ from depeg_sim.kernel.config import HolderConfig, ScenarioConfig, load_scenario
 
 SCENARIO_DIR = Path("scenarios")
 # Scenarios added after these snapshots, each pinned where it was added.
-ADDED_LATER = {"calibrated-baseline-ou"}  # Story 3.6: tests/test_calibrated_scenarios.py
+ADDED_LATER = {
+    "calibrated-baseline-ou",  # Story 3.6: tests/test_calibrated_scenarios.py
+    "usdc-2023-tranches",  # Story 3.7: tests/test_holder_tranches.py
+}
 
 # content_hash() of every scenario as of Story 2.5 (commit 9a62e23), before HolderConfig
 # existed. With any holder entries removed, each scenario must still hash to this value:

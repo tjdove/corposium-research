@@ -18,6 +18,14 @@ Selection rule (story 2.6 AC 4), applied mechanically:
 
 Prints the grid table, the two refinement tables, then ``C* = <units> (trough <bps>) ≈
 $<dollars>`` with dollars = units / s (SOURCES.md). ``--dry-run`` prints the grid and exits.
+
+``--tranches entry:share,…`` (Story 3.7) gives the holder a ladder of entry prices instead
+of ``--entry-discount`` (e.g. ``1:0.5,2:0.3,5:0.2``); ``capital`` is the ladder's total and
+the rule above is unchanged. Sweep directories get a ``-tranches-<entries>`` suffix so the
+three ladders' runs do not overwrite each other.
+
+``--at-multiples-of C`` (Story 3.7's cliff test) skips the fit: it runs the holder at
+``round(C x m)`` for ``m`` in ``MULTIPLES`` and prints that one table.
 """
 
 from __future__ import annotations
@@ -34,26 +42,46 @@ from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 
 GRID = [1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000, 100_000_000]
 REFINE_POINTS = 5
+MULTIPLES = [0.8, 0.9, 1.0, 1.1, 1.2]  # the cliff test (Story 3.7 AC 4)
 S = 1_000_000 / 234_600_000  # model units per $ (SOURCES.md)
 HOLDER_ID = "holder-1"
 CAPITAL_PATH = "agents[type=holder].capital"
 COLUMNS = ["holder_capital", "max_depeg_bps", "step_of_max_depeg", "terminated_by", "steps_run"]
 
 
-def with_holder(scenario: Path, entry_discount: float, pace: float) -> ScenarioConfig:
-    """The scenario with exactly one holder (capital is a placeholder; the sweep sets it)."""
+def parse_tranches(text: str) -> list[tuple[float, float]]:
+    """``"1:0.5,2:0.3,5:0.2"`` -> ``[(1.0, 0.5), (2.0, 0.3), (5.0, 0.2)]``."""
+    pairs = []
+    for item in text.split(","):
+        entry, sep, share = item.strip().partition(":")
+        if not sep:
+            raise argparse.ArgumentTypeError(f"tranche {item!r} is not entry:share")
+        pairs.append((float(entry), float(share)))
+    return pairs
+
+
+def with_holder(
+    scenario: Path,
+    entry_discount: float,
+    pace: float,
+    tranches: list[tuple[float, float]] | None = None,
+) -> ScenarioConfig:
+    """The scenario with exactly one holder (capital is a placeholder; the sweep sets it).
+    With ``tranches`` the holder has that ladder instead of ``entry_discount``."""
     data = load_scenario(scenario).model_dump(mode="json")
     agents = [a for a in data["agents"] if a["type"] != "holder"]
-    agents.append(
-        {
-            "type": "holder",
-            "id": HOLDER_ID,
-            "capital": GRID[0],
-            "entry_discount_pct": entry_discount,
-            "pace": pace,
-            "redeem_when_capacity": True,
-        }
-    )
+    holder = {
+        "type": "holder",
+        "id": HOLDER_ID,
+        "capital": GRID[0],
+        "entry_discount_pct": entry_discount,
+        "pace": pace,
+        "redeem_when_capacity": True,
+    }
+    if tranches is not None:
+        del holder["entry_discount_pct"]
+        holder["tranches"] = [{"entry_discount_pct": e, "share": s} for e, s in tranches]
+    agents.append(holder)
     data["agents"] = agents
     return ScenarioConfig.model_validate(data)
 
@@ -117,25 +145,52 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--target-bps", type=float, default=-1373.0)
     p.add_argument("--entry-discount", type=float, default=2.0)
     p.add_argument("--pace", type=float, default=0.05)
+    p.add_argument(
+        "--tranches",
+        type=parse_tranches,
+        default=None,
+        help="entry:share,… ladder replacing --entry-discount (Story 3.7)",
+    )
+    p.add_argument(
+        "--at-multiples-of",
+        type=int,
+        default=None,
+        metavar="C",
+        help="no fit: run capital round(C x m) for m in 0.8..1.2 (the cliff test)",
+    )
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--output", type=Path, default=Path("output"))
     p.add_argument("--dry-run", action="store_true", help="List the grid and exit")
     args = p.parse_args(argv)
 
+    entry = (
+        f"entry_discount_pct={args.entry_discount:g}"
+        if args.tranches is None
+        else "tranches=" + ",".join(f"{e:g}:{s:g}" for e, s in args.tranches)
+    )
     print(
         f"fit_holder: scenario={args.scenario} target_bps={args.target_bps:g} "
-        f"entry_discount_pct={args.entry_discount:g} pace={args.pace:g}"
+        f"{entry} pace={args.pace:g}"
     )
     print(f"grid ({len(GRID)}): " + ", ".join(f"{c:,}" for c in GRID))
     if args.dry_run:
         return 0
 
-    cfg = with_holder(args.scenario, args.entry_discount, args.pace)
-    base = write_base(cfg, args.output / "fit-holder-base")
-    grid = run_table(spec_for("fit-holder", base, GRID), args.output, args.workers)
+    cfg = with_holder(args.scenario, args.entry_discount, args.pace, args.tranches)
+    tag = (
+        "" if args.tranches is None else "-tranches-" + "-".join(f"{e:g}" for e, _ in args.tranches)
+    )
+    base = write_base(cfg, args.output / f"fit-holder-base{tag}")
+    if args.at_multiples_of is not None:
+        caps = [int(round(args.at_multiples_of * m)) for m in MULTIPLES]
+        table = run_table(spec_for(f"fit-holder-cliff{tag}", base, caps), args.output, args.workers)
+        table.insert(1, "multiple", MULTIPLES)
+        show(f"cliff test at multiples of {args.at_multiples_of:,}:", table)
+        return 0
+    grid = run_table(spec_for(f"fit-holder{tag}", base, GRID), args.output, args.workers)
     show(f"grid pass (target {args.target_bps:g} bps):", grid)
     seen = grid
-    for n, name in enumerate(("fit-holder-refine", "fit-holder-refine2"), start=1):
+    for n, name in enumerate((f"fit-holder-refine{tag}", f"fit-holder-refine2{tag}"), start=1):
         pick = int(closest(seen, args.target_bps)["holder_capital"])
         lo, hi = neighbours(seen["holder_capital"].astype(int).tolist(), pick)
         refined = run_table(spec_for(name, base, refine_between(lo, hi)), args.output, args.workers)

@@ -333,3 +333,33 @@ def test_single_tranche_byte_identical_with_trace_on_a_short_window(tmp_path):
     fa, fb = _files(a.run_dir), _files(b.run_dir)
     assert "decisions.jsonl" in fa and b"hold_buy" in fa["decisions.jsonl"]
     assert fa == fb
+
+
+# AC 5: the best ladder as its own replay scenario -----------------------------------------
+
+TRANCHES_SCENARIO = SCENARIO_DIR / "usdc-2023-tranches.yaml"
+LADDER_B = [(2.0, 0.25), (5.0, 0.25), (10.0, 0.25), (20.0, 0.25)]
+C_STAR_B = 10_833_333  # scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,20:0.25
+
+
+def test_every_scenario_but_the_new_one_is_pinned_above():
+    found = {p.stem for p in SCENARIO_DIR.glob("*.yaml")}
+    assert found - set(HASHES_BEFORE_3_7) == {"usdc-2023-tranches"}
+
+
+def test_tranches_scenario_is_the_replay_with_ladder_b():
+    cfg = load_scenario(TRANCHES_SCENARIO)
+    assert cfg.content_hash() == (
+        "da3383d4e156754f3f16f95808704acc650afb11c3754dcca321347e004a5868"
+    )
+    (hold,) = [a for a in cfg.agents if a.type == "holder"]
+    assert hold.capital == C_STAR_B and hold.entry_discount_pct is None
+    assert [(t.entry_discount_pct, t.share) for t in hold.tranches] == LADDER_B
+    assert (hold.pace, hold.redeem_when_capacity, hold.exit_discount_pct) == (0.05, True, None)
+    # everything else is the replay's own
+    replay = load_scenario(USDC).model_dump(mode="json")
+    mine = cfg.model_dump(mode="json")
+    for data in (replay, mine):
+        del data["name"]
+        data["agents"] = [a for a in data["agents"] if a["type"] != "holder"]
+    assert mine == replay

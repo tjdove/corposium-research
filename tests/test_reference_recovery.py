@@ -85,7 +85,10 @@ BEFORE_2_8 = {  # content_hash of every scenario at b29c7c0, before the field ex
 
 
 def test_every_scenario_hash_unchanged():
-    later = {"calibrated-baseline-ou.yaml"}  # Story 3.6, pinned in test_calibrated_scenarios.py
+    later = {  # pinned where they were added
+        "calibrated-baseline-ou.yaml",  # Story 3.6, test_calibrated_scenarios.py
+        "usdc-2023-tranches.yaml",  # Story 3.7, test_holder_tranches.py
+    }
     found = {
         p.name: load_scenario(p).content_hash()
         for p in Path("scenarios").glob("*.yaml")

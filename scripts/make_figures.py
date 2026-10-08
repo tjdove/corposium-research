@@ -88,6 +88,11 @@ FIGURES = (
         charts.plot_validation_overlay,
     ),
     Figure(
+        "validation_overlay_usdc_2023_tranches.png",
+        "scenarios/usdc-2023-tranches.yaml",
+        charts.plot_validation_overlay,
+    ),
+    Figure(
         "threshold_surface.png",
         "sweeps/threshold-surface-ref-mc.yaml",
         charts.plot_threshold_surface,

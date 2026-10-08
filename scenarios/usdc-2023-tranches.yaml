@@ -1,0 +1,65 @@
+# USDC March-2023 replay with a multi-tranche holder (Story 3.7, F-09 cliff test).
+# Identical to scenarios/usdc-2023.yaml (which is untouched; read its header for every
+# other parameter, the timestamps and the 2.5/2.6/3.1 fits) except:
+#   - name: usdc-2023-tranches
+#   - the holder enters at a ladder of prices instead of one 2% entry (status assumption):
+#       ladder B of Story 3.7 AC 3: 2%, 5%, 10%, 20% below par, 25% of capital each.
+#     The three ladders (A 1/2/5 at 50/30/20; B; C 1/2/5/10/15 at 20% each) were fixed in
+#     the story before any run and are not tuned; B is the one whose fitted trough is
+#     closest to -1373 (ADR-0030, Story 3.7 Completion Notes).
+#   - holder capital 10,833,333 (status assumption, fitted to observed trough, Story 3.7):
+#     scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,20:0.25, the unchanged two-pass
+#     rule with D* fixed; achieved -1323.3 bps at step 9346 (≈ $2.54B at s, 0.94x the
+#     attacker's episode net burn; 1.18x the single-entry C* 9,166,667).
+#   pace 0.05 and redeem_when_capacity true are unchanged (SOURCES.md#holder).
+version: 1
+name: usdc-2023-tranches
+seed: 42
+steps:
+  interval_seconds: 12
+  max_steps: 33600
+assets:
+  - { symbol: STABLE, decimals: 18 }
+  - { symbol: REF, decimals: 18 }
+amm:
+  reserve_stable: 16_666_667
+  reserve_reference: 16_666_667
+  fee_bps: 1
+oracle:
+  heartbeat_steps: 6900
+  deviation_threshold_pct: 0.25
+redemption:
+  reserves: 138_107_417
+  spread_bps: 0
+  capacity_per_step: 605.79
+  peg_price: 1.0
+  capacity_schedule:
+    # 138,107,417 / 7,200 = 19,181.59: the whole reserve could be paid in one day, so any
+    # payable queue clears within a day of the reopening
+    - { step: 25500, capacity_per_step: 19181.59 }
+environment:
+  base_price: 1.0
+  volatility_per_step: 0.0
+  shocks: []
+  price_series_path: ../data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv
+agents:
+  - { type: attacker, id: attacker-1, capital: 11_540_596, start_step: 8100, pace: 0.002 }
+  - { type: arbitrageur, id: arb-1, capital: 200_000, min_profit_bps: 20, latency_steps: 1 }
+  - { type: defender, id: defender-1, budget: 41_346_974, threshold_pct: 99.0, spend_pace: 0.2 }
+  - type: holder
+    id: holder-1
+    capital: 10_833_333
+    tranches:
+      - { entry_discount_pct: 2.0, share: 0.25 }
+      - { entry_discount_pct: 5.0, share: 0.25 }
+      - { entry_discount_pct: 10.0, share: 0.25 }
+      - { entry_discount_pct: 20.0, share: 0.25 }
+    pace: 0.05
+    redeem_when_capacity: true
+termination:
+  reserves_exhausted: true
+  max_steps: true
+metrics:
+  record_every: 1
+  trace_decisions: false
+  checkpoint_every: 6900

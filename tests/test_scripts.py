@@ -205,3 +205,34 @@ def test_fit_reversion_on_the_calm_series_matches_the_scenario():
     k = fr.kappa_step(fit.phi, 12)
     cfg = load_scenario("scenarios/calibrated-baseline-ou.yaml")
     assert cfg.environment.mean_reversion_per_step == float(f"{k:.4g}")
+
+
+# Story 3.7: fit_holder --tranches ------------------------------------------------------
+
+
+def test_fit_holder_tranches_dry_run():
+    text = dry_run("fit_holder.py", "--tranches", "2:0.25,5:0.25,10:0.25,20:0.25")
+    assert "tranches=2:0.25,5:0.25,10:0.25,20:0.25 pace=0.05" in text
+    assert "grid (7): 1,000,000" in text
+
+
+def test_fit_holder_parse_tranches_and_holder():
+    import argparse
+    from pathlib import Path
+
+    sys.path.insert(0, "scripts")
+    from fit_holder import parse_tranches, with_holder
+
+    ladder = parse_tranches("1:0.2, 2:0.2,5:0.2,10:0.2,15:0.2")
+    assert ladder == [(1.0, 0.2), (2.0, 0.2), (5.0, 0.2), (10.0, 0.2), (15.0, 0.2)]
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_tranches("1,2")
+    cfg = with_holder(Path("scenarios/usdc-2023.yaml"), 2.0, 0.05, ladder)
+    (hold,) = [a for a in cfg.agents if a.type == "holder"]
+    assert hold.entry_discount_pct is None and len(hold.tranches) == 5
+    (single,) = [
+        a
+        for a in with_holder(Path("scenarios/usdc-2023.yaml"), 2.0, 0.05).agents
+        if a.type == "holder"
+    ]
+    assert single.tranches is None and single.entry_discount_pct == 2.0
