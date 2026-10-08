@@ -1,133 +1,133 @@
 {
   "budget_attack": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "budget_attack.png",
     "function": "depeg_sim.analysis.charts.plot_budget_attack",
     "source": "sweeps/budget-x-attack-mc.yaml",
     "source_hash": "3cab85fc7fe131f833ccd5d5cf6693dde2b4e6f8acec685e3bcea12d0a2806f5"
   },
   "budget_depth": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "budget_depth.png",
     "function": "depeg_sim.analysis.charts.plot_budget_depth",
     "source": "sweeps/budget-x-depth-mc.yaml",
     "source_hash": "b3359c3fbb148ebbf45d300bf3e01285a2cf55bb7a8ffa86b190814628ef9a6c"
   },
-  "code_hash": "c72e8639692acd59e43b1dc9fcfc9cc044f67f1e9613c46dfa7bff2215551415",
+  "code_hash": "a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150",
   "holder_exit": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "holder_exit.png",
     "function": "depeg_sim.analysis.charts.plot_holder_exit",
     "source": "sweeps/holder-exit-1992-mc.yaml",
     "source_hash": "c809e733d7afd3ef09ddb17c6b7b5e9af2e4c940e2bd31e753f4ebde0951ef9e"
   },
   "lp_flight": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "lp_flight.png",
     "function": "depeg_sim.analysis.charts.plot_lp_flight",
     "source": "sweeps/lp-flight-mc.yaml",
     "source_hash": "2ae78ebb5df2433d9dfe68541361e710c4ca4628206a88fc2d3beb18f858dbf2"
   },
   "oracle_sensitivity": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "oracle_sensitivity.png",
     "function": "depeg_sim.analysis.charts.plot_oracle_sensitivity",
     "source": "sweeps/oracle-lag-mc.yaml",
     "source_hash": "18c9c46f05fe9212bab2f4bb21cc402e01ecda6e7d046ce546b97cf7cfc56a68"
   },
   "pace_ratio": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "pace_ratio.png",
     "function": "depeg_sim.analysis.charts.plot_pace_ratio",
     "source": "sweeps/pace-ratio-mc.yaml",
     "source_hash": "f7191efa2f369e64a7f0a15d63010540a5c96a6ef6ec38efdc13b6a4b4ea5b8f"
   },
   "pace_trigger": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "pace_trigger.png",
     "function": "depeg_sim.analysis.charts.plot_pace_trigger",
     "source": "sweeps/pace-x-trigger-mc.yaml",
     "source_hash": "b246a80b9310fd842c7be8f0686fc1d4e5f9571d350bcd172924de8f045a3df3"
   },
   "peg_trajectory_1992": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "peg_trajectory_1992.png",
     "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
     "source": "scenarios/soros-1992.yaml",
     "source_hash": "f4e26ae664407d5e53b761d54bfd3b0d29e7b773c8af4a0253753f95cce86270"
   },
   "peg_trajectory_1992_no_defense": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "peg_trajectory_1992_no_defense.png",
     "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
     "source": "scenarios/soros-1992-no-defense.yaml",
     "source_hash": "516edaef47958a1c24474d75ff18ef9a56a749570c860efd362564d05bffc02b"
   },
   "peg_trajectory_baseline": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "peg_trajectory_baseline.png",
     "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
     "source": "scenarios/soros-baseline.yaml",
     "source_hash": "2e09f431ce748e725a3ab84c123711b08b16e276b6af05ee506caa7daac5dd85"
   },
   "peg_trajectory_calibrated": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "peg_trajectory_calibrated.png",
     "function": "depeg_sim.analysis.charts.plot_peg_trajectory",
     "source": "scenarios/calibrated-baseline.yaml",
     "source_hash": "44ac03c60e5f561cc88e9d2a3e00a11dfccf3893ef95e326c2348195ec1c9d4a"
   },
   "policy_comparison": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "policy_comparison.png",
     "function": "depeg_sim.analysis.charts.plot_policy_comparison",
     "source": "sweeps/policy-comparison-mc.yaml",
     "source_hash": "3e0793936a37544badfbbab0e5df36aab92787f23f8d3f497a4c67f1c084b2ba"
   },
   "threshold_surface": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "threshold_surface.png",
     "function": "depeg_sim.analysis.charts.plot_threshold_surface",
     "source": "sweeps/threshold-surface-ref-mc.yaml",
     "source_hash": "8ade9cb3fee88b376505e13eb5cbc7dc21898ab3ab5f46207f7bec7c7f69bfed"
   },
   "threshold_surface_ou": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "threshold_surface_ou.png",
     "function": "depeg_sim.analysis.charts.plot_threshold_surface",
     "source": "sweeps/threshold-surface-ou-mc.yaml",
     "source_hash": "80b700c2e9bf9639a9d77fc80ea4c955b084dcbf86809f8fd8931cc707bc862e"
   },
   "threshold_surface_par": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "threshold_surface_par.png",
     "function": "depeg_sim.analysis.charts.plot_threshold_surface",
     "source": "sweeps/threshold-surface-mc.yaml",
     "source_hash": "74cb63b6a965327295148dc5ac709271197346e025a5f87533c60134cdbd3203"
   },
   "time_to_parity": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "time_to_parity.png",
     "function": "depeg_sim.analysis.charts.plot_time_to_parity",
     "source": "sweeps/threshold-surface-ref-mc.yaml",
     "source_hash": "8ade9cb3fee88b376505e13eb5cbc7dc21898ab3ab5f46207f7bec7c7f69bfed"
   },
   "time_to_parity_ou": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "time_to_parity_ou.png",
     "function": "depeg_sim.analysis.charts.plot_time_to_parity",
     "source": "sweeps/threshold-surface-ou-mc.yaml",
     "source_hash": "80b700c2e9bf9639a9d77fc80ea4c955b084dcbf86809f8fd8931cc707bc862e"
   },
   "validation_overlay_usdc_2023": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "validation_overlay_usdc_2023.png",
     "function": "depeg_sim.analysis.charts.plot_validation_overlay",
     "source": "scenarios/usdc-2023.yaml",
     "source_hash": "2c3aeaa9825d0c04a937ba6b1c97087bc59547b2ccf5e9b344e83b6dc3871531"
   },
   "validation_overlay_usdc_2023_tranches": {
-    "commit": "6f2859d47e449b17859a20e1a212aa0b6a3a5585",
+    "commit": "ae0f39f33b03fdc3483d26a509c6b0c4bc601e10",
     "file": "validation_overlay_usdc_2023_tranches.png",
     "function": "depeg_sim.analysis.charts.plot_validation_overlay",
     "source": "scenarios/usdc-2023-tranches.yaml",
