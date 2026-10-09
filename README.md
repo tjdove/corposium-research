@@ -70,7 +70,7 @@ model's trough is four times too deep: the depth of a depeg is set by the attack
 against everyone who believes the promise. See
 [the validation finding and its confirmation](docs/FINDINGS.md#f-08--the-replay-fails-validation-the-model-has-no-buyer-of-the-discounted-promise).
 
-![Time to parity over pool depth and attacker capital](docs/figures/time_to_parity.png)
+![Time to parity over pool depth and attacker capital](docs/figures/time_to_parity_ou.png)
 
 **Price or clock.** Median hours from run start until the pool is back within ±31 bps of
 the oracle price, over pool depth (rows, × the fitted depth D\*) and attacker capital
