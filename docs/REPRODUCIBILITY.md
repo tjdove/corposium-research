@@ -122,15 +122,28 @@ The feature freeze (2026-10-21) and any release of the note's numbers pass this 
 The guard's code-hash warning is soft on purpose (a docstring edit does not move a
 number); this checklist is the hard gate.
 
-- [ ] `git status` clean on `main`, at the commit the note will cite.
-- [ ] Clean venv: `pip install -e ".[dev]"` succeeds on Python 3.12.
-- [ ] `make test lint` passes (tests, coverage ≥ 85% on `protocol/` and `agents/`,
+- [x] `git status` clean on `main`, at the commit the note will cite.
+- [x] Clean venv: `pip install -e ".[dev]"` succeeds on Python 3.12.
+- [x] `make test lint` passes (tests, coverage ≥ 85% on `protocol/` and `agents/`,
       `ruff check`, `ruff format --check`).
-- [ ] `make figures` on a machine with ≥ 40 GB free under `output/`; record its wall time.
-- [ ] Commit the regenerated `docs/figures/*.png` and `manifest.json`.
-- [ ] `make figures-check` prints `ok, N figures match their sources (code_hash matches)`
+- [x] `make figures` on a machine with ≥ 40 GB free under `output/`; record its wall time.
+- [x] Commit the regenerated `docs/figures/*.png` and `manifest.json`.
+- [x] `make figures-check` prints `ok, N figures match their sources (code_hash matches)`
       with **no** `WARNING` line.
-- [ ] Every number quoted in the README, `docs/figures/README.md` captions and the note
+- [x] Every number quoted in the README, `docs/figures/README.md` captions and the note
       re-read against the regenerated figures and tables; any that moved is fixed or
       explained.
-- [ ] CI green on that commit, both jobs, checked by looking at the run.
+- [x] CI green on that commit, both jobs, checked by looking at the run.
+
+**Executed 2026-10-08 (Story 4.1; command output in its Debug Log).** Freeze commit
+**`76e7a1cf6a034f42d3e701b40d3cc3330303853d`**, tag **`v0.9-freeze`**: code, the 19
+regenerated figures, `manifest.json` and the 4 fit records; `code_hash`
+`a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150`. Figures drawn at
+`ae0f39f` (same code hash; the freeze commit adds only the figures, manifest, this file's
+timings and ADR-0032). Clean venv: Python 3.12.13, install 40 s, 907 passed, coverage
+99.06%. `make figures` 934 s on Seoul, 12 workers, 646 GB free; only
+`policy_comparison.png` changed bytes, the other 18 figures and all 4 fit records are
+byte-identical, so no quoted number moved. The commit that records this hash changes only
+documentation, so the guard is clean at both. CI on the freeze commit: run
+[37860754187](https://github.com/tjdove/corposium-research/actions/runs/37860754187), `test`
+and `figures-quick` both success.
