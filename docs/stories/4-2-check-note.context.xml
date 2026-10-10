@@ -1,0 +1,27 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>4</epicId><storyId>4.2</storyId><title>Research Note — check_note.py</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-09</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/4-2-check-note.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader of the note</asA><iWant>a script proving every figure and fitted number the note cites is the one in the repo</iWant><soThat>the note cannot drift from the frozen code</soThat>
+    <tasks>- Figure checks (AC: 1, 2) - Freeze check (AC: 3) - Number table (AC: 4) - Make + CI (AC: 5) - Tests (AC: 6, 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–7. Code is frozen: no changes under src/, scenarios/, sweeps/, docs/figures/. Do not edit NOTE.md prose; a failing check against the committed note is a block, not a fix.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/NOTE.md">Text under check; figure-list table near the end.</doc>
+      <doc path="docs/figures/README.md" section="Record only">The four figures that must not be cited.</doc>
+      <doc path="docs/calibration/fits/">Four fit records; result dicts are ground truth.</doc>
+    </docs>
+    <code>
+      <existing path="scripts/check_figures.py" reason="Pattern: ok lines, exit codes, argparse."/>
+      <existing path="scripts/fit_record.py" reason="Record schema."/>
+      <existing path="tests/test_note_figures.py" reason="Figure-list table parser to reuse."/>
+      <existing path="Makefile, .github/workflows/ci.yml" reason="note-check target and CI line."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Python 3.12; ruff clean; deterministic; never claim unrun numbers — paste command output in the Debug Log.</constraints>
+</story-context>
