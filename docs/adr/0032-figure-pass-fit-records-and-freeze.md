@@ -1,6 +1,6 @@
 # ADR-0032: Figure pass, fit records under the guard, and how the freeze commit is cited
 
-**Status:** Proposed
+**Status:** Accepted (review 2026-10-09, unamended)
 **Date:** 2026-10-08
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 4.1

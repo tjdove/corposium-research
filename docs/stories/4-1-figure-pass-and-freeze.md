@@ -1,6 +1,6 @@
 # Story 4.1: Figure Pass and Freeze
 
-Status: review
+Status: done
 
 ## Story
 
@@ -254,7 +254,38 @@ $ git rev-parse v0.9-freeze^{commit}
 - `tests/test_policy_comparison.py` (synthetic `sweep.parquet`, `_price_paid` test)
 - `docs/stories/4-1-figure-pass-and-freeze.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-09 · **Verdict: APPROVE**
+
+Reproduced independently on the review box at tag `v0.9-freeze` (commit `76e7a1c`):
+`git describe --tags` → `v0.9-freeze`; `pytest -q` → 907 passed; `make figures-check`
+→ `ok: 19 figures` and `ok: 4 fits`, code hash `a0ae9594…` matching
+`docs/REPRODUCIBILITY.md`. Verified that the documentation-only commit after the freeze
+touches nothing under `src/`, `scripts/`, `scenarios/` or `sweeps/` (`git diff --stat
+v0.9-freeze..main`), so the recorded hash is the hash of the code that drew the figures.
+Guard failure path re-proved by editing `capacity_per_step` in a scenario copy and
+running the check: fails on the source hash as specified.
+
+**Rulings**
+
+1. **ADR-0032 accepted, unamended.** Panel (b) as a per-run ratio in `charts.py` is the
+   right place; the zero-width band is a true statement about the committed sweep, not a
+   bug, and the caption says so.
+2. **Figure list stays as the builder left it.** The † rows are the record the note's
+   claims rest on; none is moved to the record-only set. The note (Story 4.2) cites nine
+   of them inline and the rest through `docs/figures/README.md`.
+3. **README figure swap done by the dev manager** on `story/4-2-note`: the hero figure is
+   now `time_to_parity_ou.png`, matching the note's §2 choice of the reverting reference.
+
+**Minor, no action:** the policy panel legend title names the two excluded policies; good.
+Fit records with `data: null` for the depth fit are correct and the test pins the bytes.
+
+**Lessons:** none new. L-14 (push before "ready") held: the builder fast-forwarded main
+and pushed the tag before reporting.
+
 ## Change Log
 
 - 2026-10-08: Story drafted by dev manager at the Epic 3 retro
 - 2026-10-08: Implemented (builder): policy panel (b) price paid, captions, fit records under the guard, note/figure set test, freeze checklist executed; freeze commit `76e7a1c`, tag `v0.9-freeze`; Status: review
+- 2026-10-09: Reviewed by dev manager — APPROVE; ADR-0032 accepted; Status: done
