@@ -22,6 +22,8 @@ Read order for a cold start: `CHARTER.md` → `epics.md` → this file → `adr/
 | Design decisions and rulings on builder flags | `docs/adr/NNNN-*.md`, index in `adr/README.md` | builder proposes, dev manager accepts/amends/rejects |
 | What the model has shown (narrative for the note) | `docs/FINDINGS.md` | dev manager, append-only |
 | Tim's 1992 research and the analogy map | `docs/BACKGROUND.md` | Tim |
+| The March 2023 USDC event (validation case) | `docs/USDC-2023.md` | Tim with dev manager |
+| Plain-language guide to the findings | `docs/GUIDE.md` | Tim with dev manager |
 | Calibration provenance and validation result | `docs/calibration/SOURCES.md`, `VALIDATION.md`, `data/` | builder, reviewed |
 | Per-epic retro | `docs/retrospectives/epic-N-retro.md` | dev manager |
 | Outside literature and event leads, with verification status | `docs/LITERATURE.md` | dev manager; Muse relays via Open Brain |

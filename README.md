@@ -161,6 +161,8 @@ All committed figures, with source, caption and the finding each supports:
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) — what the model has shown, in the order it was learned
 - [`docs/NOTE.md`](docs/NOTE.md) — the research note (outline now; the note itself in the final weeks)
 - [`docs/BACKGROUND.md`](docs/BACKGROUND.md) — the 1992 ERM crisis and how it maps to the simulator
+- [`docs/USDC-2023.md`](docs/USDC-2023.md) — the March 2023 USDC depeg, the event the model is tested against
+- [`docs/GUIDE.md`](docs/GUIDE.md) — the findings in plain words
 - [`docs/LITERATURE.md`](docs/LITERATURE.md) — outside sources and events, with verification status
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) — versions, commands, timings and hashes for reproducing every figure
 - [`docs/adr/`](docs/adr/README.md) — architecture and research decision records
