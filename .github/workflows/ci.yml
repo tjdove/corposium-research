@@ -5,11 +5,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # note-check resolves the freeze tag (Story 4.2)
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: make lint test figures-check
+      - run: make lint test figures-check note-check
       - run: python run.py scenarios/soros-baseline.yaml --output /tmp/ci-run
       - uses: actions/upload-artifact@v4
         with:
