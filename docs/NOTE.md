@@ -81,6 +81,16 @@ late in the build, and it became a result (§7).
 
 ## 3. Calibration and validation
 
+**The event.** On Friday 10 March 2023 Silicon Valley Bank failed, and that night Circle
+disclosed that $3.3B of USDC's roughly $40B of reserves were held there. Holders sold. Banks
+were closed for the weekend, so Circle could barely redeem and exchanges paused
+conversions; by 2 am Saturday USDC traded at $0.87. On Sunday evening US authorities
+guaranteed SVB's deposits, on Monday banks reopened and redemptions resumed, and the price
+returned to par. No one attacked USDC. In the model the attacker stands in for the run: the
+episode's net $2.71B of selling, whoever did it and why. A token sold in fear moves the
+pool's price exactly as one sold for profit does. ([USDC-2023.md](USDC-2023.md) has the
+full account and its sources.)
+
 **Every parameter has a source.** Pool depth is anchored to the Curve 3pool's USDC leg; the
 oracle to Chainlink's USDC/USD feed (0.25% deviation, 82,800 s heartbeat); reserves and
 budget to Circle's disclosed 77/23 split of T-bills and cash; the redemption channel to the
@@ -339,4 +349,5 @@ figure not moved to the record); the dev manager may move any of them to the rec
 
 - 2026-10-06: Outline drafted by dev manager from FINDINGS F-01…F-14 during Epic 3 (Story 3.4 in build).
 - 2026-10-09: v1.0 draft written against the frozen figures (`v0.9-freeze`); Story 4.2.
+- 2026-10-13: §3 opens with the March 2023 event and says plainly that the attacker stands in for a run (Tim's read: the note never explained the event).
 - 2026-10-08: Figure list only, Story 4.1 (builder): one row per committed figure, matching `docs/figures/README.md`; `threshold_surface.png` and `time_to_parity.png` moved to record only; rows marked † added. Outline text not edited.
