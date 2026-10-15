@@ -10,7 +10,12 @@ spec or another base scenario.
 Writes ``docs/figures/<file>`` for each figure and ``docs/figures/manifest.json``::
 
     {"code_hash": "<sha256>",
-     "<figure>": {"file", "source", "source_hash", "function", "commit"}}
+     "<figure>": {"file", "source", "source_hash", "function", "commit"
+                  [, "second_source", "second_source_hash"]}}
+
+A figure with a ``second`` scenario (Story 5.1: a replay overlay with two simulated
+series) runs both and passes both run directories to its function; the manifest records
+the second source and its hash, and the guard checks it like the first.
 
 ``code_hash`` is ``check_figures.code_hash()`` over ``src/depeg_sim/**/*.py`` at drawing
 time (the guard warns when it differs); ``source_hash`` is ``check_figures.source_hash``
@@ -65,7 +70,8 @@ def _peg(run_dir: Path) -> Path:
 class Figure:
     file: str
     source: str
-    function: Callable[[Path], Path]
+    function: Callable[..., Path]
+    second: str | None = None
 
     @property
     def name(self) -> str:
@@ -91,6 +97,18 @@ FIGURES = (
         "validation_overlay_usdc_2023_tranches.png",
         "scenarios/usdc-2023-tranches.yaml",
         charts.plot_validation_overlay,
+    ),
+    Figure(
+        "validation_overlay_usdc_2023_par.png",
+        "scenarios/usdc-2023.yaml",
+        charts.plot_validation_overlay,
+        second="scenarios/usdc-2023-par.yaml",
+    ),
+    Figure(
+        "validation_overlay_usdc_2023_tranches_par.png",
+        "scenarios/usdc-2023-tranches.yaml",
+        charts.plot_validation_overlay,
+        second="scenarios/usdc-2023-tranches-par.yaml",
     ),
     Figure(
         "threshold_surface.png",
@@ -162,7 +180,10 @@ def render(fig: Figure, work: Path, sweeps_dir: Path) -> Path:
     if is_sweep(Path(fig.source)):
         return fig.function(sweeps_dir / load_sweep(fig.source).name)
     run = run_scenario(load_scenario(fig.source), output_dir=work / "runs", chart=True)
-    return fig.function(run.run_dir)
+    if fig.second is None:
+        return fig.function(run.run_dir)
+    second = run_scenario(load_scenario(fig.second), output_dir=work / "runs", chart=False)
+    return fig.function(run.run_dir, second.run_dir)
 
 
 def quick_sweeps(work: Path, workers: int) -> Path:
@@ -218,6 +239,11 @@ def main(argv: list[str] | None = None) -> int:
                 "function": fig.function_name,
                 "commit": commit,
             }
+            if fig.second is not None:
+                manifest[fig.name] |= {
+                    "second_source": fig.second,
+                    "second_source_hash": source_hash(Path(fig.second)),
+                }
     text = json.dumps(manifest, sort_keys=True, indent=2) + "\n"
     MANIFEST.write_text(text, encoding="utf-8")
     print(

@@ -12,7 +12,8 @@ make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
 ```
 
 The guard compares source hashes, not pixels: `content_hash()` for a scenario,
-`sweep_spec_hash()` (spec file bytes + base scenario hash) for a sweep. Each figure's
+`sweep_spec_hash()` (spec file bytes + base scenario hash) for a sweep. A figure drawn
+from two scenarios (the par-reference overlays) records and checks both. Each figure's
 footer prints the same hash (`hash=` for a scenario, `spec_hash=` for a sweep), so a
 reader can match a picture to its manifest entry. The manifest also records `code_hash`,
 sha256 over `src/depeg_sim/**/*.py` at drawing time; a mismatch only warns, and the
@@ -30,6 +31,8 @@ that are regenerated and guarded like the others but are not in the note.
 |---|---|---|---|
 | [`validation_overlay_usdc_2023.png`](validation_overlay_usdc_2023.png) | 3 | `scenarios/usdc-2023.yaml` | F-08 |
 | [`validation_overlay_usdc_2023_tranches.png`](validation_overlay_usdc_2023_tranches.png) | 3 | `scenarios/usdc-2023-tranches.yaml` | F-09 |
+| [`validation_overlay_usdc_2023_par.png`](validation_overlay_usdc_2023_par.png) | 3 | `scenarios/usdc-2023-par.yaml` (+ `scenarios/usdc-2023.yaml`, grey) | F-08 |
+| [`validation_overlay_usdc_2023_tranches_par.png`](validation_overlay_usdc_2023_tranches_par.png) | 3 | `scenarios/usdc-2023-tranches-par.yaml` (+ `scenarios/usdc-2023-tranches.yaml`, grey) | F-09 |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | 4 | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`time_to_parity_ou.png`](time_to_parity_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
 | [`threshold_surface_ou.png`](threshold_surface_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
@@ -68,6 +71,20 @@ entry prices (2, 5, 10 and 20% below par, a quarter of the capital each, an assu
 total capital fitted), the simulated price steps down through the entries (−220, −510,
 −1,005 bps) within 1.6 h of the attack, reaches its trough of −1,323 bps at 31.2 h against
 −1,373 bps observed at 31.0 h, and from ≈ 36 h follows the single-entry path.
+
+**`validation_overlay_usdc_2023_par.png`.** Nothing from the observed series is fed in:
+the reference is held at $1.00 for the whole run, and the observed hourly closes (blue)
+are used only for comparison. With the single-entry buyer, the simulated price (black)
+reaches its trough of −607 bps at 33.0 h against −1,373 bps observed at 31.0 h, and is
+back within ±31 bps of par at 37.2 h, against 86.0 h observed. Grey dashed: the same
+replay fed the observed series as its reference (trough −1,138 bps at 34.2 h).
+
+**`validation_overlay_usdc_2023_tranches_par.png`.** Nothing from the observed series is
+fed in: the reference is held at $1.00 for the whole run, and the observed hourly closes
+(blue) are used only for comparison. With the four-entry buyer, the simulated price
+(black) reaches its trough of −1,279 bps at 32.8 h against −1,373 bps observed at 31.0 h,
+and is back within ±31 bps of par at 40.4 h, against 86.0 h observed. Grey dashed: the
+same replay fed the observed series as its reference (trough −1,323 bps at 31.2 h).
 
 **`peg_trajectory_calibrated.png`.** At calibrated depth, with the episode-size attack
 (seed 42), the price falls to −1,253 bps and the defender buys it back within minutes; the
