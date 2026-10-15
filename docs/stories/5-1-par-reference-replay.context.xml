@@ -1,0 +1,27 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.1</storyId><title>Par-Reference Replay</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-15</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-1-par-reference-replay.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who doubts the replay</asA><iWant>the USDC replay with nothing from the observed series fed to the model</iWant><soThat>remaining agreement cannot be the input showing through</soThat>
+    <tasks>- Scenarios par/OU pairs (AC: 1, 2) - replay_table.py (AC: 3) - Overlay second series, figures (AC: 4) - VALIDATION.md section (AC: 5, 6) - Tests (AC: 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story file ACs 1–7. Do not re-fit anything. Report the number whatever it is. Freeze lifted for Epic 5 only; change only what the ACs name.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/reviews/2026-10-15-outside-review-1-finance-professor.md" section="§1, §5.6, §5.14">Why this story exists.</doc>
+      <doc path="docs/calibration/VALIDATION.md">Current replay record; new section goes here.</doc>
+    </docs>
+    <code>
+      <existing path="scenarios/usdc-2023.yaml, scenarios/usdc-2023-tranches.yaml" reason="Bases for the new scenarios."/>
+      <existing path="scenarios/calibrated-baseline-ou.yaml" reason="OU parameters."/>
+      <existing path="src/depeg_sim/environment/price_process.py" reason="Confirm constant reference when no series/vol/kappa."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_validation_overlay" reason="Second simulated series."/>
+      <existing path="scripts/make_figures.py, scripts/check_figures.py, tests/test_note_figures.py" reason="New figures into the pipeline and the figure list."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism via ctx.rng; phase order unchanged; ruff clean; never claim unrun numbers — paste command output in the Debug Log.</constraints>
+</story-context>

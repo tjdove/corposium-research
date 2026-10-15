@@ -239,6 +239,20 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
 
 ---
 
+- **L-18 — Run the outside review before the freeze, not after it.** One blind model pass
+  with a referee persona (2026-10-15, `docs/reviews/`) cost an hour and found the four
+  claims that would have embarrassed us on launch day. Run during Epic 3 it would have
+  reshaped the last stories. From now on: a review pass on the note outline at the end of
+  every epic, and on the full draft before any freeze.
+- **L-19 — A fitted number is not a prediction.** "Validation" is reserved for a test whose
+  target was not used in fitting. A replay that reproduces the number it was fitted to is a
+  calibration and is called that everywhere. Choosing among variants (ladders, rules) by
+  their fit counts as fitting.
+- **L-20 — The frame stays in the introduction.** If a historical analogy appears in a
+  results section, ask which experiment it is reporting. If the answer is "none," move it.
+  The analogy's job is the question and the agent roster; the results stand on the
+  experiments.
+
 ## 7. Environment notes
 
 - **Seoul** (builder): uv-managed venv on Python 3.12 (system is 3.14). `bash time` is
@@ -273,3 +287,4 @@ The detailed plan is `epics.md`. The intent behind Epics 3 and 4, so it is not l
 - 2026-10-04: Created by dev manager after Story 2.5 review, during the 2.6 build, to
   guard against dev-manager context loss. L-1 to L-12 lifted from the Epic 1 retro and
   the Epic 2 reviews to date.
+- 2026-10-15: L-18…L-20 from outside review 1; Epic 5 added; publish Nov 15.
