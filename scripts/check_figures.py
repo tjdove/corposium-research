@@ -1,7 +1,8 @@
 """Stale-figure guard (Story 2.9 AC 4; code hash Story 3.5 AC 3).
 
-Recomputes the source hash of every figure in ``docs/figures/manifest.json`` and compares
-it with the hash recorded when the figure was made. A figure is stale when the scenario
+Recomputes the source hash of every figure in ``docs/figures/manifest.json`` (and of its
+``second_source``, when it has one: Story 5.1) and compares it with the hash recorded when
+the figure was made. A figure is stale when the scenario
 or sweep it was made from has changed since. Exit 0 if every figure is current; exit 1
 naming each stale figure (and each figure whose PNG or source is missing).
 
@@ -90,19 +91,23 @@ def stale_figures(manifest_path: Path) -> list[str]:
     figures = figures_of(json.loads(manifest_path.read_text(encoding="utf-8")))
     problems = []
     for name, entry in figures.items():
-        source = Path(entry["source"])
         if not (manifest_path.parent / entry["file"]).is_file():
             problems.append(f"{name}: figure file {entry['file']} is missing")
-        if not source.is_file():
-            problems.append(f"{name}: source {source} is missing")
-            continue
-        now = source_hash(source)
-        if now != entry["source_hash"]:
-            what = " or its base scenario" if is_sweep(source) else ""
-            problems.append(
-                f"{name}: STALE, {source}{what} changed (manifest {entry['source_hash'][:12]}, "
-                f"now {now[:12]}); regenerate with `make figures`"
-            )
+        sources = [(entry["source"], entry["source_hash"])]
+        if "second_source" in entry:  # Story 5.1: a figure drawn from two scenarios
+            sources.append((entry["second_source"], entry["second_source_hash"]))
+        for source, recorded in sources:
+            source = Path(source)
+            if not source.is_file():
+                problems.append(f"{name}: source {source} is missing")
+                continue
+            now = source_hash(source)
+            if now != recorded:
+                what = " or its base scenario" if is_sweep(source) else ""
+                problems.append(
+                    f"{name}: STALE, {source}{what} changed (manifest {recorded[:12]}, "
+                    f"now {now[:12]}); regenerate with `make figures`"
+                )
     return problems
 
 

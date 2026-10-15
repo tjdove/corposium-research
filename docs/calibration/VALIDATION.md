@@ -306,3 +306,113 @@ the blue line rebounds to −800 at 32 h and falls back to
 −1,164 at 34 h, then climbs to meet the blue line at ≈ −955 at 36 h. From there it is
 the 3.1 figure: on the observed path to ≈ 45 h, flat at −173 from 49 h to 69 h, into the
 grey band at the 85 h capacity marker.
+
+---
+
+## Par-reference replay (Story 5.1)
+
+Every replay above feeds the observed USDC/USD series to the model as its reference
+price: the oracle follows it and the arbitrageur trades the AMM against the oracle. Story
+5.1 removes that input. `scenarios/usdc-2023-par.yaml` (hash `7f3d0c583694`) and
+`scenarios/usdc-2023-tranches-par.yaml` (hash `32a610a514f2`) are `usdc-2023.yaml` and
+`usdc-2023-tranches.yaml` with `price_series_path` removed, `base_price` 1.0,
+`volatility_per_step` 0.0 and no `mean_reversion_per_step`. Read in
+`price_process.py`: with no series, σ = 0 and κ = 0 the reference stays at `base_price`
+every step and nothing is drawn from `ctx.rng`; the test checks reference and oracle are
+1.0 at every step. Attacker, holder, arbitrageur, defender, capacity schedule, `max_steps`
+and seed are unchanged. Nothing was re-fitted: D\*, pace, both C\* and the ladder are
+the values above. The observed series is used only to evaluate the runs.
+
+What the change touches: the **oracle** (now 1.0 throughout) and so the **arbitrageur**,
+which buys on the AMM when spot is below oracle × (1 − band). The **holder** is not
+affected by the change itself. Its entry test is against `redemption.peg_price ×
+(1 − entry_discount_pct/100)` (`agents/holder.py`; ADR-0021, ADR-0024), not the oracle.
+Its fills can still differ, because the arbitrageur's trades move the same pool.
+
+A sensitivity pair, `usdc-2023-ou.yaml` (`77fc93f2f784`) and `usdc-2023-tranches-ou.yaml`
+(`b219b783b6a3`), uses the calm mean-reverting reference of `calibrated-baseline-ou.yaml`
+instead (σ 3.086e-05, κ 0.001634, seed 42).
+
+`python scripts/replay_table.py` (six runs, 14 s on Seoul):
+
+| replay | hash | trough bps | trough step | trough h | first back in band after trough, h | hours in band, 27–96 h | holder bought | holder redeemed | holder PnL | arb redeemed |
+|---|---|---|---|---|---|---|---|---|---|---|
+| observed (Bitstamp hourly close) | | −1,373.3 | n/a | 31.0 | 86.0 | 8.0 | n/a | n/a | n/a | n/a |
+| observed ref, single entry | `2c3aeaa9825d` | −1,137.8 | 10,269 | 34.2 | 85.3 | 10.7 | 9,418,433 | 9,418,433 | 209,360 | 2,098,246 |
+| observed ref, ladder B | `da3383d4e156` | −1,323.3 | 9,346 | 31.2 | 85.3 | 10.7 | 8,662,811 | 8,662,811 | 522,643 | 2,853,889 |
+| **par ref, single entry** | `7f3d0c583694` | **−607.2** | 9,886 | **33.0** | **37.2** | **58.8** | 9,372,636 | 9,372,636 | 205,969 | 2,161,592 |
+| **par ref, ladder B** | `32a610a514f2` | **−1,279.2** | 9,850 | **32.8** | **40.4** | **55.6** | 8,646,604 | 8,646,604 | 521,604 | 2,890,043 |
+| OU ref, single entry | `77fc93f2f784` | −607.2 | 9,886 | 33.0 | 37.2 | 58.8 | 9,372,636 | 9,372,636 | 205,969 | 2,154,338 |
+| OU ref, ladder B | `b219b783b6a3` | −1,279.2 | 9,850 | 32.8 | 40.4 | 55.6 | 8,646,604 | 8,646,604 | 521,604 | 2,891,844 |
+
+Definitions (also in the script's docstring). The band is the ADR-0013 ±31 bps. "First
+back in band" is the first time after the trough with |deviation| ≤ 31 bps. "Hours in
+band" covers the attack start (27 h) to the end of the observed series (its last close,
+95 h, standing for 95–96 h): one hour per hourly close for the observed row, steps × 12 s
+for the simulated rows. The two are sampled differently (hourly close against 12 s spot),
+so that column compares time in band, not paths point for point. Amounts are model units
+(1M = $234.6M). The observed-reference rows reproduce the Story 3.1 and 3.7 tables above.
+
+**Ladder B against the observed trough (AC 6).** The par-reference ladder B trough is
+**−1,279.2 bps**, 94.1 bps (6.9%) shallower than the observed −1,373.3. That is
+**within ±10%** of the observed trough. It is 44.1 bps shallower than the
+observed-reference replay (−1,323.3). It comes at 32.8 h, 1.8 h after the observed trough
+(31.0 h), where the observed-reference replay was 0.2 h after.
+
+**The single entry against the observed trough.** The par-reference single-entry trough
+is **−607.2 bps**, 766.1 bps (55.8%) shallower than observed and 530.6 bps shallower than
+its observed-reference replay (−1,137.8). It is not within ±10%. It comes at 33.0 h
+(observed-reference replay 34.2 h).
+
+**What moved.**
+- **Recovery.** With the par reference, both replays are back inside the band at 37.2 h
+  (single) and 40.4 h (ladder B), 4.2 h and 7.6 h after their troughs. The
+  observed-reference replays and the observed price are back at 85.3 h and 86.0 h, after
+  the 85 h capacity change. After re-entry the single-entry price stays inside the band
+  to the end of the run (112 h; lowest −21.1 bps at 37.4 h, within ±6.3 bps from 40.5 h).
+  Ladder B leaves the band once more, for 7 steps (40.40–40.42 h, down to −37.4 bps), and
+  is inside from 40.43 h to 112 h (within ±3.4 bps from 41 h). Neither tracks the
+  observed weekend path (−150 … −524 bps from 41 h to 69 h; −716 bps at 40 h). Hours in band over 27–96 h: 58.8 and 55.6,
+  against 10.7 for both observed-reference replays and 8.0 observed. Final deviation
+  at 112 h: −6.3 bps (single) and −3.4 bps (ladder B), against −27.3 bps in both
+  observed-reference replays.
+- **The arbitrageur's buying during the attack.** With the par oracle the arbitrageur
+  buys at every opportunity from the attack start. From 27 h to 31 h (steps 8,100–9,300)
+  it spends 923,919 of reference on the AMM in 400 buys, in both par replays. With the
+  observed-series oracle it spent 398,699 (111 buys, single entry) and 678,574 (265 buys,
+  ladder B): as the oracle fell with the observed price, spot was less often below oracle
+  × (1 − band). 923,919 is about its 200,000 capital plus the 724,525 the redemption
+  channel paid it over steps 8,100–9,299 (no one else was paid in that window). It never
+  sells on the AMM in any of the six runs.
+- **The single-entry trough** (−1,137.8 → −607.2) moves much more than ladder B's
+  (−1,323.3 → −1,279.2).
+- **Trough time** for ladder B: 31.2 h → 32.8 h.
+
+**What did not move** (par against observed reference, same holder):
+- Holder bought: 9.42M → 9.37M (single), 8.66M → 8.65M (ladder B). The holder redeems
+  everything it bought in every run.
+- Holder PnL: 209.4k → 206.0k (single), 522.6k → 521.6k (ladder B).
+- Arbitrageur redeemed: 2.10M → 2.16M (single), 2.85M → 2.89M (ladder B).
+- The ladder B staircase down to the −1,005 bps tread. At 27.5, 28.0 and 28.6 h the
+  par-reference price is −231.0, −514.0 and −1,008.9 bps, against −230.6, −511.9 and
+  −1,006.8 with the observed reference. The two paths differ from the first attack step
+  (27.0 h) by up to 77 bps at single steps. The tread spans −1,000.8 … −1,008.5 bps over
+  28.7–30.5 h (observed reference: −1,002.7 … −1,008.5).
+
+**OU against par.** The calm OU reference gives the same trough (to 0.03 bps), trough
+step, re-entry time, hours in band and holder numbers as the constant par reference.
+Only the arbitrageur's redemptions differ, by 7,254 (single) and 1,801 (ladder B).
+
+**Figures.** `docs/figures/validation_overlay_usdc_2023_par.png` and
+`validation_overlay_usdc_2023_tranches_par.png`: observed hourly closes (blue), the
+observed-reference replay (grey, dashed) and the par-reference replay (black).
+- **Single entry.** The black line drops at 27 h to ≈ −220 bps and eases to ≈ −200 until
+  ≈ 30.5 h (−225.8 … −201.1 bps). The grey line spans −409.0 … −203.9 over the same
+  stretch. It then falls to its trough of −607 bps at 33.0 h,
+  where the grey line falls to −1,138 at 34.2 h. It climbs back to the band by 37.2 h,
+  touches −21 bps just after, comes up to zero by ≈ 40 h and lies on it to 112 h. The
+  blue line is at −716 bps at 40 h.
+- **Ladder B.** The black line follows the grey staircase (−220, −510, −1,005 bps) to
+  ≈ 30.6 h. It reaches its trough of −1,279 bps at 32.8 h, inside the grey line's
+  shallow U, then rises in a near-straight line to the band at 40.4 h and lies on zero
+  from there to 112 h.

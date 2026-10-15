@@ -15,6 +15,10 @@ ADDED_LATER = {
     "calibrated-baseline-ou",  # Story 3.6: tests/test_calibrated_scenarios.py
     "usdc-2023-tranches",  # Story 3.7: tests/test_holder_tranches.py
     "calibrated-baseline-lp",  # Story 3.8: tests/test_lp.py
+    "usdc-2023-par",  # Story 5.1: tests/test_par_replay.py
+    "usdc-2023-ou",  # Story 5.1: tests/test_par_replay.py
+    "usdc-2023-tranches-par",  # Story 5.1: tests/test_par_replay.py
+    "usdc-2023-tranches-ou",  # Story 5.1: tests/test_par_replay.py
 }
 
 # content_hash() of every scenario as of Story 2.5 (commit 9a62e23), before HolderConfig

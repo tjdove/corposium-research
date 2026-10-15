@@ -89,6 +89,10 @@ def test_every_scenario_hash_unchanged():
         "calibrated-baseline-ou.yaml",  # Story 3.6, test_calibrated_scenarios.py
         "usdc-2023-tranches.yaml",  # Story 3.7, test_holder_tranches.py
         "calibrated-baseline-lp.yaml",  # Story 3.8, test_lp.py
+        "usdc-2023-par.yaml",  # Story 5.1, test_par_replay.py
+        "usdc-2023-ou.yaml",  # Story 5.1, test_par_replay.py
+        "usdc-2023-tranches-par.yaml",  # Story 5.1, test_par_replay.py
+        "usdc-2023-tranches-ou.yaml",  # Story 5.1, test_par_replay.py
     }
     found = {
         p.name: load_scenario(p).content_hash()

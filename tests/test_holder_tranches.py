@@ -338,14 +338,17 @@ def test_single_tranche_byte_identical_with_trace_on_a_short_window(tmp_path):
 # AC 5: the best ladder as its own replay scenario -----------------------------------------
 
 TRANCHES_SCENARIO = SCENARIO_DIR / "usdc-2023-tranches.yaml"
+PAR_REPLAYS = {"usdc-2023-par", "usdc-2023-ou", "usdc-2023-tranches-par", "usdc-2023-tranches-ou"}
 LADDER_B = [(2.0, 0.25), (5.0, 0.25), (10.0, 0.25), (20.0, 0.25)]
 C_STAR_B = 10_833_333  # scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,20:0.25
 
 
 def test_every_scenario_but_the_new_one_is_pinned_above():
     found = {p.stem for p in SCENARIO_DIR.glob("*.yaml")}
-    # Story 3.8 adds calibrated-baseline-lp, pinned in tests/test_lp.py
-    assert found - set(HASHES_BEFORE_3_7) == {"usdc-2023-tranches", "calibrated-baseline-lp"}
+    # Story 3.8 adds calibrated-baseline-lp, pinned in tests/test_lp.py; Story 5.1 the
+    # par/OU replays, pinned in tests/test_par_replay.py
+    later = {"calibrated-baseline-lp", *PAR_REPLAYS}
+    assert found - set(HASHES_BEFORE_3_7) - later == {"usdc-2023-tranches"}
 
 
 def test_tranches_scenario_is_the_replay_with_ladder_b():

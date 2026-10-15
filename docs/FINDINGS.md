@@ -759,6 +759,47 @@ would break the peg is what those hands do next.
 
 ---
 
+## F-16 · The model reproduces the depth of the fall, not the length of the weekend
+
+**Date:** 2026-10-15 · **ADR:** [0033](adr/0033-par-reference-replay.md) · **Story:** 5.1 ·
+**Origin:** outside review 1, §1/§5.6/§5.14/§7
+**Reproduce:** `python scripts/replay_table.py` (six replays, 14 s on Seoul); figures
+`validation_overlay_usdc_2023_par.png`, `validation_overlay_usdc_2023_tranches_par.png`.
+
+**Expected.** The referee said the USDC replay's agreement with the observed path was the
+input showing through: the observed series was the model's reference, the oracle followed
+it, the arbitrageur traded against it. The story predicted the trough would move little
+when the input was removed and left the recovery open.
+
+**Observed.** With the reference fixed at $1 and nothing from the observed series fed in
+(C\*, D\*, pace and the ladder unchanged): ladder B's trough is **−1,279 bps at 32.8 h**
+against −1,373 at 31.0 h observed (6.9% shallower, 1.8 h late; −1,323 with the input).
+The single-entry trough collapses from −1,138 to **−607**. Both replays are back inside
+±31 bps by **37–40 h** and at par from 41 h; the observed price sat 150–524 bps below par
+until 69 h and re-entered at 86 h. The calm OU reference gives the same numbers to
+0.03 bps.
+
+**Why.** The descent is the ladder's staircase and the bottom is the attacker's stock
+running out against the last tranche; neither needs the input. The single-entry C\* sat
+on F-09's cliff, and 525k of extra arbitrageur buying (a par oracle lets it buy at every
+step; it bought 924k in 27–31 h against 399k before) tips it over. After the trough,
+nothing in the model holds the price down: the attacker's stock is gone by 31 h, the
+holder buys every dip below 0.98, and the arbitrageur recycles 605.79/step through the
+channel. The weekend plateau in the real series needs something the model lacks: selling
+that continues past the first wave, a channel that is closed rather than slow, or belief
+that is a distribution rather than a switch.
+
+**What it changed.** F-08/F-09 are restated: *the trough depth is set by the attacker
+against the believers' ladder, and that result does not depend on the observed input*;
+the single-entry replay is a cliff illustration, not a fit. The replay is calibration, not
+validation (PROCESS L-19), and the note says so. The oracle's role in the replay was to
+throttle the arbitrageur (sharpens F-10). The weekend's sustained discount is now an open
+question with a test (Story 5.5: closed weekend channel).
+
+**For the note.** This is the sentence note v2 is built on: *the model reproduces how far
+USDC fell and when, with a fitted believers' ladder, and it does not reproduce the two
+days the price stayed down.* The second half is as much a finding as the first.
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

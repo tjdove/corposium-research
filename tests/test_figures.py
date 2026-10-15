@@ -92,11 +92,33 @@ def test_guard_fails_on_missing_png_or_source(tmp_path):
     assert "source scenarios/nope.yaml is missing" in out.stderr
 
 
+def test_guard_checks_a_second_source(tmp_path):
+    """Story 5.1: a two-run overlay is stale when either of its scenarios changes."""
+    h = load_scenario("scenarios/usdc-2023.yaml").content_hash()
+    h_par = load_scenario("scenarios/usdc-2023-par.yaml").content_hash()
+    second = {"second_source": "scenarios/usdc-2023-par.yaml"}
+    m = _manifest(
+        tmp_path,
+        {
+            "both_current": _entry("a.png", "scenarios/usdc-2023.yaml", h)
+            | second | {"second_source_hash": h_par},
+            "second_stale": _entry("b.png", "scenarios/usdc-2023.yaml", h)
+            | second | {"second_source_hash": "0" * 64},
+        },
+    )  # fmt: skip
+    out = guard(m)
+    assert out.returncode == 1
+    assert "second_stale: STALE, scenarios/usdc-2023-par.yaml changed" in out.stderr
+    assert "both_current" not in out.stderr
+    assert "FAIL, 1 problem(s) in 2 figures" in out.stderr
+
+
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 19
+    assert len(files) == len(set(files)) == 21  # Story 5.1: two par-reference overlays
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
+        assert f.second is None or Path(f.second).is_file(), f.second
     assert {f.function_name for f in make_figures.FIGURES} == {
         "depeg_sim.analysis.charts.plot_peg_trajectory",
         "depeg_sim.analysis.charts.plot_validation_overlay",
@@ -196,3 +218,20 @@ def test_guard_annotates_on_github_actions(tmp_path):
     )
     assert out.returncode == 0
     assert out.stdout.startswith("::warning title=figures-check::WARNING")
+
+
+def test_figures_sharing_a_scenario_keep_both_pngs(tmp_path, monkeypatch):
+    """Story 5.1: the par overlay reruns usdc-2023; the first overlay's PNG must survive
+    until it is copied (make figures failed with FileNotFoundError before the fix)."""
+    from depeg_sim.experiments.sweep import set_path
+
+    def short(path):
+        return set_path(load_scenario(path), "steps.max_steps", 8400)
+
+    monkeypatch.setattr(make_figures, "load_scenario", short)
+    by_file = {f.file: f for f in make_figures.FIGURES}
+    first = make_figures.render(by_file["validation_overlay_usdc_2023.png"], tmp_path, tmp_path)
+    second = make_figures.render(
+        by_file["validation_overlay_usdc_2023_par.png"], tmp_path, tmp_path
+    )
+    assert first.is_file() and second.is_file() and first != second

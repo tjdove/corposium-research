@@ -172,20 +172,30 @@ def _first_inside_after(hours: pd.Series, dev: pd.Series, band: float, t0: float
     return None if hit.empty else float(hit.iloc[0])
 
 
-def validation_comparison(run_dir: Path) -> dict:
-    """Observed (the CSV named in the manifest, re-read; hourly closes) vs simulated (AMM
-    spot) numbers for ``docs/calibration/VALIDATION.md``. Hours are from the series
-    start. Raises ``ValueError`` if the run has no series or the file changed since."""
-    run_dir = Path(run_dir)
-    manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
-    config = manifest["config"]
-    path = config["environment"].get("price_series_path")
+def _observed_series(run_dir: Path) -> pd.DataFrame:
+    """The CSV named in ``run_dir``'s manifest, re-read and checked against its sha256."""
+    manifest = json.loads((Path(run_dir) / MANIFEST).read_text(encoding="utf-8"))
+    path = manifest["config"]["environment"].get("price_series_path")
     if path is None:
         raise ValueError(f"{run_dir} has no environment.price_series_path")
     raw = Path(path).read_bytes()
     if hashlib.sha256(raw).hexdigest() != manifest.get("price_series_sha256"):
         raise ValueError(f"{path} changed since the run (sha256 differs from the manifest)")
-    obs = pd.read_csv(io.BytesIO(raw))
+    return pd.read_csv(io.BytesIO(raw))
+
+
+def validation_comparison(run_dir: Path, observed_from: Path | None = None) -> dict:
+    """Observed (the CSV named in the manifest, re-read; hourly closes) vs simulated (AMM
+    spot) numbers for ``docs/calibration/VALIDATION.md``. Hours are from the series
+    start. Raises ``ValueError`` if the run has no series or the file changed since.
+
+    ``observed_from`` (Story 5.1): read the CSV from that run's manifest instead, for a run
+    that was not fed the series (a par-reference replay); the series is then used only to
+    evaluate ``run_dir``. Band, markers and the simulated path are ``run_dir``'s own."""
+    run_dir = Path(run_dir)
+    manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
+    config = manifest["config"]
+    obs = _observed_series(run_dir if observed_from is None else observed_from)
     obs_h = (obs["unix"] - obs["unix"].iloc[0]) / 3600
     obs_dev = obs["close"] / config["redemption"]["peg_price"] - 1
     sim = pd.read_parquet(run_dir / TIMESERIES)
@@ -244,16 +254,39 @@ def _include_texts(fig, ax, texts, pad: float = 0.03) -> None:
         ax.set_ylim(lo - (pad - lowest) * (hi - lo) / (1 - pad), hi)
 
 
-def plot_validation_overlay(run_dir: Path) -> Path:
+def _reference_kind(config: dict) -> str:
+    env = config["environment"]
+    if env.get("price_series_path") is not None:
+        return "observed reference"
+    if env.get("mean_reversion_per_step", 0) > 0:
+        return "mean-reverting reference"
+    return "par reference" if env["volatility_per_step"] == 0 else "random-walk reference"
+
+
+def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -> Path:
     """One panel: observed reference (the manifest's CSV, re-read) and simulated AMM
-    price, both in bps from peg, x in elapsed hours from the series start."""
+    price, both in bps from peg, x in elapsed hours from the series start.
+
+    ``second_run_dir`` (Story 5.1): a second replay of the same window that was not fed
+    the series (e.g. ``usdc-2023-par``). It is drawn black and its trough labelled;
+    ``run_dir``'s path is then drawn grey and dashed. The CSV comes from ``run_dir``, the
+    markers and band from ``second_run_dir``; the PNG is written into ``second_run_dir``."""
     run_dir = Path(run_dir)
-    cmp = validation_comparison(run_dir)
     manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
     config = manifest["config"]
-    obs = pd.read_csv(config["environment"]["price_series_path"])
+    obs = _observed_series(run_dir)
     obs_h = (obs["unix"] - obs["unix"].iloc[0]) / 3600
     sim = pd.read_parquet(run_dir / TIMESERIES)
+    if second_run_dir is None:
+        cmp = validation_comparison(run_dir)
+        black, black_manifest, out_dir = sim, manifest, run_dir
+    else:
+        second_run_dir = Path(second_run_dir)
+        cmp = validation_comparison(second_run_dir, observed_from=run_dir)
+        black = pd.read_parquet(second_run_dir / TIMESERIES)
+        black_manifest = json.loads((second_run_dir / MANIFEST).read_text(encoding="utf-8"))
+        config = black_manifest["config"]
+        out_dir = second_run_dir
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
     band = cmp["band_bps"]
@@ -269,12 +302,23 @@ def plot_validation_overlay(run_dir: Path) -> Path:
         ms=3,
         label="observed USDC/USD (hourly close)",
     )
+    if second_run_dir is not None:
+        ax.plot(
+            sim["elapsed_seconds"] / 3600,
+            sim["peg_deviation"] * BPS,
+            color=GREY,
+            lw=1.2,
+            ls="--",
+            label=f"simulated AMM price, {_reference_kind(manifest['config'])} (input)",
+        )
     ax.plot(
-        sim["elapsed_seconds"] / 3600,
-        sim["peg_deviation"] * BPS,
+        black["elapsed_seconds"] / 3600,
+        black["peg_deviation"] * BPS,
         color=DARK,
         lw=1.4,
-        label="simulated AMM price",
+        label="simulated AMM price"
+        if second_run_dir is None
+        else f"simulated AMM price, {_reference_kind(config)} (no observed input)",
     )
     markers = (
         (cmp["attack_start_h"], "attack starts", -4, "right"),
@@ -312,21 +356,34 @@ def plot_validation_overlay(run_dir: Path) -> Path:
     ax.set_ylabel("deviation from peg (bps)")
     ax.legend(loc="lower right", fontsize=8, frameon=False)
     ax.spines[["top", "right"]].set_visible(False)
-    fig.suptitle(
-        f"{manifest['scenario_name']} (seed {manifest['seed']}): observed vs simulated", fontsize=11
+    footer = (
+        f"scenario={manifest['scenario_name']} seed={manifest['seed']} "
+        f"hash={manifest['scenario_hash'][:12]}"
     )
+    title = f"{manifest['scenario_name']} (seed {manifest['seed']}): observed vs simulated"
+    if second_run_dir is not None:
+        footer = (
+            f"scenario={black_manifest['scenario_name']} seed={black_manifest['seed']} "
+            f"hash={black_manifest['scenario_hash'][:12]}  (grey: {footer})"
+        )
+        title = (
+            f"{black_manifest['scenario_name']} (seed {black_manifest['seed']}): observed vs "
+            f"simulated, {_reference_kind(config)} and {_reference_kind(manifest['config'])}"
+        )
+        # the two-run footer is longer: reserve a bottom strip as _sweep_footer does
+        fig.get_layout_engine().set(rect=(0, 0.025, 1, 0.975))
+    fig.suptitle(title, fontsize=11)
     fig.text(
         0.995,
         0.002,
-        f"scenario={manifest['scenario_name']} seed={manifest['seed']} "
-        f"hash={manifest['scenario_hash'][:12]}",
+        footer,
         ha="right",
         va="bottom",
         fontsize=7,
         family="monospace",
         color=GREY,
     )
-    out = run_dir / VALIDATION_OVERLAY
+    out = out_dir / VALIDATION_OVERLAY
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
