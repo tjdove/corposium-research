@@ -1,6 +1,6 @@
 # Story 5.1: Par-Reference Replay
 
-Status: review
+Status: done
 
 ## Story
 
@@ -271,6 +271,79 @@ is from `make test`.)
   `tests/test_reference_recovery.py` (new scenarios added to the "pinned elsewhere" sets)
 - `docs/stories/5-1-par-reference-replay.md` (this record)
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-15 · **Verdict: APPROVE**
+
+Reproduced on the review box at `7b4df32`: `pytest -q` → all pass (exit 0); `ruff check .`
+clean; `make figures-check` → `ok, 21 figures … (code_hash matches)`, `ok, 4 fits`.
+`python scripts/replay_table.py` run twice → byte-identical output (35 s on 2 cores),
+every number matching the table in VALIDATION.md and ADR-0033: par ref ladder B
+−1,279.2 bps at step 9,850 (32.8 h), back in band 40.4 h; single entry −607.2 at 33.0 h,
+back 37.2 h; OU pair identical to par within 0.03 bps. Scenario diff checked:
+`usdc-2023-tranches-par.yaml` differs from its base only in `name` and `environment`.
+Overlay figure read: the black line follows the ladder staircase, troughs inside the grey
+U, climbs straight to the band by 40 h while the blue line sits at −150 … −524 for two
+more days. The builder's three self-corrections to VALIDATION.md and the `make_figures`
+run-directory bug (caught, tested, fixed) are what the process is for.
+
+**What the result means (the dev manager's call, per AC 5).** Recorded as finding F-16.
+
+1. *The trough is the believers', not the input's.* Ladder B lands at −1,279 bps with
+   nothing from the observed series fed in, 6.9% from the observed −1,373, using a C\*
+   fitted on the observed-reference replay and not re-fitted. The referee's objection
+   §5.6/§5.14 (the input anchors the venue) is answered for the trough: the descent is the
+   ladder's staircase and the bottom is the attacker running out of stock against the
+   last tranche. This is still calibration, not validation (L-19): C\* was fitted to this
+   trough, in a different configuration. What it shows is that the fit transferred when
+   the oracle anchor was removed. Note v2 says exactly that.
+2. *The single-entry fit was on the cliff.* −1,138 → −607 when the arbitrageur gains
+   525k of extra buying from a par oracle. F-09's bimodality was never a curiosity; the
+   single-entry C\* sat on the steep side and a small change in who else absorbs tips it
+   over. Note v2 drops the single-entry replay as a fit and keeps it as the illustration
+   of the cliff. The ladder is the result.
+3. *The model reproduces the depth of the fall, not the length of the weekend.* Without
+   the input, both replays are at par from ~40 h; the real price sat 150–524 bps below par
+   until 69 h. Everything that holds the model down is a fixed stock of selling that ends
+   by 31 h; once it ends, a holder who buys every dip below 0.98 and an arbitrageur
+   recycling 605.79/step through the channel take the price home in eight hours. The
+   weekend plateau needs something the model does not have: selling that continues after
+   the first wave, a redemption channel that is closed rather than slow (referee §5.15),
+   or belief that is a distribution rather than a switch. **This is the honest
+   reposition the referee asked for in §7, and it is a better sentence than the one it
+   replaces.**
+4. *The arbitrageur is the lever the oracle touches.* 924k bought in 27–31 h under par
+   against 399k/679k under the observed oracle, in both replays; never sells. The
+   oracle's only role in the replay was to throttle the arbitrageur. That sharpens F-10.
+
+**Rulings**
+
+1. **ADR-0033 accepted (finding + interface).** Index row added. F-16 added to FINDINGS.
+2. **Figure placement.** 1d (ladder B, par) becomes the note's Figure 1 in v2; the
+   observed-reference overlay (1b) becomes the "with the input" comparison beside it; 1a
+   (single entry) moves to the record set with the cliff table; 1c (single entry, par) is
+   kept as a committed figure, cited from the limitations. Rows 1c/1d stay in the list;
+   until v2 cites them they are marked † (supporting), see ruling 4.
+3. **Metric definitions** ("first back in band after the trough", "hours in band
+   27–96 h") stand; `replay_table.py` is the reference implementation and Story 5.2 reuses
+   it.
+4. **Story 4.2 (`check_note.py`) unblocked by this review.** Ruling: figure-list rows
+   marked † (supporting) are exempt from the listed-but-uncited check; every non-† row
+   must be cited in the body. The dev manager marks 1c/1d † and links 5b
+   (`peg_trajectory_1992_no_defense.png`) in the note body now; the builder narrows the
+   check on `story/4-2-check-note` after rebasing on main, and re-runs it against the
+   note at that commit.
+5. **Follow-up story 5.5 added to Epic 5: closed weekend channel.** Referee §5.15 and
+   point 3 above: rerun the par replay with weekend capacity 0 (and 10% of calibrated)
+   until the 85 h reopening. If the plateau appears, the weekend is a redemption-channel
+   story; if the price still goes to par, it is a selling or belief story. One scenario
+   pair, `replay_table.py` gains the rows.
+
+**Lessons:** the story's prediction ("the trough should move little") was half right
+(ladder) and wrong (single entry), and the builder recorded the miss without
+interpreting it, which is what AC 5 asked. L-15 holds: rulings' expectations are
+predictions.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager from outside review 1 (Epic 5)
@@ -278,3 +351,4 @@ is from `make test`.)
   `replay_table.py`, two-series overlay and figures, VALIDATION.md section, ADR-0033
   proposed. Ladder B par trough −1,279.2 bps (within ±10%); single entry −607.2 (not);
   recovery to the band at 37–40 h. Status: review.
+- 2026-10-15: Reviewed by dev manager — APPROVE; ADR-0033 accepted; F-16; Status: done

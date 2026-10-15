@@ -1,6 +1,6 @@
 # ADR-0033: Par-reference replay: with nothing observed fed in, ladder B's trough is −1,279 (6.9% short of −1,373, 1.8 h late); recovery to the band comes at 37–40 h, not 85 h; two-source figures
 
-**Status:** Proposed (finding + interface)
+**Status:** Accepted (finding + interface; review 2026-10-15, unamended; F-16)
 **Date:** 2026-10-15
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.1 (outside review 1, §1, §5.6, §5.14)

@@ -39,6 +39,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0030](0030-multi-tranche-holder-and-the-cliff.md) | Multi-tranche holder; ladder B (2/5/10/20%) fits −1,323 bps at 31.2 h (observed −1,373 at 31.0); the cliff becomes a staircase (F-09 narrowed) | Accepted (finding, amended) | 2026-10-07 |
 | [0031](0031-lp-withdrawal-and-liquidity-flight.md) | AMM remove_liquidity; LP withdrawal agent; liquidity that flees and holds what it withdrew helps the defender (F-15); panic threshold inert; F-03/F-11 qualified | Accepted (finding, amended) | 2026-10-08 |
 | [0032](0032-figure-pass-fit-records-and-freeze.md) | Policy panel (b) price paid per run; fit records under the guard; note set = all committed figures minus four record-only; freeze commit tagged, hash recorded in a following docs-only commit | Accepted | 2026-10-09 |
+| [0033](0033-par-reference-replay.md) | Par-reference replay: with no observed input, ladder B's trough holds (−1,279 vs −1,373), the single-entry trough collapses (−607), and recovery comes at 37–40 h not 85 h (F-16); two-source figures in the guard | Accepted (finding + interface) | 2026-10-15 |
 
 ## Template
 

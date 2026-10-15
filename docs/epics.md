@@ -615,7 +615,7 @@ story names.** The freeze is lifted for this epic and re-applied at its end (`v0
 
 **Dates:** Oct 15–25 · **Re-freeze:** ~Oct 26 · **Note v2:** Oct 26–31
 
-**Story Count:** 4 builder stories + note v2 (dev manager)
+**Story Count:** 5 builder stories + note v2 (dev manager)
 
 ---
 
@@ -665,6 +665,18 @@ three. Decides whether F-15 ("liquidity that flees helps the defender") is a res
 footnote (referee §4, §5.25).
 
 **Prerequisites:** none
+
+---
+
+### Story 5.5: Closed Weekend Channel
+
+The par-reference replay (5.1) with the weekend redemption capacity set to 0, and to 10%
+of the calibrated 605.79/step, until the 85 h reopening; ladder B only. `replay_table.py`
+gains the rows; one overlay figure. Decides whether the two-day plateau the model does
+not reproduce (F-16) is a redemption-throughput story (referee §5.15) or needs continued
+selling or non-binary belief.
+
+**Prerequisites:** Story 5.1
 
 ---
 

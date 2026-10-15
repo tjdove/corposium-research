@@ -230,7 +230,7 @@ and the question "at what multiple of Quantum does the Bank run dry?"
 ![Figure 5 — the 1992 analogue at six times Quantum](figures/peg_trajectory_1992.png)
 
 *Figure 5. The analogue at 6× Quantum: reserves exhaust at step 9,553 (32 h). The
-no-defense counterfactual is in the repository.*
+no-defense counterfactual is [Figure 5b](figures/peg_trajectory_1992_no_defense.png).*
 
 With no believers, the analogue breaks at 5.7× Quantum. With a believer the size of the
 USDC one, 5.2×. With believers at 0.9× the attacker, **4.9×** — a ratio of attack to
@@ -316,8 +316,8 @@ figure not moved to the record); the dev manager may move any of them to the rec
 |---|---|---|---|---|
 | 1 | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final |
 | 1b | `validation_overlay_usdc_2023_tranches.png` | 3 | F-09 refinement | final |
-| 1c | `validation_overlay_usdc_2023_par.png` | 3 | F-08; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
-| 1d | `validation_overlay_usdc_2023_tranches_par.png` | 3 | F-09; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
+| 1c | `validation_overlay_usdc_2023_par.png` † | 3 | F-08; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
+| 1d | `validation_overlay_usdc_2023_tranches_par.png` † | 3 | F-09; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
 | — | `peg_trajectory_calibrated.png` † | 4 | F-06, F-03 | final |
 | 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final |
 | — | `threshold_surface_ou.png` † | 4 (supporting) | F-11, F-04 resolution | final |
@@ -354,3 +354,4 @@ figure not moved to the record); the dev manager may move any of them to the rec
 - 2026-10-13: §3 opens with the March 2023 event and says plainly that the attacker stands in for a run (Tim's read: the note never explained the event).
 - 2026-10-08: Figure list only, Story 4.1 (builder): one row per committed figure, matching `docs/figures/README.md`; `threshold_surface.png` and `time_to_parity.png` moved to record only; rows marked † added. Outline text not edited.
 - 2026-10-15: Figure list only, Story 5.1 (builder): rows 1c and 1d added for the two par-reference overlays. Note text not edited.
+- 2026-10-15: Figure list: 1c/1d marked † pending v2; Figure 5b linked from Figure 5's caption (Story 4.2 ruling, 5.1 review). Note text otherwise unchanged; v2 rewrite follows Epic 5.
