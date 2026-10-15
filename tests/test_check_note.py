@@ -135,6 +135,24 @@ def test_listed_but_uncited_figure_fails(tmp_path, capsys):
     assert "cited: b.png is in the figure list but never cited in the body" in err
 
 
+def test_a_dagger_row_need_not_be_cited(tmp_path, capsys):
+    """Story 5.1 review, ruling 4: rows marked † (supporting) are exempt."""
+    note = NOTE.replace("See the [budget figure](figures/b.png).", "").replace(
+        "| — | `b.png` |", "| — | `b.png` † |"
+    )
+    code, out, err = run(make_repo(tmp_path, note), capsys)
+    assert code == 0, err
+    assert "cited: all 1 listed figures not marked † are cited" in out
+
+
+def test_supporting_in_the_section_column_is_not_a_dagger(tmp_path, capsys):
+    note = NOTE.replace("See the [budget figure](figures/b.png).", "").replace(
+        "| — | `b.png` | 4 |", "| — | `b.png` | 4 (supporting) |"
+    )
+    code, _, err = run(make_repo(tmp_path, note), capsys)
+    assert code == 1 and "cited: b.png is in the figure list but never cited" in err
+
+
 def test_a_citation_only_in_the_figure_list_does_not_count(tmp_path, capsys):
     note = NOTE.replace("See the [budget figure](figures/b.png).", "").replace(
         "| — | `b.png` |", "| — | [`b.png`](figures/b.png) |"
@@ -240,8 +258,9 @@ def test_quoted_is_minus_space_and_whole_number_aware():
 
 @pytest.mark.xfail(
     strict=True,
-    reason="Story 4.2 blocked: docs/NOTE.md lists 9 figures its body never cites "
-    "(see the story's Blockers); remove this mark when the note or its list is fixed",
+    reason="Story 4.2 blocked: docs/NOTE.md lists 4 non-† figures its body never cites, "
+    "and v0.9-freeze's code_hash is not the working tree's (see the story's Blockers); "
+    "remove this mark when the note, its list or its tag is fixed",
 )
 def test_the_committed_note_passes():
     run = subprocess.run(

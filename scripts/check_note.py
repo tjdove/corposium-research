@@ -5,7 +5,8 @@ Four checks, one ``ok:`` line each; exit 0 when all pass, exit 1 naming every fa
 
 - **figures.** Every ``figures/<name>.png`` the note links or embeds (markdown ``](...)``)
   exists beside the note and ``<name>`` is a key of ``manifest.json``.
-- **cited.** Every figure in the note's figure-list table outside the record-only rows is
+- **cited.** Every figure in the note's figure-list table outside the record-only rows and
+  the rows whose file cell is marked ``†`` (supporting; Story 5.1 review, ruling 4) is
   linked or embedded at least once in the body (the text above the figure list). The four
   record-only figures (``docs/figures/README.md``, "Record only", read beside the manifest)
   are never linked or embedded anywhere in the note.
@@ -40,7 +41,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from fit_record import FITS
-from note_tables import FIGURE_LIST, NOTE, note_sets, readme_sets
+from note_tables import FIGURE_LIST, NOTE, note_sets, readme_sets, supporting
 
 MANIFEST = Path("docs/figures/manifest.json")
 CODE_HASH = "code_hash"
@@ -145,8 +146,9 @@ def check_figures(note: Path, text: str, manifest: dict, report: Report) -> None
 
 def check_cited(note: Path, text: str, readme: Path, report: Report) -> None:
     listed, _ = note_sets(note)
+    exempt = set(supporting(note))
     body = set(CITED.findall(body_of(text)))
-    uncited = [f for f in listed if f not in body]
+    uncited = [f for f in listed if f not in body and f not in exempt]
     _, record = readme_sets(readme)
     record_cited = [f for f in record if f in set(CITED.findall(text))]
     report.fail += [f"cited: {f} is in the figure list but never cited in the body"
@@ -155,8 +157,8 @@ def check_cited(note: Path, text: str, readme: Path, report: Report) -> None:
                     for f in record_cited]  # fmt: skip
     if not uncited and not record_cited:
         report.ok.append(
-            f"cited: all {len(listed)} listed figures are cited; none of the "
-            f"{len(record)} record-only figures is"
+            f"cited: all {len(listed) - len(exempt & set(listed))} listed figures not marked † "
+            f"are cited; none of the {len(record)} record-only figures is"
         )
 
 

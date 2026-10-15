@@ -76,46 +76,36 @@ note or the record is wrong, and the dev manager decides which. Block with the f
 
 ## Blockers
 
-`make note-check` fails on the committed `docs/NOTE.md` (v1.0, `561e7ff`): AC 2's
-listed-but-uncited check. The figure-list table lists 15 figures in the note; the body
-(everything above `## Figure list`) links or embeds 6 of them. The other 9 are never
-cited:
+**Re-blocked 2026-10-15, after the Story 5.1 review's ruling 4.** The ruling is applied:
+rows whose file cell is marked † are exempt from the listed-but-uncited check, every
+other listed row must be cited. Rebased on `main` at `7a37100` (NOTE.md with 1c/1d † and
+5b linked). `make note-check` on that note still exits 1, on two things the ruling does
+not cover:
 
 ```
-note-check: FAIL: cited: peg_trajectory_calibrated.png is in the figure list but never cited in the body
-note-check: FAIL: cited: threshold_surface_ou.png is in the figure list but never cited in the body
 note-check: FAIL: cited: budget_depth.png is in the figure list but never cited in the body
 note-check: FAIL: cited: budget_attack.png is in the figure list but never cited in the body
-note-check: FAIL: cited: lp_flight.png is in the figure list but never cited in the body
 note-check: FAIL: cited: pace_trigger.png is in the figure list but never cited in the body
 note-check: FAIL: cited: pace_ratio.png is in the figure list but never cited in the body
-note-check: FAIL: cited: peg_trajectory_baseline.png is in the figure list but never cited in the body
-note-check: FAIL: cited: peg_trajectory_1992_no_defense.png is in the figure list but never cited in the body
+note-check: FAIL: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150, the working tree's has 555833b72e0dbe565106ff13c3f2e7042d127715867712c2a490edb764aaa207
+note-check: FAIL, 5 problem(s) in docs/NOTE.md
 ```
 
-The failing lines are the figure-list rows at `docs/NOTE.md` lines 309, 311, 312, 313,
-314, 316, 317, 318 and 321 (at `561e7ff`), the first being
-`| — | \`peg_trajectory_calibrated.png\` † | 4 | F-06, F-03 | final |`. Five of the nine are
-the † rows or "(supporting)" rows; `peg_trajectory_1992_no_defense.png` is Figure 5b, and
-the body's only mention of it is line 223, Figure 5's caption, with no link: "The
-no-defense counterfactual is in the repository."
+1. **Four "(supporting)" rows without †.** `budget_depth.png`, `budget_attack.png`,
+   `pace_trigger.png`, `pace_ratio.png` say "4 (supporting)" / "5 (supporting)" in the
+   section column but carry no † in the file cell, and the body never links them. Under
+   the ruling as written ("every non-† row must be cited") they fail. Ways to clear it:
+   mark them † in NOTE.md, link them from the body, or rule that "(supporting)" in the
+   section column also exempts a row (a one-line change to `note_tables.supporting`; I
+   did not make it, as the ruling names † only).
+2. **Freeze tag is behind the code.** Story 5.1 changed `src/` (the two-series overlay),
+   so the manifest's `code_hash` is now `555833b7…` and `v0.9-freeze` points at
+   `a0ae9594…`. This is new since the first block (it passed at `561e7ff`). It clears
+   when the note names a freeze tag at or after Story 5.1's figures commit (e.g. a
+   `v1.0-freeze` for note v2), which is the dev manager's and Tim's call, not this story's.
 
-Every other check passes against the note: the 6 cited figures exist and are in the
-manifest; no record-only figure is cited; `v0.9-freeze` resolves to `76e7a1c` whose
-manifest `code_hash` (a0ae9594…) is the working tree's; all 8 fitted values are quoted as
-their records round them ($2.15B, −1,138 bps, 0.79×, $2.54B, −1,323 bps, 0.94×, 1.4 h,
-and D\* as a symbol with 16,666,667 absent).
-
-Per the story ("do not change the note or the fit record to make it pass") I changed
-neither. Ways to clear it, for the dev manager: link each of the nine from the body
-(e.g. "([figure](figures/budget_depth.png))", as §6 does for `oracle_sensitivity.png`);
-or move the uncited ones to "record only" in both NOTE.md's list and
-`docs/figures/README.md` (which also changes Story 4.1's four-figure record set and
-`tests/test_note_figures.py::test_note_and_readme_record_sets_match`); or rule that
-supporting figures need not be cited, and I narrow the check. Until then
-`tests/test_check_note.py::test_the_committed_note_passes` is `xfail(strict=True)` (it
-will XPASS-fail the suite once the note passes, so the mark has to come off), and CI's
-`test` job will fail at `make note-check` (AC 5 puts it on the CI line).
+I changed neither the note nor any tag. `test_the_committed_note_passes` stays
+`xfail(strict=True)` with the reason updated.
 
 ## Dev Agent Record
 
@@ -178,6 +168,31 @@ All checks passed!
 CI was not run: the branch is not pushed while blocked, and with `note-check` on the CI
 line (AC 5) the `test` job would fail on the committed note.
 
+**Re-run after the Story 5.1 ruling (2026-10-15).** Rebased on `main` at `7a37100`;
+† exemption added. `make note-check` (exit 1, see Blockers):
+
+```
+note-check: FAIL: cited: budget_depth.png is in the figure list but never cited in the body
+note-check: FAIL: cited: budget_attack.png is in the figure list but never cited in the body
+note-check: FAIL: cited: pace_trigger.png is in the figure list but never cited in the body
+note-check: FAIL: cited: pace_ratio.png is in the figure list but never cited in the body
+note-check: FAIL: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150, the working tree's has 555833b72e0dbe565106ff13c3f2e7042d127715867712c2a490edb764aaa207
+note-check: FAIL, 5 problem(s) in docs/NOTE.md
+note-check: ok: figures: 7 cited figures exist and are in the manifest
+note-check: ok: numbers: 8 fitted values quoted as their records round them
+```
+
+`make test`, `ruff check .`, `make figures-check`:
+
+```
+TOTAL                                    956      9    99%
+Required test coverage of 85% reached. Total coverage: 99.06%
+947 passed, 1 xfailed in 66.08s (0:01:06)
+All checks passed!
+figures-check: ok, 21 figures match their sources (code_hash matches)
+figures-check: ok, 4 fits match their inputs (script hashes match)
+```
+
 ### Completion Notes List
 
 - **`scripts/check_note.py`** follows `check_figures.py`: argparse (`--note`, `--manifest`,
@@ -219,6 +234,11 @@ line (AC 5) the `test` job would fail on the committed note.
 - No change under `src/`, `scenarios/`, `sweeps/`, `docs/figures/`, nor to `docs/NOTE.md`
   or any fit record. No ADR: the judgment calls are local to the script and listed above.
 
+- **† exemption (Story 5.1 review, ruling 4).** `note_tables.supporting(note)` returns
+  the figure-list files whose file cell contains `†`; `check_cited` skips them, and its
+  ok line now reads "all N listed figures not marked † are cited". Only the file cell is
+  read: "(supporting)" in the section column does not exempt a row (tested both ways).
+
 ### File List
 
 - `scripts/check_note.py` (new)
@@ -233,3 +253,4 @@ line (AC 5) the `test` job would fail on the committed note.
 
 - 2026-10-09: Story drafted by dev manager after NOTE.md v1.0 merged (PR #38)
 - 2026-10-12: Builder: `check_note.py`, `note-check` target and CI line, tests. Blocked: the committed note's body cites 6 of its 15 listed figures (see Blockers).
+- 2026-10-15: Builder: rebased on `main` (7a37100); † rows exempt from the listed-but-uncited check (ruling 4 of the Story 5.1 review). Still blocked: 4 "(supporting)" rows without † are uncited, and `v0.9-freeze` no longer matches `code_hash` after Story 5.1 (see Blockers).

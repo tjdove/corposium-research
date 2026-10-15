@@ -13,6 +13,7 @@ NOTE = Path("docs/NOTE.md")
 FIGURES_README = Path("docs/figures/README.md")
 FIGURE_LIST = "## Figure list (committed, `docs/figures/`)"
 PNG = re.compile(r"`([A-Za-z0-9_]+\.png)`")
+DAGGER = "†"  # a supporting row: listed, need not be cited (Story 5.1 review, ruling 4)
 
 
 def section(text: str, heading: str) -> str:
@@ -46,6 +47,17 @@ def note_sets(note: Path = NOTE) -> tuple[list[str], list[str]]:
         if found:
             (record if cells[2] == "record only" else in_note).append(found[0])
     return in_note, record
+
+
+def supporting(note: Path = NOTE) -> list[str]:
+    """Files in NOTE.md's figure list whose file cell carries ``†`` (supporting rows)."""
+    rows = section(Path(note).read_text(encoding="utf-8"), FIGURE_LIST)
+    marked = []
+    for row in rows.splitlines():
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        if row.startswith("|") and len(cells) > 2 and DAGGER in cells[1]:
+            marked += PNG.findall(cells[1])[:1]
+    return marked
 
 
 def readme_sets(readme: Path = FIGURES_README) -> tuple[list[str], list[str]]:
