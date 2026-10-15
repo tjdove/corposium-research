@@ -1,5 +1,5 @@
 # Corposium Research — Soros/ERM Stablecoin Depeg Simulator
-## Project Charter (v0.5 — 2026-10-08)
+## Project Charter (v0.6 — 2026-10-15)
 
 Owner: Tim Dove · Dev manager: Claude · Business ops: Muse (Meta)
 
@@ -94,9 +94,13 @@ Principle: credibility comes from grounded parameters and a validated trajectory
 - **Oct 14 checkpoint:** if no clear finding, cut scope, not time (fall back to well-documented sensitivity study). *(Met early, 2026-10-05: F-08 validated against USDC March 2023; F-03/F-11 mechanism; F-10.)*
 - **Oct 6–20 — Epic 3, What the model asked for** (re-planned 2026-10-05). Holder fill-price fix; defender policy comparison; 1992 switch-sides test; budget vs attack; test hardening and repo polish. Stretch: mean-reverting reference, multi-tranche holder, LP agent. Anvil dropped. *(Actual: Oct 5–8, all eight stories including stretch.)*
 - **Oct 21 — Feature freeze.** *(Moved to Oct 9, end of Story 4.1 — all planned mechanics built; Tim confirmed 2026-10-08.)*
-- **Oct 9–28 — Epic 4, Write-up.** Figure pass and freeze (4.1), note (4.2), site page (4.3), one-pager (4.4), launch thread and outside read (4.5).
-- **Oct 29–31 — Buffer.** Outside reader review (reader to be lined up by Oct 15 — Tim/Muse); schedule posts.
-- **Nov 1 — Publish.**
+- **Oct 9–14 — Epic 4, Write-up (first pass).** Figure pass and freeze (4.1, Oct 9), note v1.0 (4.2, Oct 9), USDC-2023 background and plain-language guide (Oct 13). *(Actual.)*
+- **Oct 15 — Outside review 1** (model, finance-professor persona): "do not publish in this form." Verdict accepted as "not these claims." See `docs/reviews/`.
+- **Oct 15–25 — Epic 5, Referee Response.** Freeze lifted for four stories on the existing code: par-reference replay (5.1), joint D\*×C\* identification (5.2), policy sweep with gentler attacker and cost-of-discount metric (5.3), LP that disposes of withdrawn inventory (5.4). **Re-freeze ~Oct 26** (tag `v0.95-freeze`).
+- **Oct 26–31 — Note v2.** Dev manager rewrites the note from the Epic 5 results and the review disposition table; trader and hostile-referee passes on v2; human readers (Tim via Twitter) if secured.
+- **Nov 1–12 — Epic 4, second pass.** Site page (4.3), one-pager (4.4), launch thread (4.5); outside comments addressed.
+- **Nov 13–14 — Buffer.**
+- **Nov 15 — Publish** (was Nov 1; moved 2026-10-15 by Tim: "We're not going to let this project slip. We are just moving the final date a little bit.").
 
 Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per milestone.
 
@@ -127,7 +131,8 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 - Python first; Rust only if measured
 - No live-chain dependencies in the core path (Anvil is verification only)
 - Honest results over impressive architecture
-- **The analogy is a tool, not a thesis.** 1992 gives the model its question and its first calibration; where on-chain mechanics diverge from 1992 is a result to report, not a caveat to bury. The note's spine is where the analogy holds and where the mechanism changes (Tim, 2026-10-06).
+- **The analogy is a tool, not a thesis.** 1992 gives the model its question and its first calibration; where on-chain mechanics diverge from 1992 is a result to report, not a caveat to bury. The note's spine is where the analogy holds and where the mechanism changes (Tim, 2026-10-06). *Sharpened 2026-10-15 after outside review 1:* 1992 lives in the introduction and the "where the analogy breaks" section; it does not appear in a results section unless it names the experiment it is reporting. The 1992 replay is a comparative static inside the model, not a historical explanation.
+- **A fitted number is not a prediction.** "Validation" means a test whose target was not used in fitting. Everything else is calibration or replay, and is called that (2026-10-15).
 
 ---
 
@@ -177,3 +182,4 @@ Cadence: Tim + Claude review Mondays; Muse daily check-in; one public post per m
 | 2026-10-05 | Note outline (`docs/NOTE.md`) drafted during Epic 3, not after the freeze; outside reader to be secured by Oct 15 | Claude, Tim agreed |
 | 2026-10-06 | Principle added: the analogy is a tool, not a thesis; divergences from 1992 are results and structure the note | Tim |
 | 2026-10-08 | Epic 3 closed in three days with all stretch items. Freeze at the end of Story 4.1 (Oct 9) instead of Oct 21; Epic 4 runs Oct 9–28; buffer and Nov 1 unchanged | Tim (confirmed 2026-10-08: "Option A") |
+| 2026-10-15 | Outside review 1 (model, finance-professor persona) returned "do not publish in this form": in-sample calibration presented as validation; observed price fed to the model; "only redemption breaks the peg" wrong by our own definition; 1992 analogue carrying no analytical weight; "spend slower" conditional on shock design and a missing cost of discount; ~36 factual/wording items. Accepted. Freeze lifted for Epic 5 (four stories); note v2; publish moves Nov 1 → Nov 15. Tim's correction recorded: 1992 was pushed harder than it deserved as core to the results. Full record `docs/reviews/2026-10-15-outside-review-1-finance-professor.md` | Tim + Claude |

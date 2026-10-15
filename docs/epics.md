@@ -595,6 +595,92 @@ reader's comments logged and addressed in the note; posts scheduled for Nov 1 (M
 **Epic 4 Complete:** repo tagged `v1.0`, note published, site page live, one-pager and
 thread out.
 
+*2026-10-15: Epic 4 paused after 4.2 (note v1.0) for Epic 5. Stories 4.3–4.5 resume against
+note v2 on Nov 1; publish Nov 15.*
+
+---
+
+## Epic 5: Referee Response
+
+**Expanded Goal:**
+
+Outside review 1 (`docs/reviews/2026-10-15-outside-review-1-finance-professor.md`) found
+that the note's central claims outran the experiments: a fitted replay called validation,
+the observed price fed to the model during that replay, a defence-policy prescription that
+depends on a one-step 77% crash and a model that charges nothing for sitting at a discount,
+and a liquidity-flight result that depends on the provider doing nothing with what it
+withdrew. This epic runs the four experiments the referee said the existing architecture
+can run, so note v2 claims only what the model shows. **No new mechanisms beyond what each
+story names.** The freeze is lifted for this epic and re-applied at its end (`v0.95-freeze`).
+
+**Dates:** Oct 15–25 · **Re-freeze:** ~Oct 26 · **Note v2:** Oct 26–31
+
+**Story Count:** 4 builder stories + note v2 (dev manager)
+
+---
+
+### Story 5.1: Par-Reference Replay
+
+The USDC replay with nothing from the observed series fed to the model: reference fixed at
+par (and a second variant with the calm OU reference), attacker, holders and redemption
+schedule unchanged, observed series used **only** to evaluate. Reports trough depth and
+time, path overlay, and the band statistics, for single-holder and ladder-B scenarios.
+Decides whether note v2 can keep "the believers set the depth" as a replay result or must
+reposition it as a computational demonstration (referee §1, §5.6, §5.14, §7).
+
+**Prerequisites:** none (freeze lifted)
+
+---
+
+### Story 5.2: Joint Identification of D\* and C\*
+
+A 2-D sweep of pool depth × holder capital on the par-reference replay (5.1), trough depth
+as the surface; the set of (D\*, C\*) pairs within ±5% of the observed trough drawn as a
+contour. All three ladders (A/B/C) reported side by side at their fitted C\*. If cheap: a
+continuous entry-price distribution (uniform 2–20%) as a fourth variant. Answers "is the
+fitted triple one of a family, and how wide" (referee §5.9–11).
+
+**Prerequisites:** Story 5.1
+
+---
+
+### Story 5.3: Policy Comparison Under a Gradual Attack, With a Cost of Discount
+
+Re-run the defender policy sweep with attacker pace 0.01 and 0.02 (alongside the existing
+0.1) so triggers can bind, and add one summary metric: **discount-hours** (integral of
+`max(0, par − spot)` over steps, in bps·h) and the holder's and defender's PnL as the
+cost side. Policies compared on time-to-parity *and* discount-hours. Answers whether
+"spend slower than the attacker sells" survives when the attack does not crash the price
+in one step and waiting has a price (referee §5.21–23).
+
+**Prerequisites:** none
+
+---
+
+### Story 5.4: Liquidity Provider That Disposes of Withdrawn Inventory
+
+`LiquidityProviderConfig.after_withdrawal: hold | sell | redeem`. `sell` dumps the withdrawn
+stablecoin on the AMM at a pace; `redeem` queues it. Re-run the LP-flight sweep under all
+three. Decides whether F-15 ("liquidity that flees helps the defender") is a result or a
+footnote (referee §4, §5.25).
+
+**Prerequisites:** none
+
+---
+
+### Note v2 (dev manager, not a builder story)
+
+Rewrite against Epic 5 results and the review's disposition table: "replay" not
+"validation"; findings ordered throughput, liquidity, believers, pace, exits; 1992 in the
+introduction and "where the analogy breaks" only; every "cannot" narrowed to "did not in
+these experiments"; all fact fixes from Part 4 of the review; USDC-2023.md and BACKGROUND.md
+corrected. Then trader and hostile-referee passes.
+
+---
+
+**Epic 5 Complete:** four stories done, tag `v0.95-freeze`, `make figures-check` clean,
+note v2 drafted, review passes 2 and 3 logged in `docs/reviews/`.
+
 ---
 
 ## Story Guidelines Reference
