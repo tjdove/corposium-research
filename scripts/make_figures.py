@@ -179,10 +179,13 @@ def render(fig: Figure, work: Path, sweeps_dir: Path) -> Path:
     """Draw one figure; returns the PNG path (inside ``work`` or the sweep directory)."""
     if is_sweep(Path(fig.source)):
         return fig.function(sweeps_dir / load_sweep(fig.source).name)
-    run = run_scenario(load_scenario(fig.source), output_dir=work / "runs", chart=True)
+    # one directory per figure: a scenario drawn by two figures (Story 5.1) is rerun, and
+    # run_scenario replaces an existing run directory with the PNG already drawn in it
+    runs = work / "runs" / fig.name
+    run = run_scenario(load_scenario(fig.source), output_dir=runs, chart=True)
     if fig.second is None:
         return fig.function(run.run_dir)
-    second = run_scenario(load_scenario(fig.second), output_dir=work / "runs", chart=False)
+    second = run_scenario(load_scenario(fig.second), output_dir=runs, chart=False)
     return fig.function(run.run_dir, second.run_dir)
 
 
@@ -220,7 +223,8 @@ def main(argv: list[str] | None = None) -> int:
         rendered = {}
         for fig in FIGURES:
             rendered[fig] = render(fig, work, sweeps_dir)
-            print(f"drew: {fig.file} <- {fig.source}", flush=True)
+            also = "" if fig.second is None else f" + {fig.second}"
+            print(f"drew: {fig.file} <- {fig.source}{also}", flush=True)
         if args.quick:
             FIGURES_DIR.mkdir(parents=True, exist_ok=True)
             QUICK_MARKER.write_text("".join(f"{f.file}\n" for f in FIGURES), encoding="utf-8")

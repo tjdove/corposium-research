@@ -218,3 +218,20 @@ def test_guard_annotates_on_github_actions(tmp_path):
     )
     assert out.returncode == 0
     assert out.stdout.startswith("::warning title=figures-check::WARNING")
+
+
+def test_figures_sharing_a_scenario_keep_both_pngs(tmp_path, monkeypatch):
+    """Story 5.1: the par overlay reruns usdc-2023; the first overlay's PNG must survive
+    until it is copied (make figures failed with FileNotFoundError before the fix)."""
+    from depeg_sim.experiments.sweep import set_path
+
+    def short(path):
+        return set_path(load_scenario(path), "steps.max_steps", 8400)
+
+    monkeypatch.setattr(make_figures, "load_scenario", short)
+    by_file = {f.file: f for f in make_figures.FIGURES}
+    first = make_figures.render(by_file["validation_overlay_usdc_2023.png"], tmp_path, tmp_path)
+    second = make_figures.render(
+        by_file["validation_overlay_usdc_2023_par.png"], tmp_path, tmp_path
+    )
+    assert first.is_file() and second.is_file() and first != second
