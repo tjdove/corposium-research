@@ -253,6 +253,11 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
   The analogy's job is the question and the agent roster; the results stand on the
   experiments.
 
+- **L-21 — A blocked story is silent; go and look.** Story 4.2 blocked on Oct 12 and sat
+  unseen for three days because nothing tells the dev manager a branch moved. At every
+  review and every Monday: `git fetch; for b in story/*: rev-list --count main..b` and read
+  the `Status:` line of any branch ahead of main.
+
 ## 7. Environment notes
 
 - **Seoul** (builder): uv-managed venv on Python 3.12 (system is 3.14). `bash time` is
