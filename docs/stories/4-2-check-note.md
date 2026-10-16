@@ -74,6 +74,21 @@ note or the record is wrong, and the dev manager decides which. Block with the f
 - [Source: scripts/check_figures.py] — pattern to follow (`ok:` lines, exit codes)
 - [Source: docs/calibration/fits/*.json]
 
+## Rulings (dev manager, 2026-10-15, second round)
+
+1. **"(supporting)" rows.** Marked † in `docs/NOTE.md` by the dev manager (PR #43). No
+   change to the check: † in the file cell is the only exemption, as you built it.
+2. **Freeze tag behind the code.** Expected during Epic 5: the freeze is lifted, the code
+   hash moves, the note still names the tag its figures came from. Ruling: the freeze
+   check **fails** if the named tag does not resolve or has no manifest, and **warns**
+   (exit 0, one `warn:` line naming both hashes) when the tag's `code_hash` differs from
+   the working tree's. Add `--strict-freeze` that turns the warning into a failure; CI
+   does **not** pass it now; the re-freeze story at the end of Epic 5 will cite the new
+   tag in the note and switch CI to `--strict-freeze`. Update the test accordingly
+   (`test_the_committed_note_passes` should pass, not xfail, once PR #43 is on main).
+3. Rebase on main after #43 merges, apply ruling 2, re-run `make note-check`, set
+   `Status: review`, push.
+
 ## Blockers
 
 **Re-blocked 2026-10-15, after the Story 5.1 review's ruling 4.** The ruling is applied:
