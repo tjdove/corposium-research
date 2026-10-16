@@ -1,6 +1,6 @@
 # ADR-0035: Closed weekend channel: with redemption shut (or at 10%) until 85 h, the trough falls to the 20% tranche (−2,001) and the price stays near it until the reopening, then is back in band by 85.3 h (observed 86.0 h); capacity 0 allowed; a figure's observed source
 
-**Status:** Proposed (finding + interface)
+**Status:** Accepted (finding + interface; review 2026-10-16, unamended; F-17)
 **Date:** 2026-10-16
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.5 (F-16; outside review 1, §5.15–5.16)

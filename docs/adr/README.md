@@ -41,6 +41,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0032](0032-figure-pass-fit-records-and-freeze.md) | Policy panel (b) price paid per run; fit records under the guard; note set = all committed figures minus four record-only; freeze commit tagged, hash recorded in a following docs-only commit | Accepted | 2026-10-09 |
 | [0033](0033-par-reference-replay.md) | Par-reference replay: with no observed input, ladder B's trough holds (−1,279 vs −1,373), the single-entry trough collapses (−607), and recovery comes at 37–40 h not 85 h (F-16); two-source figures in the guard | Accepted (finding + interface) | 2026-10-15 |
 | [0034](0034-joint-identification.md) | Joint identification on the par replay: the trough is a tread of the ladder; total capital identified to a few % at a given shape and depth (0.82–1.07× C\* over 0.5–2× D\*), ladder shape not identified; deeper pools need less capital | Accepted (finding + interface) | 2026-10-15 |
+| [0035](0035-closed-weekend-channel.md) | Closed weekend channel: shut or 10% until 85 h → trough at the 20% tranche (−2,001), pinned until the reopening, back in band 85.3 h vs 86.0 observed (F-17: the model brackets the weekend; belief is a switch, the weekend was a process); capacity 0 allowed; figure observed-source | Accepted (finding + interface) | 2026-10-16 |
 
 ## Template
 

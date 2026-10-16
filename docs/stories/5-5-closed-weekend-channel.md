@@ -1,6 +1,6 @@
 # Story 5.5: Closed Weekend Channel
 
-Status: review
+Status: done
 
 ## Story
 
@@ -280,7 +280,61 @@ mismatch (freeze manifest `a0ae9594…`, working tree `d44ea724…`); 4 ok lines
 - `docs/adr/0035-closed-weekend-channel.md` (new, Proposed)
 - `docs/stories/5-5-closed-weekend-channel.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-16 · **Verdict: APPROVE**
+
+Reproduced on the review box at `0e7e255`: `pytest -q` all pass (exit 0); `ruff` clean;
+`make figures-check` → 23 figures, 4 fits ok. `python scripts/closed_channel_table.py`
+(26 s) and `replay_table.py`: every number matches the story and ADR-0035 — closed
+trough −2,001.2 at 31.6 h, back in band 85.3 h; 10% −2,001.1 at 31.9 h, 85.2 h; 35–85 h
+mean −2,000.0 / −1,563.9 / −66.6 against −335.4 observed; arbitrageur bought 200,000 /
+272,392 / 923,919 in 27–31 h; holder at 85 h 9.37M stable, PnL −1.21M, at 112 h +669k.
+Config change (`capacity_per_step: ge=0`, redemption accepts 0, schedule entries still
+> 0) read and is the smallest change; no tiny-positive workaround. The figure's
+`observed` third source is the right design and the guard covers it.
+
+**What the result means (the dev manager's call).** Recorded as **F-17**.
+
+1. *The model brackets the weekend and reality is inside the bracket.* Channel open at
+   the calibrated rate: back at par by 40 h (too fast). Channel shut: pinned at the last
+   tranche's price, −2,000 bps, for fifty hours, then back in band at 85.3 h against
+   86.0 h observed (right time, wrong depth). The real price drifted from −1,373 up
+   through −500 … −150 over two days *with the channel mostly shut*. So the plateau is
+   not a throughput story: a shut channel gives a floor, not a drift. What moved the real
+   price between Saturday 2 am and Monday was buyers whose reservation prices rose as
+   news arrived (Circle's Saturday statement; the 6:15 pm Sunday guarantee is visible in
+   the blue line as the jump near 66–70 h). **Belief in the model is a switch; in the
+   weekend it was a process.** That is the mechanism the model lacks, named.
+2. *The trough depends on the channel paying in the first four hours.* With the channel
+   shut, the arbitrageur has only its 200k and the 20% tranche takes the whole tail:
+   −2,001 instead of −1,279. The 724k the channel paid the arbitrageur during 27–31 h in
+   the open replay was doing believers' work. If the real channel was shut on Friday
+   night — and it was, to a first approximation — then the believers' capital that
+   reproduces −1,373 is **larger than C\***. The 5.2 family (0.82–1.07× C\*) is conditional
+   on the open channel; Story 5.6 measures the closed-channel C\*.
+3. *The believer at a pinned price.* With no redemption, the 20% tranche keeps buying at
+   $0.80 for 12,750 of 15,000 steps, ends the weekend holding 9.37M stable at −1.2M PnL,
+   and is +669k by Tuesday. That is the believer holding the floor at its own price and
+   being paid for it on Monday — the model's version of the weekend trade.
+
+**Rulings**
+
+1. **ADR-0035 accepted (finding + interface).** Index row added. F-17 in FINDINGS.
+2. Figure 1f stays †; v2 cites it beside 1d as the two ends of the bracket.
+3. Rule counts from a one-off traced run: acceptable, since the Debug Log carries the
+   command and output; if v2 quotes "12,750 of 15,000 steps" it cites the story.
+4. **Story 5.6 added (tiny): closed-channel capital scan.** `fit_holder.py` rule on
+   `usdc-2023-tranches-par-closed.yaml` (ladder B, D\* fixed, pace fixed): the C\* that
+   lands closest to −1,373 with the channel shut, and the ±10% range. One table row, one
+   fit record. No figure. This is the number v2 quotes next to C\*.
+
+**Lessons:** prediction half wrong (trough moved), recorded (L-15). The builder's framing
+"recovery timing matches and the trough depth doesn't, the reverse of the open-channel
+run" is the finding in one line.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager (5.1 review, ruling 5)
 - 2026-10-16: Implemented by Claude Code (Opus 5.5): closed and 10% weekend-channel scenarios (capacity 0 allowed), two replay-table rows, `closed_channel_table.py`, overlay with an observed source, VALIDATION.md section, ADR-0035 proposed. Trough deepens to −2,001 (prediction said unchanged); price sits at −2,000 until 85 h; back in band at 85.3 h (observed 86.0). Status: review.
+- 2026-10-16: Reviewed by dev manager — APPROVE; ADR-0035 accepted; F-17; Story 5.6 added; Status: done

@@ -1,0 +1,25 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.6</storyId><title>Closed-Channel Capital Scan</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-16</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-6-closed-channel-capital-scan.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who knows the channel was shut on Friday night</asA><iWant>the believers' capital that reproduces the trough with the channel closed</iWant><soThat>the note quotes C* with and without its condition</soThat>
+    <tasks>- Two fits with records (AC 1–2) - Table (AC 3) - Docs (AC 4) - Tests (AC 5)</tasks>
+  </story>
+  <acceptanceCriteria>See story ACs 1–5. Unchanged two-pass rule; D* and pace fixed; base replay scenarios untouched.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/FINDINGS.md" section="F-17">Why.</doc>
+      <doc path="docs/calibration/fits/holder-ladder-b.json">Record format and the open-channel reference fit.</doc>
+    </docs>
+    <code>
+      <existing path="scripts/fit_holder.py" reason="--tranches, --write."/>
+      <existing path="scripts/identification_table.py" reason="Fourth table."/>
+      <existing path="scripts/check_figures.py" reason="--fits covers new records."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism; ruff clean; never claim unrun numbers — paste command output in the Debug Log; record before interpreting (L-19).</constraints>
+</story-context>
