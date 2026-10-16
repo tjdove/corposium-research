@@ -11,8 +11,11 @@ Four checks, one ``ok:`` line each; exit 0 when all pass, exit 1 naming every fa
   record-only figures (``docs/figures/README.md``, "Record only", read beside the manifest)
   are never linked or embedded anywhere in the note.
 - **freeze.** The freeze tag the note names (``v\\d+\\.\\d+-freeze``) resolves to a commit
-  whose ``manifest.json`` has the working tree manifest's ``code_hash``. When git is not
-  installed or the note is not in a git work tree, this warns and does not fail.
+  whose ``manifest.json`` has the working tree manifest's ``code_hash``. A tag that does
+  not resolve, or has no manifest, fails. A ``code_hash`` that differs warns (the freeze
+  is lifted during Epic 5; Story 4.2 rulings, second round, ruling 2) and fails only with
+  ``--strict-freeze``. When git is not installed or the note is not in a git work tree,
+  this warns and does not fail.
 - **numbers.** ``NUMBERS`` maps fit-record results to the strings the note quotes, with a
   rounding rule each; the normalised note must contain each one. The depth fit is quoted
   as the symbol D\\*: the symbol must appear, and the fitted value ``16,666,667`` appearing
@@ -167,7 +170,9 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
                           check=False)  # fmt: skip
 
 
-def check_freeze(text: str, manifest_path: Path, manifest: dict, report: Report) -> None:
+def check_freeze(
+    text: str, manifest_path: Path, manifest: dict, report: Report, strict: bool = False
+) -> None:
     tags = sorted(set(FREEZE_TAG.findall(text)))
     if len(tags) != 1:
         report.fail.append(f"freeze: the note must name one freeze tag, found {tags or 'none'}")
@@ -192,10 +197,15 @@ def check_freeze(text: str, manifest_path: Path, manifest: dict, report: Report)
         return
     then, now = json.loads(shown.stdout).get(CODE_HASH), manifest.get(CODE_HASH)
     if then != now:
-        report.fail.append(
+        line = (
             f"freeze: {tag} ({sha[:12]}) manifest has code_hash {then}, "
             f"the working tree's has {now}"
         )
+        if strict:
+            report.fail.append(line)
+            return
+        report.warn.append(line)
+        report.ok.append(f"freeze: {tag} is {sha[:12]} (code differs, see warning)")
         return
     report.ok.append(f"freeze: {tag} is {sha[:12]}, manifest code_hash {now[:12]} matches")
 
@@ -233,13 +243,13 @@ def check_numbers(text: str, fits: Path, report: Report) -> None:
         report.ok.append(f"numbers: {n} fitted values quoted as their records round them")
 
 
-def check_note(note: Path, manifest_path: Path, fits: Path) -> Report:
+def check_note(note: Path, manifest_path: Path, fits: Path, strict_freeze: bool = False) -> Report:
     report = Report([], [], [])
     text = note.read_text(encoding="utf-8")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     check_figures(note, text, manifest, report)
     check_cited(note, text, manifest_path.parent / "README.md", report)
-    check_freeze(text, manifest_path, manifest, report)
+    check_freeze(text, manifest_path, manifest, report, strict_freeze)
     check_numbers(text, fits, report)
     return report
 
@@ -249,12 +259,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--note", type=Path, default=NOTE)
     p.add_argument("--manifest", type=Path, default=MANIFEST)
     p.add_argument("--fits", type=Path, default=FITS)
+    p.add_argument(
+        "--strict-freeze",
+        action="store_true",
+        help="fail, not warn, when the freeze tag's code_hash is not the working tree's",
+    )
     args = p.parse_args(argv)
     for path in (args.note, args.manifest):
         if not path.is_file():
             print(f"note-check: {path} not found", file=sys.stderr)
             return 1
-    report = check_note(args.note, args.manifest, args.fits)
+    report = check_note(args.note, args.manifest, args.fits, args.strict_freeze)
     for line in report.warn:
         print(f"note-check: WARNING: {line}", file=sys.stderr)
         if os.environ.get("GITHUB_ACTIONS"):

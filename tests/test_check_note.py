@@ -198,13 +198,30 @@ def test_depth_symbol_missing_fails_and_value_printed_warns(tmp_path, capsys):
     assert code == 0 and "WARNING: numbers: the note prints D* as 16,666,667" in err
 
 
-def test_freeze_tag_on_other_code_fails(tmp_path, capsys):
+def test_freeze_tag_on_other_code_warns_and_fails_when_strict(tmp_path, capsys):
+    """Rulings, second round, ruling 2: a code_hash mismatch warns; --strict-freeze fails."""
     args = make_repo(tmp_path)
     manifest = Path(args[3])
     manifest.write_text(manifest.read_text().replace("c0de", "beef"))
-    code, _, err = run(args, capsys)
+    code, out, err = run(args, capsys)
+    assert code == 0, err
+    assert err.count("WARNING: ") == 1
+    assert "WARNING: freeze: v0.9-freeze" in err
+    assert "code_hash c0de, the working tree's has beef" in err
+    assert "ok: freeze: v0.9-freeze is " in out and "(code differs, see warning)" in out
+    assert out.count("note-check: ok: ") == 4
+
+    code, out, err = run(args + ["--strict-freeze"], capsys)
     assert code == 1
-    assert "freeze: v0.9-freeze" in err and "code_hash c0de, the working tree's has beef" in err
+    assert (
+        "FAIL: freeze: v0.9-freeze" in err and "code_hash c0de, the working tree's has beef" in err
+    )
+    assert "ok: freeze" not in out
+
+
+def test_strict_freeze_passes_when_the_hashes_match(tmp_path, capsys):
+    code, out, err = run(make_repo(tmp_path) + ["--strict-freeze"], capsys)
+    assert code == 0 and err == "" and "ok: freeze: v0.9-freeze is " in out
 
 
 def test_freeze_tag_missing_fails(tmp_path, capsys):
@@ -256,12 +273,6 @@ def test_quoted_is_minus_space_and_whole_number_aware():
     assert check_note.quoted("0.79× the attack", "0.79×")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Story 4.2 blocked: docs/NOTE.md lists 4 non-† figures its body never cites, "
-    "and v0.9-freeze's code_hash is not the working tree's (see the story's Blockers); "
-    "remove this mark when the note, its list or its tag is fixed",
-)
 def test_the_committed_note_passes():
     run = subprocess.run(
         [sys.executable, "scripts/check_note.py"], capture_output=True, text=True, check=False

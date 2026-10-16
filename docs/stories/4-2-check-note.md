@@ -1,6 +1,6 @@
 # Story 4.2: Research Note — `check_note.py`
 
-Status: blocked
+Status: review
 
 ## Story
 
@@ -35,10 +35,8 @@ and block; do not change the note or the fit record to make it pass.
 - [x] Number table (AC: 4)
 - [x] Make + CI (AC: 5)
 - [x] Tests (AC: 6, 7)
-  - [ ] Dev Agent Record, Change Log, `Status: review` (Dev Agent Record and Change Log
-        done; `Status: blocked`, see Blockers)
-  - [ ] Commit `story 4.2: check_note.py`, push branch `story/4-2-check-note` (committed
-        on the branch; not pushed while blocked)
+  - [x] Dev Agent Record, Change Log, `Status: review` (after the second-round rulings)
+  - [x] Commit `story 4.2: check_note.py`, push branch `story/4-2-check-note`
 
 ## Dev Notes
 
@@ -88,39 +86,6 @@ note or the record is wrong, and the dev manager decides which. Block with the f
    (`test_the_committed_note_passes` should pass, not xfail, once PR #43 is on main).
 3. Rebase on main after #43 merges, apply ruling 2, re-run `make note-check`, set
    `Status: review`, push.
-
-## Blockers
-
-**Re-blocked 2026-10-15, after the Story 5.1 review's ruling 4.** The ruling is applied:
-rows whose file cell is marked † are exempt from the listed-but-uncited check, every
-other listed row must be cited. Rebased on `main` at `7a37100` (NOTE.md with 1c/1d † and
-5b linked). `make note-check` on that note still exits 1, on two things the ruling does
-not cover:
-
-```
-note-check: FAIL: cited: budget_depth.png is in the figure list but never cited in the body
-note-check: FAIL: cited: budget_attack.png is in the figure list but never cited in the body
-note-check: FAIL: cited: pace_trigger.png is in the figure list but never cited in the body
-note-check: FAIL: cited: pace_ratio.png is in the figure list but never cited in the body
-note-check: FAIL: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150, the working tree's has 555833b72e0dbe565106ff13c3f2e7042d127715867712c2a490edb764aaa207
-note-check: FAIL, 5 problem(s) in docs/NOTE.md
-```
-
-1. **Four "(supporting)" rows without †.** `budget_depth.png`, `budget_attack.png`,
-   `pace_trigger.png`, `pace_ratio.png` say "4 (supporting)" / "5 (supporting)" in the
-   section column but carry no † in the file cell, and the body never links them. Under
-   the ruling as written ("every non-† row must be cited") they fail. Ways to clear it:
-   mark them † in NOTE.md, link them from the body, or rule that "(supporting)" in the
-   section column also exempts a row (a one-line change to `note_tables.supporting`; I
-   did not make it, as the ruling names † only).
-2. **Freeze tag is behind the code.** Story 5.1 changed `src/` (the two-series overlay),
-   so the manifest's `code_hash` is now `555833b7…` and `v0.9-freeze` points at
-   `a0ae9594…`. This is new since the first block (it passed at `561e7ff`). It clears
-   when the note names a freeze tag at or after Story 5.1's figures commit (e.g. a
-   `v1.0-freeze` for note v2), which is the dev manager's and Tim's call, not this story's.
-
-I changed neither the note nor any tag. `test_the_committed_note_passes` stays
-`xfail(strict=True)` with the reason updated.
 
 ## Dev Agent Record
 
@@ -184,7 +149,7 @@ CI was not run: the branch is not pushed while blocked, and with `note-check` on
 line (AC 5) the `test` job would fail on the committed note.
 
 **Re-run after the Story 5.1 ruling (2026-10-15).** Rebased on `main` at `7a37100`;
-† exemption added. `make note-check` (exit 1, see Blockers):
+† exemption added. `make note-check` (exit 1; the second block, since cleared by the second-round rulings):
 
 ```
 note-check: FAIL: cited: budget_depth.png is in the figure list but never cited in the body
@@ -204,6 +169,39 @@ TOTAL                                    956      9    99%
 Required test coverage of 85% reached. Total coverage: 99.06%
 947 passed, 1 xfailed in 66.08s (0:01:06)
 All checks passed!
+figures-check: ok, 21 figures match their sources (code_hash matches)
+figures-check: ok, 4 fits match their inputs (script hashes match)
+```
+
+**Final run, after the second-round rulings (2026-10-15).** Rebased on `main` at
+`e68df8b` (PR #43: the four "(supporting)" rows marked †). `make note-check` (exit 0;
+the one warning is ruling 2's freeze mismatch):
+
+```
+.venv/bin/python scripts/check_note.py
+note-check: WARNING: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150, the working tree's has 555833b72e0dbe565106ff13c3f2e7042d127715867712c2a490edb764aaa207
+note-check: ok: figures: 7 cited figures exist and are in the manifest
+note-check: ok: cited: all 7 listed figures not marked † are cited; none of the 4 record-only figures is
+note-check: ok: freeze: v0.9-freeze is 76e7a1cf6a03 (code differs, see warning)
+note-check: ok: numbers: 8 fitted values quoted as their records round them
+```
+
+`python scripts/check_note.py --strict-freeze` (exit 1, as ruling 2 intends until the
+re-freeze):
+
+```
+note-check: FAIL: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4f6cc08e4c3e50540749dad4b24bd486a111421850f81c1c29150, the working tree's has 555833b72e0dbe565106ff13c3f2e7042d127715867712c2a490edb764aaa207
+note-check: FAIL, 1 problem(s) in docs/NOTE.md
+```
+
+`ruff format --check .`, `ruff check .`, `make test`, `make figures-check`:
+
+```
+106 files already formatted
+All checks passed!
+TOTAL                                    956      9    99%
+Required test coverage of 85% reached. Total coverage: 99.06%
+949 passed in 65.56s (0:01:05)
 figures-check: ok, 21 figures match their sources (code_hash matches)
 figures-check: ok, 4 fits match their inputs (script hashes match)
 ```
@@ -254,6 +252,15 @@ figures-check: ok, 4 fits match their inputs (script hashes match)
   ok line now reads "all N listed figures not marked † are cited". Only the file cell is
   read: "(supporting)" in the section column does not exempt a row (tested both ways).
 
+- **Freeze mismatch warns (second-round ruling 2).** A tag that does not resolve or has
+  no manifest still fails. A `code_hash` that differs adds one warning naming both hashes
+  (printed as `note-check: WARNING: freeze: …`, the script's existing warning form, which
+  I took ruling 2's "`warn:` line" to mean) plus an ok line "`freeze: <tag> is <sha>
+  (code differs, see warning)`", as `check_figures.py` does for its code hash; exit 0.
+  `--strict-freeze` turns the mismatch into a failure (no ok line). CI and `make
+  note-check` do not pass it. `test_the_committed_note_passes` is no longer xfail and
+  passes; the synthetic mismatch test covers both modes.
+
 ### File List
 
 - `scripts/check_note.py` (new)
@@ -269,3 +276,4 @@ figures-check: ok, 4 fits match their inputs (script hashes match)
 - 2026-10-09: Story drafted by dev manager after NOTE.md v1.0 merged (PR #38)
 - 2026-10-12: Builder: `check_note.py`, `note-check` target and CI line, tests. Blocked: the committed note's body cites 6 of its 15 listed figures (see Blockers).
 - 2026-10-15: Builder: rebased on `main` (7a37100); † rows exempt from the listed-but-uncited check (ruling 4 of the Story 5.1 review). Still blocked: 4 "(supporting)" rows without † are uncited, and `v0.9-freeze` no longer matches `code_hash` after Story 5.1 (see Blockers).
+- 2026-10-15: Builder: second-round rulings applied — rebased on `main` (e68df8b); freeze `code_hash` mismatch warns, `--strict-freeze` fails on it; the committed-note test passes. `make note-check` exit 0. Status: review.
