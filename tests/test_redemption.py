@@ -144,8 +144,8 @@ def test_invalid_requests_rejected(action, reason):
         {"spread_bps": -1},
         {"spread_bps": 10_000},
         {"spread_bps": 10.5},
-        {"capacity": 0.0},
         {"capacity": -5.0},
+        {"capacity": float("nan")},
         {"peg_price": 0.0},
         {"peg_price": -1.0},
     ],
@@ -466,4 +466,42 @@ def test_capacity_schedule_config_validator():
                 {"step": 5, "capacity_per_step": 1.0},
                 {"step": 5, "capacity_per_step": 2.0},
             ],
+        )
+
+
+# Story 5.5: a channel closed until its schedule opens it --------------------------------
+
+
+def test_closed_channel_queues_pays_nothing_then_drains_when_opened():
+    c = ctx()
+    m = RedemptionModule(
+        reserves=1e6, spread_bps=0, capacity_per_step=0.0, capacity_schedule=[(10, 1000.0)]
+    )
+    m.execute(c, redeem(3000.0))
+    queued = []
+    for _ in range(14):
+        m.on_phase(c, Phase.PROTOCOL_EVENTS)
+        queued.append(m.queued_total)
+        c.clock.tick()
+    assert queued[:10] == [3000.0] * 10 and m.reserves == 1e6 - 3000.0
+    assert queued[12] == 0.0  # opened at step 10: 3 steps at 1000
+    fills = events_of(c, "redeem_fulfilled")
+    assert min(e.step for e in fills) == 10
+    assert [e.payload for e in events_of(c, "capacity_changed")] == [
+        {"step": 10, "old": 0.0, "new": 1000.0}
+    ]
+    assert not m.reserves_exhausted
+
+
+def test_closed_channel_in_config_and_schedule_entries_stay_positive():
+    closed = RedemptionConfig(reserves=1.0, spread_bps=0, capacity_per_step=0.0)
+    assert closed.capacity_per_step == 0.0
+    with pytest.raises(ValueError):
+        RedemptionConfig(reserves=1.0, spread_bps=0, capacity_per_step=-1.0)
+    with pytest.raises(ValueError):
+        RedemptionConfig(
+            reserves=1.0,
+            spread_bps=0,
+            capacity_per_step=0.0,
+            capacity_schedule=[{"step": 5, "capacity_per_step": 0.0}],
         )

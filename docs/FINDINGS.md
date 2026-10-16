@@ -818,6 +818,44 @@ for the note: *a ladder of par-expecting buyers with $2.0–2.9B in total, enter
 below par, reproduces the trough within 10% across half to twice D\*; the trough tells
 you how much money ran out when, not where it sat.*
 
+## F-17 · The model brackets the weekend; what moves inside the bracket is belief
+
+**Date:** 2026-10-16 · **ADR:** [0035](adr/0035-closed-weekend-channel.md) · **Story:** 5.5 ·
+**Origin:** F-16; outside review 1 §5.15
+**Reproduce:** `python scripts/closed_channel_table.py` (26 s); `replay_table.py`;
+`validation_overlay_usdc_2023_tranches_par_closed.png`.
+
+**Expected.** F-16 left the two-day plateau unexplained and named three candidates:
+continued selling, a channel that is closed rather than slow, belief that is not a
+switch. The story predicted a shut channel would leave the trough alone and pin the
+price somewhere deep until the reopening.
+
+**Observed.** Par reference, ladder B, nothing re-fitted. Channel shut (0/step) or at 10%
+until 85 h: trough **−2,001 bps** (the 20% tranche's entry) at 31.6 h, price pinned at
+−2,000 (shut) or drifting −2,000 → −1,061 (10%) until the reopening, then **back in band
+at 85.3 h against 86.0 h observed**. Channel open at the calibrated 605.79/step (5.1):
+trough −1,279, back in band at 40.4 h. Observed: −1,373, then −955 … −48 over 35–85 h
+(mean −335), back at 86.0 h. With the channel shut the arbitrageur has only its 200k in
+27–31 h (924k with it open); the holder's 20% tranche buys at $0.80 on 12,750 of the
+15,000 weekend steps and holds 9.37M stable at −1.2M PnL at 85 h, +669k at 112 h.
+
+**Why.** A shut channel gives a floor at the last believer's price, not a drift. The
+real price drifted up for two days with the channel mostly shut, which means the buyers'
+reservation prices rose as information arrived (Circle's Saturday statement; the Sunday
+6:15 pm guarantee is the jump near 66–70 h in the series). The model's believer has a
+fixed entry price; the weekend's believers updated theirs. Two model extremes bracket
+reality — too fast with the channel open, too deep with it shut — and the quantity that
+moves between them is belief as a process.
+
+**What it changed.** F-16's open question is answered in the negative for throughput and
+in the positive for belief. **C\* is conditional on the open channel:** the 724k the
+channel paid the arbitrageur during the first four hours was doing believers' work; with
+the channel shut, reaching −1,373 needs more believers' capital (Story 5.6 measures how
+much). The 5.2 family is conditional on the same thing. For the note: *the model
+reproduces the trough with a believers' ladder and the Monday recovery with the channel
+reopening; the two days between them need belief that updates with news, which the
+model does not have — and which the series shows.*
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

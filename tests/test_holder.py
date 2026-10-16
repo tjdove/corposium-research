@@ -122,6 +122,16 @@ def test_tranche_follows_current_capacity():
     assert act.params == {"amount_stable": 50_000.0}
 
 
+def test_closed_channel_waits_with_an_empty_queue():
+    # Story 5.5: capacity 0 makes the tranche 0, so the holder holds and does not queue
+    w = world(capacity=100.0)
+    w.redemption.capacity_per_step = 0.0
+    h = holder(stable=1_000.0)
+    assert w.step(h) == []
+    assert rules(w, "h") == ["hold_wait"] and w.redemption.queue_depth == 0
+    assert decisions(w, "h")[0].observed["capacity_per_step"] == 0.0
+
+
 def test_redeem_when_capacity_false_never_redeems():
     w = world()
     h = holder(stable=1_000.0, redeem=False)

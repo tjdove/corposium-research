@@ -615,7 +615,7 @@ story names.** The freeze is lifted for this epic and re-applied at its end (`v0
 
 **Dates:** Oct 15–25 · **Re-freeze:** ~Oct 26 · **Note v2:** Oct 26–31
 
-**Story Count:** 5 builder stories + note v2 (dev manager)
+**Story Count:** 6 builder stories + note v2 (dev manager)
 
 ---
 
@@ -677,6 +677,16 @@ not reproduce (F-16) is a redemption-throughput story (referee §5.15) or needs 
 selling or non-binary belief.
 
 **Prerequisites:** Story 5.1
+
+---
+
+### Story 5.6: Closed-Channel Capital Scan
+
+`fit_holder.py` on the closed-channel par replay (and the open par replay) so the note
+quotes the believers' capital with and without the open-channel condition (F-17).
+One table, two fit records, no figure.
+
+**Prerequisites:** Story 5.5
 
 ---
 

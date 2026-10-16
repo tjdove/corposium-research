@@ -19,6 +19,8 @@ ADDED_LATER = {
     "usdc-2023-ou",  # Story 5.1: tests/test_par_replay.py
     "usdc-2023-tranches-par",  # Story 5.1: tests/test_par_replay.py
     "usdc-2023-tranches-ou",  # Story 5.1: tests/test_par_replay.py
+    "usdc-2023-tranches-par-slow",  # Story 5.5: tests/test_closed_channel.py
+    "usdc-2023-tranches-par-closed",  # Story 5.5: tests/test_closed_channel.py
 }
 
 # content_hash() of every scenario as of Story 2.5 (commit 9a62e23), before HolderConfig

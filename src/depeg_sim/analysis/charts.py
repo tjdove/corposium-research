@@ -263,18 +263,30 @@ def _reference_kind(config: dict) -> str:
     return "par reference" if env["volatility_per_step"] == 0 else "random-walk reference"
 
 
-def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -> Path:
+def _channel(config: dict) -> str:
+    cap = config["redemption"]["capacity_per_step"]
+    return "weekend channel closed" if cap == 0 else f"weekend channel {cap:g}/step"
+
+
+def plot_validation_overlay(
+    run_dir: Path, second_run_dir: Path | None = None, observed_from: Path | None = None
+) -> Path:
     """One panel: observed reference (the manifest's CSV, re-read) and simulated AMM
     price, both in bps from peg, x in elapsed hours from the series start.
 
     ``second_run_dir`` (Story 5.1): a second replay of the same window that was not fed
     the series (e.g. ``usdc-2023-par``). It is drawn black and its trough labelled;
     ``run_dir``'s path is then drawn grey and dashed. The CSV comes from ``run_dir``, the
-    markers and band from ``second_run_dir``; the PNG is written into ``second_run_dir``."""
+    markers and band from ``second_run_dir``; the PNG is written into ``second_run_dir``.
+
+    ``observed_from`` (Story 5.5): read the CSV from that run instead (one that was fed
+    it), so neither drawn run needs to have been. When the two drawn runs' starting
+    redemption capacities differ, the legend and title name each one's weekend channel."""
     run_dir = Path(run_dir)
     manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
     config = manifest["config"]
-    obs = _observed_series(run_dir)
+    csv_run = run_dir if observed_from is None else Path(observed_from)
+    obs = _observed_series(csv_run)
     obs_h = (obs["unix"] - obs["unix"].iloc[0]) / 3600
     sim = pd.read_parquet(run_dir / TIMESERIES)
     if second_run_dir is None:
@@ -282,11 +294,20 @@ def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -
         black, black_manifest, out_dir = sim, manifest, run_dir
     else:
         second_run_dir = Path(second_run_dir)
-        cmp = validation_comparison(second_run_dir, observed_from=run_dir)
+        cmp = validation_comparison(second_run_dir, observed_from=csv_run)
         black = pd.read_parquet(second_run_dir / TIMESERIES)
         black_manifest = json.loads((second_run_dir / MANIFEST).read_text(encoding="utf-8"))
         config = black_manifest["config"]
         out_dir = second_run_dir
+    grey_config = manifest["config"]
+    grey_kind, black_kind = _reference_kind(grey_config), _reference_kind(config)
+    channels = (
+        grey_config["redemption"]["capacity_per_step"] != config["redemption"]["capacity_per_step"]
+    )
+    if channels:
+        grey_kind += f", {_channel(grey_config)}"
+        black_kind += f", {_channel(config)}"
+    fed = " (input)" if observed_from is None else ""
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=150, constrained_layout=True)
     band = cmp["band_bps"]
@@ -309,7 +330,7 @@ def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -
             color=GREY,
             lw=1.2,
             ls="--",
-            label=f"simulated AMM price, {_reference_kind(manifest['config'])} (input)",
+            label=f"simulated AMM price, {grey_kind}{fed}",
         )
     ax.plot(
         black["elapsed_seconds"] / 3600,
@@ -318,7 +339,7 @@ def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -
         lw=1.4,
         label="simulated AMM price"
         if second_run_dir is None
-        else f"simulated AMM price, {_reference_kind(config)} (no observed input)",
+        else f"simulated AMM price, {black_kind} (no observed input)",
     )
     markers = (
         (cmp["attack_start_h"], "attack starts", -4, "right"),
@@ -354,7 +375,10 @@ def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -
     _include_texts(fig, ax, labels)
     ax.set_xlabel("elapsed time from series start (hours)")
     ax.set_ylabel("deviation from peg (bps)")
-    ax.legend(loc="lower right", fontsize=8, frameon=False)
+    if channels:  # Story 5.5: no free corner inside the axes; legend below them
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=2, fontsize=8, frameon=False)
+    else:
+        ax.legend(loc="lower right", fontsize=8, frameon=False)
     ax.spines[["top", "right"]].set_visible(False)
     footer = (
         f"scenario={manifest['scenario_name']} seed={manifest['seed']} "
@@ -368,7 +392,7 @@ def plot_validation_overlay(run_dir: Path, second_run_dir: Path | None = None) -
         )
         title = (
             f"{black_manifest['scenario_name']} (seed {black_manifest['seed']}): observed vs "
-            f"simulated, {_reference_kind(config)} and {_reference_kind(manifest['config'])}"
+            f"simulated{chr(10) if channels else ', '}{black_kind} and {grey_kind}"
         )
         # the two-run footer is longer: reserve a bottom strip as _sweep_footer does
         fig.get_layout_engine().set(rect=(0, 0.025, 1, 0.975))

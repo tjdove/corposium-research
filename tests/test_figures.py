@@ -113,12 +113,38 @@ def test_guard_checks_a_second_source(tmp_path):
     assert "FAIL, 1 problem(s) in 2 figures" in out.stderr
 
 
+def test_guard_checks_an_observed_source(tmp_path):
+    """Story 5.5: the scenario run only for its CSV is checked like the other two."""
+    par = "scenarios/usdc-2023-tranches-par.yaml"
+    closed = "scenarios/usdc-2023-tranches-par-closed.yaml"
+    obs = "scenarios/usdc-2023-tranches.yaml"
+    entry = _entry("a.png", par, load_scenario(par).content_hash()) | {
+        "second_source": closed,
+        "second_source_hash": load_scenario(closed).content_hash(),
+        "observed_source": obs,
+    }
+    m = _manifest(
+        tmp_path,
+        {
+            "current": entry | {"observed_source_hash": load_scenario(obs).content_hash()},
+            "observed_stale": entry | {"file": "b.png", "observed_source_hash": "0" * 64},
+        },
+    )
+    out = guard(m)
+    assert out.returncode == 1
+    assert f"observed_stale: STALE, {obs} changed" in out.stderr
+    assert "current:" not in out.stderr
+    assert "FAIL, 1 problem(s) in 2 figures" in out.stderr
+
+
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 22  # Story 5.2: identification surface
+    assert len(files) == len(set(files)) == 23  # Story 5.5: closed weekend channel overlay
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
         assert f.second is None or Path(f.second).is_file(), f.second
+        assert f.observed is None or Path(f.observed).is_file(), f.observed
+        assert f.observed is None or f.second is not None
     assert {f.function_name for f in make_figures.FIGURES} == {
         "depeg_sim.analysis.charts.plot_peg_trajectory",
         "depeg_sim.analysis.charts.plot_validation_overlay",

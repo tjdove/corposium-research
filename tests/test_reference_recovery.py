@@ -93,6 +93,8 @@ def test_every_scenario_hash_unchanged():
         "usdc-2023-ou.yaml",  # Story 5.1, test_par_replay.py
         "usdc-2023-tranches-par.yaml",  # Story 5.1, test_par_replay.py
         "usdc-2023-tranches-ou.yaml",  # Story 5.1, test_par_replay.py
+        "usdc-2023-tranches-par-slow.yaml",  # Story 5.5, test_closed_channel.py
+        "usdc-2023-tranches-par-closed.yaml",  # Story 5.5, test_closed_channel.py
     }
     found = {
         p.name: load_scenario(p).content_hash()

@@ -34,6 +34,7 @@ that are regenerated and guarded like the others but are not in the note.
 | [`validation_overlay_usdc_2023_par.png`](validation_overlay_usdc_2023_par.png) | 3 | `scenarios/usdc-2023-par.yaml` (+ `scenarios/usdc-2023.yaml`, grey) | F-08 |
 | [`validation_overlay_usdc_2023_tranches_par.png`](validation_overlay_usdc_2023_tranches_par.png) | 3 | `scenarios/usdc-2023-tranches-par.yaml` (+ `scenarios/usdc-2023-tranches.yaml`, grey) | F-09 |
 | [`identification_surface.png`](identification_surface.png) | 3 | `sweeps/usdc-par-depth-x-capital.yaml` | F-16, F-09 |
+| [`validation_overlay_usdc_2023_tranches_par_closed.png`](validation_overlay_usdc_2023_tranches_par_closed.png) | 3 | `scenarios/usdc-2023-tranches-par-closed.yaml` (+ `scenarios/usdc-2023-tranches-par.yaml`, grey; observed CSV via `scenarios/usdc-2023-tranches.yaml`) | F-16 |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | 4 | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`time_to_parity_ou.png`](time_to_parity_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
 | [`threshold_surface_ou.png`](threshold_surface_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
@@ -94,6 +95,14 @@ solid: within ±5% of the observed −1,373 bps; black dashed: ±10%; dotted squ
 fitted point (−1,279 bps). The trough moves in steps that sit at the buyer's entry prices
 (about −2,000, −1,000 and −500 bps); the ±5% band crosses the grid from 1.06–1.07× C\* at
 half depth to 0.82–0.86× C\* at twice depth. Two of the 40 cells are within ±10%.
+
+**`validation_overlay_usdc_2023_tranches_par_closed.png`.** Nothing from the observed
+series is fed in (reference held at $1.00), with the four-entry buyer. Black: the
+redemption channel is closed (0 per step) until it reopens at 85 h, Monday 13 March 13:00
+UTC. The price falls to −2,001 bps at 31.6 h, the deepest buyer's entry price, stays at
+−2,000 bps until 85 h, and is back within ±31 bps of par at 85.3 h, against 86.0 h
+observed (blue). Grey dashed: the same replay with the channel open at its calibrated
+605.79 per step (trough −1,279 bps at 32.8 h, back in the band at 40.4 h).
 
 **`peg_trajectory_calibrated.png`.** At calibrated depth, with the episode-size attack
 (seed 42), the price falls to −1,253 bps and the defender buys it back within minutes; the

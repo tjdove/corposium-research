@@ -1,7 +1,8 @@
 """Stale-figure guard (Story 2.9 AC 4; code hash Story 3.5 AC 3).
 
 Recomputes the source hash of every figure in ``docs/figures/manifest.json`` (and of its
-``second_source``, when it has one: Story 5.1) and compares it with the hash recorded when
+``second_source`` and ``observed_source``, when it has them: Stories 5.1, 5.5) and compares
+it with the hash recorded when
 the figure was made. A figure is stale when the scenario
 or sweep it was made from has changed since. Exit 0 if every figure is current; exit 1
 naming each stale figure (and each figure whose PNG or source is missing).
@@ -94,8 +95,9 @@ def stale_figures(manifest_path: Path) -> list[str]:
         if not (manifest_path.parent / entry["file"]).is_file():
             problems.append(f"{name}: figure file {entry['file']} is missing")
         sources = [(entry["source"], entry["source_hash"])]
-        if "second_source" in entry:  # Story 5.1: a figure drawn from two scenarios
-            sources.append((entry["second_source"], entry["second_source_hash"]))
+        for key in ("second_source", "observed_source"):  # Stories 5.1, 5.5
+            if key in entry:
+                sources.append((entry[key], entry[f"{key}_hash"]))
         for source, recorded in sources:
             source = Path(source)
             if not source.is_file():

@@ -319,6 +319,7 @@ figure not moved to the record); the dev manager may move any of them to the rec
 | 1c | `validation_overlay_usdc_2023_par.png` † | 3 | F-08; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
 | 1d | `validation_overlay_usdc_2023_tranches_par.png` † | 3 | F-09; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
 | 1e | `identification_surface.png` † | 3 | F-16; joint identification (5.2) | new (5.2); placement for v2 is the dev manager's |
+| 1f | `validation_overlay_usdc_2023_tranches_par_closed.png` † | 3 | F-16; closed weekend channel (5.5) | new (5.5); placement for v2 is the dev manager's |
 | — | `peg_trajectory_calibrated.png` † | 4 | F-06, F-03 | final |
 | 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final |
 | — | `threshold_surface_ou.png` † | 4 (supporting) | F-11, F-04 resolution | final |
@@ -358,3 +359,4 @@ figure not moved to the record); the dev manager may move any of them to the rec
 - 2026-10-15: Figure list: 1c/1d marked † pending v2; Figure 5b linked from Figure 5's caption (Story 4.2 ruling, 5.1 review). Note text otherwise unchanged; v2 rewrite follows Epic 5.
 - 2026-10-15: Figure list: the four "(supporting)" rows marked † (Story 4.2 ruling 2).
 - 2026-10-15: Figure list only, Story 5.2 (builder): row 1e (`identification_surface.png`, †) added. Note text not edited.
+- 2026-10-16: Figure list only, Story 5.5 (builder): row 1f (`validation_overlay_usdc_2023_tranches_par_closed.png`, †) added. Note text not edited.
