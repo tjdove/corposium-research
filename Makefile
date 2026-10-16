@@ -4,6 +4,8 @@
 # the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
 # warns on changed code); `make figures-quick` is the 2-seed smoke test. `make test` also
 # fails if line coverage of protocol/ and agents/ (together) drops below 85% (Story 3.5).
+# `make note-check` checks the figures, freeze tag and fitted numbers docs/NOTE.md cites
+# against the repository (Story 4.2; CI runs it beside figures-check).
 
 # The repo's .venv when there is one (no activation needed), else whatever `python` is.
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
@@ -16,7 +18,7 @@ SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml 
           sweeps/lp-flight-mc.yaml
 FITS_DIR := docs/calibration/fits
 
-.PHONY: figures figures-quick figures-check test lint
+.PHONY: figures figures-quick figures-check note-check test lint
 
 figures:
 	@start=$$(date +%s); \
@@ -44,6 +46,9 @@ figures-quick:
 
 figures-check:
 	$(PYTHON) scripts/check_figures.py
+
+note-check:
+	$(PYTHON) scripts/check_note.py
 
 test:
 	$(PYTHON) -m pytest --cov=depeg_sim.protocol --cov=depeg_sim.agents \

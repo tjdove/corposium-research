@@ -2,55 +2,15 @@
 
 import json
 import re
+import sys
 from pathlib import Path
 
-NOTE = Path("docs/NOTE.md")
-FIGURES_README = Path("docs/figures/README.md")
+sys.path.insert(0, str(Path("scripts").resolve()))
+
+from note_tables import FIGURES_README, note_sets, readme_sets  # noqa: E402
+from note_tables import section as _section  # noqa: E402
+
 MANIFEST = Path("docs/figures/manifest.json")
-PNG = re.compile(r"`([A-Za-z0-9_]+\.png)`")
-
-
-def _section(text: str, heading: str) -> str:
-    """The text from ``heading`` (a whole ``## `` line) to the next ``## `` heading."""
-    lines = text.splitlines()
-    start = lines.index(heading) + 1
-    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
-    return "\n".join(lines[start:end])
-
-
-def _table_files(section: str) -> list[str]:
-    """The first ``*.png`` in each table row's file column (rows start with ``|``)."""
-    files = []
-    for row in section.splitlines():
-        if row.startswith("|") and not row.startswith("|---"):
-            found = PNG.findall(row)
-            if found:
-                files.append(found[0])
-    return files
-
-
-def note_sets() -> tuple[list[str], list[str]]:
-    """``(in the note, record only)`` from NOTE.md's figure list."""
-    section = _section(
-        NOTE.read_text(encoding="utf-8"), "## Figure list (committed, `docs/figures/`)"
-    )
-    note, record = [], []
-    for row in section.splitlines():
-        if not row.startswith("|") or row.startswith("|---"):
-            continue
-        cells = [c.strip() for c in row.strip("|").split("|")]
-        found = PNG.findall(cells[1]) if len(cells) > 2 else []
-        if found:
-            (record if cells[2] == "record only" else note).append(found[0])
-    return note, record
-
-
-def readme_sets() -> tuple[list[str], list[str]]:
-    text = FIGURES_README.read_text(encoding="utf-8")
-    return (
-        _table_files(_section(text, "## Figures in the note")),
-        _table_files(_section(text, "## Record only")),
-    )
 
 
 def test_note_and_readme_note_sets_match_one_to_one():
