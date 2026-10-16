@@ -30,6 +30,9 @@ capacity_per_step)`` with strictly ascending steps. At the start of ``PROTOCOL_E
 on a scheduled step, before ``process``, capacity changes to the new value and
 ``capacity_changed {step, old, new}`` is emitted (once per entry). It stands for a
 redemption channel whose throughput changes on a known date, e.g. banks reopening.
+The starting ``capacity_per_step`` may be 0 (Story 5.5): a channel that is closed until a
+schedule entry opens it. Requests still queue and nothing is paid (``process`` fills
+nothing while capacity is 0); schedule entries stay > 0.
 
 Units: capacity and queue amounts are stable; reserves and payouts are reference.
 Epic 2 calibrates ``capacity_per_step`` to real redemption throughput per slot.
@@ -96,8 +99,8 @@ class RedemptionModule(ActionTarget):
         if not (math.isfinite(reserves) and reserves >= 0):
             raise ValueError(f"reserves must be >= 0, got {reserves}")
         _check_spread(spread_bps)
-        if not (math.isfinite(capacity_per_step) and capacity_per_step > 0):
-            raise ValueError(f"capacity_per_step must be > 0, got {capacity_per_step}")
+        if not (math.isfinite(capacity_per_step) and capacity_per_step >= 0):
+            raise ValueError(f"capacity_per_step must be >= 0, got {capacity_per_step}")
         if not (math.isfinite(peg_price) and peg_price > 0):
             raise ValueError(f"peg_price must be > 0, got {peg_price}")
         schedule = [(int(st), float(c)) for st, c in capacity_schedule]

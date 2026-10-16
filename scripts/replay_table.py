@@ -1,8 +1,10 @@
 """Story 5.1 AC 3: the USDC March-2023 replay with and without the observed series as input.
 
 Runs the six replay scenarios (observed reference, constant par reference, calm OU
-reference; each with the single-entry holder and with ladder B) and prints one table, the
-observed series on the top row. Columns:
+reference; each with the single-entry holder and with ladder B) and the two Story 5.5
+weekend-channel variants of the par ladder-B replay (redemption capacity at 10% of
+calibrated, and 0, until the 85 h reopening), and prints one table, the observed series on
+the top row. Columns:
 
 - ``trough``: ``max_depeg_bps`` and ``step_of_max_depeg`` from the run's summary; ``h`` is
   that step's ``elapsed_seconds / 3600`` (hours from the series start, 2023-03-10 00:00
@@ -50,6 +52,9 @@ REPLAYS = (
     ("par ref, ladder B", "scenarios/usdc-2023-tranches-par.yaml"),
     ("OU ref, single entry", "scenarios/usdc-2023-ou.yaml"),
     ("OU ref, ladder B", "scenarios/usdc-2023-tranches-ou.yaml"),
+    # Story 5.5: par ref, ladder B, weekend channel at 10% of calibrated / closed until 85 h
+    ("par ref, ladder B, channel 10%", "scenarios/usdc-2023-tranches-par-slow.yaml"),
+    ("par ref, ladder B, channel closed", "scenarios/usdc-2023-tranches-par-closed.yaml"),
 )
 OBSERVED_FROM = Path("scenarios/usdc-2023.yaml")
 SECONDS_PER_HOUR = 3600

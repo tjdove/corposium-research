@@ -501,3 +501,112 @@ their −500 and −1,000 bps treads. The continuous ladder lands at −1,583.0.
   reach the same trough"): the band slopes the other way. Deeper pools reach the
   observed trough with less capital. The prediction that the cliff runs below the band
   holds.
+
+## Closed weekend channel (Story 5.5)
+
+The question (F-16, referee §5.15) is whether the two days the observed price stayed
+below par are a redemption-throughput story. The par-reference ladder-B replay
+(`scenarios/usdc-2023-tranches-par.yaml`, Story 5.1) is rerun with the weekend
+redemption capacity cut, from step 0 until the step-25,500 (85 h, Monday 13 March
+13:00 UTC) reopening, whose 19,181.59/step is unchanged:
+
+- `scenarios/usdc-2023-tranches-par-slow.yaml` (hash `90c61264e8c2`): 60.579/step, 10% of
+  the calibrated 605.79.
+- `scenarios/usdc-2023-tranches-par-closed.yaml` (hash `c2e0f5a7cf57`): 0/step.
+
+Each differs from the base only in `name` and `redemption.capacity_per_step`
+(`tests/test_closed_channel.py`). Nothing is re-fitted; seed 42. `capacity_per_step 0`
+was rejected by the config (`gt=0`) and by `RedemptionModule` (`> 0`). Both now accept
+≥ 0, which is the smallest change that allows it. No division uses capacity: `process`
+fills nothing while it is 0, and the holder's tranche is `min(available, capacity × 10)`,
+which is 0. Schedule entries must still be > 0. No tiny positive number is used.
+
+`python scripts/replay_table.py` (eight replays, 22 s on Seoul) and `python
+scripts/closed_channel_table.py` (three replays, 9 s) give the tables below.
+
+**Replay rows** (ADR-0033 definitions; hours in band over 27–96 h):
+
+| replay | trough bps | gap | trough h | first back in band, h | hours in band | holder bought | holder redeemed | holder PnL | arb redeemed |
+|---|---|---|---|---|---|---|---|---|---|
+| observed (Bitstamp hourly close) | −1,373.3 | | 31.0 | 86.0 | 8.0 | | | | |
+| par ref, ladder B, channel open (605.79) | −1,279.2 | +6.9% | 32.8 | 40.4 | 55.6 | 8,646,604 | 8,646,604 | 521,604 | 2,890,043 |
+| par ref, ladder B, channel 10% (60.579) | −2,001.1 | −45.7% | 31.9 | 85.2 | 10.9 | 9,128,561 | 9,128,561 | 619,886 | 2,403,544 |
+| par ref, ladder B, channel closed (0) | −2,001.2 | −45.7% | 31.6 | 85.3 | 10.7 | 9,370,888 | 9,370,888 | 668,573 | 2,168,597 |
+
+**The trough.** With the channel open the trough is −1,279.2 bps at 32.8 h. At 10% it
+is −2,001.1 at 31.9 h, and closed it is −2,001.2 at 31.6 h, the 20% tranche's entry
+price. The arbitrageur's buying over the attack's first four hours (27–31 h), in
+reference:
+
+| weekend channel | bought on the AMM, 27–31 h | paid by the channel, 27–31 h | bought, 35–85 h | paid, 35–85 h |
+|---|---|---|---|---|
+| open | 923,919 | 724,525 | 1,013,436 | 1,438,570 |
+| 10% | 272,392 | 72,452 | 908,685 | 908,685 |
+| closed | 200,000 | 0 | 0 | 0 |
+
+Closed, the arbitrageur spends its 200,000 of capital in four buys at 27.01–27.04 h
+(decision trace), queues the 201,339 stable they bought, and holds no reference until
+85 h (0.0 at the 85 h checkpoint).
+
+**35–85 h** (every 12 s step; observed: hourly closes in the same window):
+
+| | min bps | max bps | mean bps | hours in band |
+|---|---|---|---|---|
+| observed | −955.4 | −48.4 | −335.4 | 0 |
+| open | −1,084.3 | −0.0 | −66.6 | 44.57 |
+| 10% | −2,000.2 | −1,060.9 | −1,563.9 | 0 |
+| closed | −2,000.2 | −2,000.0 | −2,000.0 | 0 |
+
+At 10% the price is −2,000.1 at 35 h, −1,568.9 at 60 h and −1,060.9 just before 85 h.
+
+**The 85 h reopening.** Queue and price on the last step before it; "empty" and "in
+band" are the first hour from the reopening step on.
+
+| weekend channel | bps before | queue before | queued by | queue empty, h | first in band, h |
+|---|---|---|---|---|---|
+| open | −3.4 | 3,029 | holder | 85.00 | 85.00 |
+| 10% | −1,060.9 | 395,584 | arbitrageur | 85.23 | 85.16 |
+| closed | −2,000.0 | 201,339 | arbitrageur | 85.38 | 85.31 |
+
+At 19,181.59/step the closed queue is 10.5 steps of capacity and the 10% queue 20.6. The
+price does not fall further after the reopening in any run: the deepest deviation from
+the reopening step on is the deviation before it. From 85.4 h to 112 h the closed run
+stays at −0.0 bps and the 10% run at −8.9 (open: −3.4). Redemption reserves end at 126.6M of 138.1M in all
+three runs.
+
+**What the holder does when it cannot redeem** (from the run checkpoints at 85 h, the
+state before the reopening step, and at 112 h; PnL marked at AMM spot):
+
+| weekend channel | at h | stable | queued | reference | PnL |
+|---|---|---|---|---|---|
+| open | 85.0 | 998,505 | 3,029 | 10,356,432 | 521,265 |
+| open | 112.0 | 0 | 0 | 11,354,937 | 521,604 |
+| 10% | 85.0 | 9,128,561 | 0 | 2,324,659 | −348,569 |
+| 10% | 112.0 | 0 | 0 | 11,453,219 | 619,886 |
+| closed | 85.0 | 9,370,888 | 0 | 2,131,018 | −1,205,605 |
+| closed | 112.0 | 0 | 0 | 11,501,906 | 668,573 |
+
+Closed, the holder queues nothing before the reopening. Its redeem rule sizes the tranche
+to `capacity × 10 = 0`, so it falls through to `hold_wait` (`holder.py`;
+`tests/test_holder.py::test_closed_channel_waits_with_an_empty_queue`). The only
+`redeem_requested` events before step 25,500 are the arbitrageur's
+(`tests/test_closed_channel.py`). In the 35–85 h window the holder is buying, not
+waiting, for most of it: with `metrics.trace_decisions` on, its rules are 12,750
+`hold_buy` and 2,250 `hold_wait` of 15,000 steps. Every one of those buys is by the 20%
+tranche, at the −2,000 bps entry it does not lift the price past (Story 3.1). At 85 h the 2, 5 and
+10% tranches hold 0 reference, and the 20% tranche holds 2,131,018 reference and
+721,656 stable. At 10% the rules are 238 `hold_buy` (all 20% tranche) and 14,762 `hold_wait`, with no
+`hold_redeem` before 85 h: its rule needs an empty queue, and the arbitrageur's requests
+keep it non-empty. After the reopening the holder redeems everything: 49
+`hold_redeem` (closed) and 48 (10%) in 85–112 h, then `hold_done`.
+
+**Against the story's prediction.**
+- "The trough is unchanged": it is not. It falls from −1,279.2 to −2,001 at both 10% and
+  closed.
+- "From ~33 h the price sits at the last tranche's entry until 85 h, too deep": closed,
+  it sits at −2,000.0 to −2,000.2 bps from 31.6 h to 85 h. The observed price over 35–85 h
+  ran from −955 to −48 (mean −335).
+- "Slow: somewhere between": at 10%, 35–85 h runs from −2,000 to −1,061 (mean −1,564).
+- Both cut-channel runs are first back in band at 85.2–85.3 h, against 86.0 h observed and
+  40.4 h with the channel open. They spend 10.7–10.9 h in band over 27–96 h, against 8.0
+  observed and 55.6 open.

@@ -101,4 +101,4 @@ def test_replay_table_smoke_and_deterministic(tmp_path):
     assert rows == again
     text = replay_table.format_table(rows)
     assert text.splitlines()[2].startswith("observed (Bitstamp hourly close)")
-    assert len(text.splitlines()) == 2 + 7
+    assert len(text.splitlines()) == 2 + 9

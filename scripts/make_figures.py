@@ -11,11 +11,15 @@ Writes ``docs/figures/<file>`` for each figure and ``docs/figures/manifest.json`
 
     {"code_hash": "<sha256>",
      "<figure>": {"file", "source", "source_hash", "function", "commit"
-                  [, "second_source", "second_source_hash"]}}
+                  [, "second_source", "second_source_hash"]
+                  [, "observed_source", "observed_source_hash"]}}
 
 A figure with a ``second`` scenario (Story 5.1: a replay overlay with two simulated
 series) runs both and passes both run directories to its function; the manifest records
-the second source and its hash, and the guard checks it like the first.
+the second source and its hash, and the guard checks it like the first. A figure with an
+``observed`` scenario as well (Story 5.5: two runs neither of which was fed the observed
+series) runs it too, only for the CSV its manifest names and checksums, and passes its
+run directory as ``observed_from``; the manifest and the guard treat it like the second.
 
 ``code_hash`` is ``check_figures.code_hash()`` over ``src/depeg_sim/**/*.py`` at drawing
 time (the guard warns when it differs); ``source_hash`` is ``check_figures.source_hash``
@@ -72,6 +76,7 @@ class Figure:
     source: str
     function: Callable[..., Path]
     second: str | None = None
+    observed: str | None = None  # Story 5.5: run only for its observed CSV
 
     @property
     def name(self) -> str:
@@ -109,6 +114,13 @@ FIGURES = (
         "scenarios/usdc-2023-tranches.yaml",
         charts.plot_validation_overlay,
         second="scenarios/usdc-2023-tranches-par.yaml",
+    ),
+    Figure(
+        "validation_overlay_usdc_2023_tranches_par_closed.png",
+        "scenarios/usdc-2023-tranches-par.yaml",
+        charts.plot_validation_overlay,
+        second="scenarios/usdc-2023-tranches-par-closed.yaml",
+        observed="scenarios/usdc-2023-tranches.yaml",
     ),
     Figure(
         "threshold_surface.png",
@@ -191,7 +203,10 @@ def render(fig: Figure, work: Path, sweeps_dir: Path) -> Path:
     if fig.second is None:
         return fig.function(run.run_dir)
     second = run_scenario(load_scenario(fig.second), output_dir=runs, chart=False)
-    return fig.function(run.run_dir, second.run_dir)
+    if fig.observed is None:
+        return fig.function(run.run_dir, second.run_dir)
+    observed = run_scenario(load_scenario(fig.observed), output_dir=runs, chart=False)
+    return fig.function(run.run_dir, second.run_dir, observed_from=observed.run_dir)
 
 
 def quick_sweeps(work: Path, workers: int) -> Path:
@@ -228,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         rendered = {}
         for fig in FIGURES:
             rendered[fig] = render(fig, work, sweeps_dir)
-            also = "" if fig.second is None else f" + {fig.second}"
+            also = "".join(f" + {s}" for s in (fig.second, fig.observed) if s is not None)
             print(f"drew: {fig.file} <- {fig.source}{also}", flush=True)
         if args.quick:
             FIGURES_DIR.mkdir(parents=True, exist_ok=True)
@@ -252,6 +267,11 @@ def main(argv: list[str] | None = None) -> int:
                 manifest[fig.name] |= {
                     "second_source": fig.second,
                     "second_source_hash": source_hash(Path(fig.second)),
+                }
+            if fig.observed is not None:
+                manifest[fig.name] |= {
+                    "observed_source": fig.observed,
+                    "observed_source_hash": source_hash(Path(fig.observed)),
                 }
     text = json.dumps(manifest, sort_keys=True, indent=2) + "\n"
     MANIFEST.write_text(text, encoding="utf-8")

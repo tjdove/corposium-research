@@ -59,7 +59,8 @@ class CapacityChange(StrictModel):
 class RedemptionConfig(StrictModel):
     reserves: float = Field(ge=0)
     spread_bps: int = Field(ge=0, lt=10_000)
-    capacity_per_step: float = Field(gt=0)
+    # 0: the channel is closed until a capacity_schedule entry opens it (Story 5.5)
+    capacity_per_step: float = Field(ge=0)
     peg_price: float = Field(default=1.0, gt=0)
     capacity_schedule: list[CapacityChange] = Field(default_factory=list)
 
