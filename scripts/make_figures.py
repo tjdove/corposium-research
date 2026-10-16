@@ -143,6 +143,11 @@ FIGURES = (
         "time_to_parity_ou.png", "sweeps/threshold-surface-ou-mc.yaml", charts.plot_time_to_parity
     ),
     Figure("lp_flight.png", "sweeps/lp-flight-mc.yaml", charts.plot_lp_flight),
+    Figure(
+        "identification_surface.png",
+        "sweeps/usdc-par-depth-x-capital.yaml",
+        charts.plot_identification_surface,
+    ),
 )
 
 

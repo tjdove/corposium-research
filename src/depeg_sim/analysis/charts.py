@@ -1883,3 +1883,123 @@ def plot_lp_flight(sweep_dir: Path) -> Path:
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
+
+
+# -- joint identification (Story 5.2) -------------------------------------------------------
+
+IDENTIFICATION_SURFACE = "identification_surface.png"
+# The observed USDC/USD trough, 2023-03-11 07:00 UTC hourly close against par (Bitstamp;
+# docs/calibration/VALIDATION.md; scripts/replay_table.py observed row, -1,373.3 bps).
+OBSERVED_TROUGH_BPS = -1373.3
+IDENTIFICATION_TOLERANCES = (0.05, 0.10)
+
+
+def _geometric_edges(values: list[float]) -> np.ndarray:
+    """Cell edges for ``pcolormesh`` on a log axis: geometric midpoints between sorted
+    ``values``, extended by the same ratio at both ends."""
+    v = np.asarray(values, dtype=float)
+    mid = np.sqrt(v[:-1] * v[1:])
+    return np.concatenate([[v[0] ** 2 / mid[0]], mid, [v[-1] ** 2 / mid[-1]]])
+
+
+def plot_identification_surface(
+    sweep_dir: Path, target_bps: float = OBSERVED_TROUGH_BPS, usd_per_unit: float = USD_PER_UNIT
+) -> Path:
+    """Story 5.2: the replay trough (``max_depeg_bps``) over pool depth (x, multiple of
+    the base depth) x believers' capital (y, multiple of the base holder capital), both on
+    log axes, each cell labelled with its trough. Contours at ±5% (solid) and ±10%
+    (dashed) of ``target_bps``, interpolated linearly in the axis values (as
+    ``scripts/identification_table.py`` does along capital); the base point (1, 1), the
+    fitted D* and C*, is ringed. Reads ``mc.parquet`` (``max_depeg_bps_mean``; one seed)
+    and the manifest."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    sweep_dir = Path(sweep_dir)
+    mc, manifest = _read_sweep(sweep_dir)
+    base = manifest["base_config"]
+    depth_col = _axis_named(manifest, DEPTH_PATH)
+    cap_col = _axis_named(manifest, HOLDER_CAPITAL_PATH)
+    axes = {a["name"]: a for a in manifest["axes"]}
+    d_unit = axes[depth_col]["scales"][0]
+    c_unit = axes[cap_col]["scales"][0]
+    holder = next(a for a in base["agents"] if a["type"] == "holder")
+    attacker = next(a for a in base["agents"] if a["type"] == "attacker")
+
+    depths = sorted(mc[depth_col].unique())
+    caps = sorted(mc[cap_col].unique())
+    grid = np.full((len(caps), len(depths)), np.nan)
+    for _, r in mc.iterrows():
+        grid[caps.index(r[cap_col]), depths.index(r[depth_col])] = r["max_depeg_bps_mean"]
+
+    fig, ax = plt.subplots(figsize=(10, 7.2), dpi=150, constrained_layout=True)
+    cmap = LinearSegmentedColormap.from_list("seq", list(reversed(SEQ_BLUE)))
+    vmin, vmax = -2500.0, -500.0
+    mesh = ax.pcolormesh(
+        _geometric_edges(depths), _geometric_edges(caps), grid, cmap=cmap, vmin=vmin, vmax=vmax,
+        shading="flat",
+    )  # fmt: skip
+    for i, c in enumerate(caps):
+        for j, d in enumerate(depths):
+            v = grid[i, j]
+            ax.text(
+                d, c, "–" if np.isnan(v) else f"{v:,.0f}".replace("-", "−"), ha="center",
+                va="center", fontsize=9,
+                color="white" if v <= vmin + 0.55 * (vmax - vmin) else DARK,
+            )  # fmt: skip
+    tol5, tol10 = IDENTIFICATION_TOLERANCES
+    styles = {tol5: ("-", ORANGE, 2.2), tol10: ("--", DARK, 1.6)}
+    X, Y = np.meshgrid(depths, caps)
+    handles = []
+    for tol, (ls, color, lw) in styles.items():
+        levels = sorted([target_bps * (1 + tol), target_bps * (1 - tol)])
+        ax.contour(X, Y, grid, levels=levels, colors=color, linestyles=ls, linewidths=lw)
+        lo, hi = levels
+        handles.append(
+            plt.Line2D([], [], color=color, ls=ls, lw=lw,
+                       label=f"±{tol:.0%} of {target_bps:,.1f} ({lo:,.0f} … {hi:,.0f} bps)"
+                       .replace("-", "−"))
+        )  # fmt: skip
+    # the base cell (1, 1), the fitted D* and C*, outlined
+    xe, ye = _geometric_edges(depths), _geometric_edges(caps)
+    if 1 in depths and 1 in caps:
+        j, i = depths.index(1), caps.index(1)
+        ax.add_patch(
+            plt.Rectangle((xe[j], ye[i]), xe[j + 1] - xe[j], ye[i + 1] - ye[i], fill=False,
+                          ec=ORANGE, lw=2.4, ls=":", zorder=3)
+        )  # fmt: skip
+    handles.append(
+        plt.Line2D([], [], ls="none", marker="s", ms=10, mfc="none", mec=ORANGE, mew=2.0,
+                   label="fitted point (D*, C*), not re-fitted")
+    )  # fmt: skip
+    ax.legend(
+        handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, fontsize=8,
+        frameon=False,
+    )  # fmt: skip
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xticks(depths)
+    ax.set_xticklabels([f"{d:g}×\n({_usd(d * d_unit, usd_per_unit)})" for d in depths], fontsize=8)
+    ax.set_yticks(caps)
+    ax.set_yticklabels(
+        [f"{c:g}× ({_usd(c * c_unit, usd_per_unit)}; "
+         f"{c * c_unit / attacker['capital']:.2f}× attacker)" for c in caps], fontsize=8
+    )  # fmt: skip
+    ax.minorticks_off()
+    ax.set_xlabel(f"pool depth (× D* = {d_unit:,.0f} units per side)")
+    ax.set_ylabel(f"believers' capital, ladder B (× C* = {c_unit:,.0f} units)")
+    fig.colorbar(mesh, ax=ax, fraction=0.04, pad=0.02, extend="min", label="trough (bps)")
+    entries = "/".join(f"{t['entry_discount_pct']:g}" for t in holder["tranches"])
+    fig.suptitle(
+        "On the par-reference replay, nothing from the observed series fed in: "
+        f"trough over pool depth × believers' capital\n{manifest['sweep_name']}: ladder B "
+        f"({entries}% entries), attacker pace {attacker['pace']:g}, "
+        f"{len(manifest['seeds'])} seed (constant reference); observed trough "
+        f"{target_bps:,.1f} bps".replace("-1", "−1"),
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / IDENTIFICATION_SURFACE
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out

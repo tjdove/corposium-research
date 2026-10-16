@@ -115,7 +115,7 @@ def test_guard_checks_a_second_source(tmp_path):
 
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 21  # Story 5.1: two par-reference overlays
+    assert len(files) == len(set(files)) == 22  # Story 5.2: identification surface
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
         assert f.second is None or Path(f.second).is_file(), f.second
@@ -132,6 +132,7 @@ def test_registry_names_every_source_once_per_file():
         "depeg_sim.analysis.charts.plot_pace_trigger",
         "depeg_sim.analysis.charts.plot_pace_ratio",
         "depeg_sim.analysis.charts.plot_lp_flight",
+        "depeg_sim.analysis.charts.plot_identification_surface",
     }
 
 
