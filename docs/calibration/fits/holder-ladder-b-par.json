@@ -1,0 +1,113 @@
+{
+  "inputs": {
+    "args": {
+      "entry_discount_pct": null,
+      "grid": [
+        1000000,
+        2000000,
+        5000000,
+        10000000,
+        20000000,
+        50000000,
+        100000000
+      ],
+      "pace": 0.05,
+      "refine_points": 5,
+      "scenario": "scenarios/usdc-2023-tranches-par.yaml",
+      "target_bps": -1373.0,
+      "tranches": [
+        [
+          2.0,
+          0.25
+        ],
+        [
+          5.0,
+          0.25
+        ],
+        [
+          10.0,
+          0.25
+        ],
+        [
+          20.0,
+          0.25
+        ]
+      ],
+      "units_per_usd": 0.004262574595055414
+    },
+    "data": null,
+    "data_sha256": null,
+    "scenario": "scenarios/usdc-2023-tranches-par.yaml",
+    "scenario_hash": "32a610a514f2a5bc55a0beda895d7aa9a7cc12f87302e79b8262efa1f9bd3712"
+  },
+  "result": {
+    "c_star": 10833333,
+    "c_star_usd": 2541499922,
+    "runs": [
+      {
+        "holder_capital": 1000000,
+        "max_depeg_bps": -5420.088491851374
+      },
+      {
+        "holder_capital": 2000000,
+        "max_depeg_bps": -5033.734713005569
+      },
+      {
+        "holder_capital": 5000000,
+        "max_depeg_bps": -3499.9647400432655
+      },
+      {
+        "holder_capital": 7500000,
+        "max_depeg_bps": -2005.004047678044
+      },
+      {
+        "holder_capital": 10000000,
+        "max_depeg_bps": -1860.748141113413
+      },
+      {
+        "holder_capital": 10833333,
+        "max_depeg_bps": -1279.1714339490268
+      },
+      {
+        "holder_capital": 11666667,
+        "max_depeg_bps": -1008.0930923936893
+      },
+      {
+        "holder_capital": 12500000,
+        "max_depeg_bps": -1007.2096189550061
+      },
+      {
+        "holder_capital": 13333333,
+        "max_depeg_bps": -1006.2785151290443
+      },
+      {
+        "holder_capital": 14166667,
+        "max_depeg_bps": -1005.3084367442044
+      },
+      {
+        "holder_capital": 15000000,
+        "max_depeg_bps": -1004.3053327839413
+      },
+      {
+        "holder_capital": 17500000,
+        "max_depeg_bps": -877.8725384314956
+      },
+      {
+        "holder_capital": 20000000,
+        "max_depeg_bps": -511.3627848073121
+      },
+      {
+        "holder_capital": 50000000,
+        "max_depeg_bps": -225.80556233532724
+      },
+      {
+        "holder_capital": 100000000,
+        "max_depeg_bps": -225.80556233532724
+      }
+    ],
+    "step_of_max_depeg": 9850,
+    "trough_bps": -1279.1714339490268
+  },
+  "script": "scripts/fit_holder.py",
+  "script_sha256": "8c55a749ad457603bfe8c7af9a77a5d2470dc09e943353beb403e638a14d7393"
+}

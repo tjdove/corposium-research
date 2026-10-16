@@ -1,6 +1,7 @@
 # Story 2.9. `make figures` regenerates every committed figure in full (runs all twelve
-# sweeps first: ~15 min on 12 cores), records the code hash and re-writes the four fit
-# records in docs/calibration/fits/ (Story 4.1); `make figures-check` is
+# sweeps first: ~15 min on 12 cores), records the code hash and re-writes the six fit
+# records in docs/calibration/fits/ (Story 4.1; the two par-reference ladder-B fits are
+# Story 5.6's); `make figures-check` is
 # the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
 # warns on changed code); `make figures-quick` is the 2-seed smoke test. `make test` also
 # fails if line coverage of protocol/ and agents/ (together) drops below 85% (Story 3.5).
@@ -33,6 +34,12 @@ figures:
 	$(PYTHON) scripts/fit_holder.py --workers $(WORKERS) --write $(FITS_DIR)/holder-single.json || exit 1; \
 	$(PYTHON) scripts/fit_holder.py --tranches 2:0.25,5:0.25,10:0.25,20:0.25 \
 		--workers $(WORKERS) --write $(FITS_DIR)/holder-ladder-b.json || exit 1; \
+	$(PYTHON) scripts/fit_holder.py --scenario scenarios/usdc-2023-tranches-par.yaml \
+		--tranches 2:0.25,5:0.25,10:0.25,20:0.25 \
+		--workers $(WORKERS) --write $(FITS_DIR)/holder-ladder-b-par.json || exit 1; \
+	$(PYTHON) scripts/fit_holder.py --scenario scenarios/usdc-2023-tranches-par-closed.yaml \
+		--tranches 2:0.25,5:0.25,10:0.25,20:0.25 \
+		--workers $(WORKERS) --write $(FITS_DIR)/holder-ladder-b-closed.json || exit 1; \
 	$(PYTHON) scripts/fit_reversion.py --write $(FITS_DIR)/reversion.json || exit 1; \
 	echo "fits: wall time $$(( $$(date +%s) - t0 )) s"; \
 	end=$$(date +%s); \

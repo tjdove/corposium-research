@@ -610,3 +610,80 @@ keep it non-empty. After the reopening the holder redeems everything: 49
 - Both cut-channel runs are first back in band at 85.2–85.3 h, against 86.0 h observed and
   40.4 h with the channel open. They spend 10.7–10.9 h in band over 27–96 h, against 8.0
   observed and 55.6 open.
+
+## Closed-channel C\* (Story 5.6)
+
+The question (F-17) is how much believers' capital reproduces the −1,373 bps trough when
+the weekend redemption channel is shut. `scripts/fit_holder.py` is run unchanged on the
+two par-reference ladder-B scenarios. The rule is the same as Story 3.7: ladder B
+(`--tranches 2:0.25,5:0.25,10:0.25,20:0.25`), log grid 1M…100M, two 5-point
+refinements, closest to −1,373 with ties to the smaller capital, D\* and pace fixed. The
+script needed no change for the closed scenario.
+
+- `scenarios/usdc-2023-tranches-par.yaml` (channel open, 605.79/step) →
+  `docs/calibration/fits/holder-ladder-b-par.json`
+- `scenarios/usdc-2023-tranches-par-closed.yaml` (channel shut until the 85 h reopening) →
+  `docs/calibration/fits/holder-ladder-b-closed.json`
+
+Each fit takes 11 s on Seoul with 6 workers. `make figures` now re-writes both records,
+and `make figures-check` covers them (6 fits).
+
+**The fits.** With the channel open, the par-reference fit picks the same capital as
+the observed-reference one, 10,833,333 (−1,279.2 bps against −1,323.3). With the channel
+shut it picks **13,333,333 ≈ $3.13B, 1.23× the open-channel C\***, and its trough is
+**−1,007.0 bps**: 26.7% shallower than observed. The closed grid and refinements:
+
+| capital | 1M | 2M | 5M | 10M | 11,666,667 | 13,333,333 | 15M | 16,666,667 | 18,333,333 | 20M | 23,333,333 | 50M |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| trough bps | −6,152.1 | −5,813.2 | −4,480.3 | −2,002.4 | −2,000.1 | −1,007.0 | −1,005.4 | −1,003.6 | −1,001.9 | −1,000.1 | −510.1 | −225.9 |
+
+(30M −506.8, 36,666,667 −503.4, 43,333,333 −307.9, 100M −225.9.) No capital the rule ran
+lands within ±10% of −1,373. The pick's two neighbours are on the treads either side:
+11,666,667 gives −2,000.1 (the 20% tranche, −45.7%) and 13,333,333 gives −1,007.0 (the
+10% tranche, +26.7%). The rule takes the second because it is 366 bps from the target
+against 627.
+
+**Table 4 of `python scripts/identification_table.py`** (73 s on Seoul with 6 workers,
+including tables 1–3, which are unchanged). Each fit is run at C\* and at a 5-point
+linear scan C\* + k × step (k = −2…2), where step is that fit's second-refinement
+spacing, so k = ±1 are runs the fit itself made. The ±10% range (−1,510.6 … −1,236.0
+bps) is linear between scan points, as in table 2.
+
+| fit | C\* | $ | trough bps | gap | trough h | first back in band, h | step | troughs at k = −2, −1, 0, 1, 2 (bps) | ±10% range (capital) | scan points inside |
+|---|---|---|---|---|---|---|---|---|---|---|
+| observed reference, channel open (`holder-ladder-b.json`) | 10,833,333 | $2.54B | −1,323.3 | +3.6% | 31.2 | 85.3 | 833,333 | −2,002 −1,859 −1,323 −1,069 −1,007 | 10,541,654–11,119,473 | 1 of 5 |
+| par reference, channel open (`holder-ladder-b-par.json`) | 10,833,333 | $2.54B | −1,279.2 | +6.9% | 32.8 | 40.4 | 833,333 | −2,002 −1,861 −1,279 −1,008 −1,007 | 10,501,679–10,966,140 | 1 of 5 |
+| par reference, channel closed (`holder-ladder-b-closed.json`) | 13,333,333 | $3.13B | −1,007.0 | +26.7% | 29.0 | 85.1 | 1,666,667 | −2,002 −2,000 −1,007 −1,005 −1,004 | 12,488,146–12,949,109 | 0 of 5 |
+
+Scan capitals: open fits 9,166,667, 10,000,000, 10,833,333, 11,666,667, 12,500,000;
+closed 10,000,000, 11,666,667, 13,333,333, 15,000,000, 16,666,667. Trough hours along
+the closed scan: 30.5, 35.8, 29.0, 29.5, 30.1.
+
+**The closed range lies between two scan points.** As in table 2, the closed ±10% range
+(12.49M–12.95M, 1.15–1.20× the open C\*) is what linear interpolation gives between
+11,666,667 and 13,333,333, not a run. To see what lies between them I ran a one-off of
+nine capitals between the two (scratch script, not committed; command and output in the
+story's Debug Log):
+
+| capital | 11,833,333 | 12,000,000 | 12,166,666 | 12,333,333 | 12,500,000 | 12,666,666 | 12,833,333 | 12,999,999 | 13,166,666 |
+|---|---|---|---|---|---|---|---|---|---|
+| trough bps | −1,936.0 | −1,819.5 | −1,700.5 | −1,578.9 | −1,454.6 | −1,327.5 | −1,197.5 | −1,064.6 | −1,007.2 |
+| step of the trough, h | 78.0 | 78.0 | 78.0 | 78.1 | 78.1 | 78.1 | 78.1 | 78.2 | 28.9 |
+
+Between the treads the trough moves close to linearly with capital, and the interpolated
+range is about where those runs put it (12,500,000 and 12,666,666 are inside ±10%). But
+in those runs the trough is not the 31 h low the target is. At 12,500,000 the price sits
+at −1,002 at 31 h, −1,364 at 35 h, −1,450 at 40 h and −1,454.6 from 50 h until the 85 h
+reopening; the step the summary records falls at 78 h only because the level creeps by
+less than 0.1 bps after 50 h. Between 31 and 50 h the attacker sells its last stable
+(1,042,337 left at 31 h, 12 at 50 h), the price falls through the 10% tranche's −1,000
+entry, and it stops where that selling ends, above the 20% tranche's −2,000. The
+redemption queue holds the same 201,339 throughout. So with the channel shut, capital
+in this range gives the observed depth as a two-day plateau, not as a low on Saturday
+morning.
+
+**Against the prediction** ("closed-channel C\* between 1.1× and 1.3× the open one,
+≈ 12–14M, $2.8–3.3B"): the rule's C\*, 13,333,333 ($3.13B, 1.23×), is in that range, but
+its trough is on the −1,000 tread, 26.7% shallower than observed. The capital that gives
+−1,373 (about 12.5–12.7M, ≈ 1.16×, from the one-off runs) is also in the range, with the
+trough as a plateau from 40 h.
