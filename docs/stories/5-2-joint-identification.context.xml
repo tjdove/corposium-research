@@ -1,0 +1,26 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.2</storyId><title>Joint Identification</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-15</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-2-joint-identification.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who suspects the fitted triple is one of many</asA><iWant>the trough as a surface over depth × believers' capital on the par replay, plus the three ladders side by side</iWant><soThat>the note can say how wide the family of fits is</soThat>
+    <tasks>- Sweep (AC 1) - Surface figure (AC 2) - Tables (AC 3–5) - VALIDATION.md (AC 6) - Tests (AC 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story ACs 1–7. Pace not swept. No re-fitting. No new agent type.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/reviews/2026-10-15-outside-review-1-finance-professor.md" section="§5.9–5.11">Why.</doc>
+      <doc path="docs/adr/0030-multi-tranche-holder.md">Ladders A/B/C.</doc>
+    </docs>
+    <code>
+      <existing path="scripts/replay_table.py" reason="Metric functions to reuse."/>
+      <existing path="sweeps/pool-depth-x-attacker-mc.yaml" reason="LinkedAxis pattern."/>
+      <existing path="src/depeg_sim/analysis/charts.py" reason="New surface plot."/>
+      <existing path="scripts/make_figures.py, scripts/check_figures.py" reason="Pipeline."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism via ctx.rng; phase order unchanged unless the story says so (then bump PHASE_ORDER_VERSION); ruff clean; never claim unrun numbers — paste command output in the Debug Log; record results before interpreting them (L-19).</constraints>
+</story-context>

@@ -1,0 +1,26 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.4</storyId><title>LP Disposes Withdrawn Inventory</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-15</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-4-lp-disposes-withdrawn-inventory.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who does not believe a panicking LP sits on its inventory</asA><iWant>the LP able to sell or redeem what it withdrew</iWant><soThat>F-15 is tested against the two behaviours that could reverse it</soThat>
+    <tasks>- Config and agent (AC 1–2) - Sweep/table/columns (AC 3) - Figure (AC 4) - Write-up/ADR (AC 5–6) - Tests (AC 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story ACs 1–7. Default hold; existing hashes unchanged. No scheduler change; block if one seems needed.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/reviews/2026-10-15-outside-review-1-finance-professor.md" section="§4, §5.25–5.26">Why.</doc>
+      <doc path="docs/adr/0031-lp-withdrawal-and-liquidity-flight.md">Current LP semantics.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/agents/lp.py" reason="Disposal actions."/>
+      <existing path="src/depeg_sim/kernel/config.py" symbol="LPConfig" reason="New fields."/>
+      <existing path="src/depeg_sim/protocol/redemption.py" reason="Queue the LP joins."/>
+      <existing path="sweeps/lp-flight-mc.yaml, scripts/lp_flight_table.py" reason="Base sweep and table."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism via ctx.rng; phase order unchanged unless the story says so (then bump PHASE_ORDER_VERSION); ruff clean; never claim unrun numbers — paste command output in the Debug Log; record results before interpreting them (L-19).</constraints>
+</story-context>

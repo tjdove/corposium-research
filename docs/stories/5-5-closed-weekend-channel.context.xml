@@ -1,0 +1,25 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.5</storyId><title>Closed Weekend Channel</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-15</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-5-closed-weekend-channel.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who was on a desk that weekend</asA><iWant>the par replay with the weekend channel closed and nearly closed</iWant><soThat>we learn whether the plateau is a throughput story</soThat>
+    <tasks>- Scenarios (AC 1) - Table rows (AC 2) - Figure (AC 3) - VALIDATION.md (AC 4–5) - Tests (AC 6)</tasks>
+  </story>
+  <acceptanceCriteria>See story ACs 1–6. Half-day story; reuse 5.1's pieces.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/FINDINGS.md" section="F-16">Why.</doc>
+      <doc path="docs/adr/0033-par-reference-replay.md">Two-source figures; metric definitions.</doc>
+    </docs>
+    <code>
+      <existing path="scenarios/usdc-2023-tranches-par.yaml" reason="Base."/>
+      <existing path="scripts/replay_table.py" reason="Rows."/>
+      <existing path="src/depeg_sim/protocol/redemption.py, src/depeg_sim/kernel/config.py" reason="capacity 0 path."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism via ctx.rng; phase order unchanged unless the story says so (then bump PHASE_ORDER_VERSION); ruff clean; never claim unrun numbers — paste command output in the Debug Log; record results before interpreting them (L-19).</constraints>
+</story-context>

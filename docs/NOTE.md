@@ -321,12 +321,12 @@ figure not moved to the record); the dev manager may move any of them to the rec
 | — | `peg_trajectory_calibrated.png` † | 4 | F-06, F-03 | final |
 | 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final |
 | — | `threshold_surface_ou.png` † | 4 (supporting) | F-11, F-04 resolution | final |
-| — | `budget_depth.png` | 4 (supporting) | F-11 refinement | final; may drop for length |
-| — | `budget_attack.png` | 4 (supporting) | F-11 second refinement | final (3.4) |
+| — | `budget_depth.png` † | 4 (supporting) | F-11 refinement | final; may drop for length |
+| — | `budget_attack.png` † | 4 (supporting) | F-11 second refinement | final (3.4) |
 | — | `lp_flight.png` † | 4 | F-15, F-03, F-11 | final |
 | 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | final (panel (b) = price paid, 4.1) |
-| — | `pace_trigger.png` | 5 (supporting) | F-13 refinement | final (3.4) |
-| — | `pace_ratio.png` | 5 (supporting) | F-13 refinement | final (3.4) |
+| — | `pace_trigger.png` † | 5 (supporting) | F-13 refinement | final (3.4) |
+| — | `pace_ratio.png` † | 5 (supporting) | F-13 refinement | final (3.4) |
 | — | `peg_trajectory_baseline.png` † | 5 | F-01 | final |
 | 4 | `oracle_sensitivity.png` | 6 | F-10 | final |
 | 5 | `peg_trajectory_1992.png` | 7 | F-07, F-12, F-14 | final |
@@ -355,3 +355,4 @@ figure not moved to the record); the dev manager may move any of them to the rec
 - 2026-10-08: Figure list only, Story 4.1 (builder): one row per committed figure, matching `docs/figures/README.md`; `threshold_surface.png` and `time_to_parity.png` moved to record only; rows marked † added. Outline text not edited.
 - 2026-10-15: Figure list only, Story 5.1 (builder): rows 1c and 1d added for the two par-reference overlays. Note text not edited.
 - 2026-10-15: Figure list: 1c/1d marked † pending v2; Figure 5b linked from Figure 5's caption (Story 4.2 ruling, 5.1 review). Note text otherwise unchanged; v2 rewrite follows Epic 5.
+- 2026-10-15: Figure list: the four "(supporting)" rows marked † (Story 4.2 ruling 2).

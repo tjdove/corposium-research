@@ -1,0 +1,27 @@
+<story-context id="corposium/story-context" v="1.0">
+  <metadata>
+    <epicId>5</epicId><storyId>5.3</storyId><title>Policy Gradual Attack and Cost</title>
+    <status>ready-for-dev</status><generatedAt>2026-10-15</generatedAt><generator>Claude (dev manager)</generator>
+    <sourceStoryPath>docs/stories/5-3-policy-gradual-attack-and-cost.md</sourceStoryPath>
+  </metadata>
+  <story>
+    <asA>reader who runs a treasury desk</asA><iWant>the policies compared under a gradual attack and judged on discount cost as well as time to parity</iWant><soThat>'spend slower' is shown to hold where it matters or dropped</soThat>
+    <tasks>- discount_bps_hours metric (AC 1) - Gradual sweep (AC 2) - Figure/table (AC 3–4) - Trigger table (AC 5) - Write-up (AC 6) - Tests (AC 7)</tasks>
+  </story>
+  <acceptanceCriteria>See story ACs 1–7. Existing policy sweep and figure untouched. Scenario hashes unchanged.</acceptanceCriteria>
+  <artifacts>
+    <docs>
+      <doc path="docs/reviews/2026-10-15-outside-review-1-finance-professor.md" section="§5.21–5.23">Why.</doc>
+      <doc path="docs/FINDINGS.md" section="F-13 and refinement">What is being re-tested.</doc>
+    </docs>
+    <code>
+      <existing path="src/depeg_sim/analysis/summary.py" reason="New metric."/>
+      <existing path="src/depeg_sim/mc.py" reason="Aggregate the new column."/>
+      <existing path="sweeps/policy-comparison-mc.yaml" reason="Base for the gradual sweep."/>
+      <existing path="src/depeg_sim/analysis/charts.py" symbol="plot_policy_comparison" reason="Pace facet, fourth panel."/>
+      <existing path="scripts/policy_table.py" reason="--sweep and the two argmin columns."/>
+    </code>
+    <dependencies><python>No new dependencies.</python></dependencies>
+  </artifacts>
+  <constraints>Determinism via ctx.rng; phase order unchanged unless the story says so (then bump PHASE_ORDER_VERSION); ruff clean; never claim unrun numbers — paste command output in the Debug Log; record results before interpreting them (L-19).</constraints>
+</story-context>
