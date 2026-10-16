@@ -1,6 +1,6 @@
 # Story 4.2: Research Note — `check_note.py`
 
-Status: review
+Status: done
 
 ## Story
 
@@ -271,9 +271,25 @@ figures-check: ok, 4 fits match their inputs (script hashes match)
 - `.github/workflows/ci.yml` (`note-check` on the `test` job line; `fetch-depth: 0`)
 - `docs/stories/4-2-check-note.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-15 · **Verdict: APPROVE**
+
+Reproduced on the review box at the rebased head: `pytest -q` all pass (exit 0); `ruff`
+clean; `make note-check` exits 0 with the one expected freeze warning naming
+a0ae9594… and 555833b7…; `check_note.py --strict-freeze` exits 1. The † exemption, the
+8 fitted-number checks and the record-only check behave as specified.
+
+**Rulings.** The `note-check: WARNING:` form stays (consistency with the script's other
+lines beats my wording). The strict flag goes into CI at the Epic 5 re-freeze story.
+Two blocks on this story were both correct calls: the note listed figures it never
+cited, and the freeze tag was behind an unfrozen tree. Neither was the builder's to
+fix. The three-day silence on the first block is L-21.
+
 ## Change Log
 
 - 2026-10-09: Story drafted by dev manager after NOTE.md v1.0 merged (PR #38)
 - 2026-10-12: Builder: `check_note.py`, `note-check` target and CI line, tests. Blocked: the committed note's body cites 6 of its 15 listed figures (see Blockers).
 - 2026-10-15: Builder: rebased on `main` (7a37100); † rows exempt from the listed-but-uncited check (ruling 4 of the Story 5.1 review). Still blocked: 4 "(supporting)" rows without † are uncited, and `v0.9-freeze` no longer matches `code_hash` after Story 5.1 (see Blockers).
 - 2026-10-15: Builder: second-round rulings applied — rebased on `main` (e68df8b); freeze `code_hash` mismatch warns, `--strict-freeze` fails on it; the committed-note test passes. `make note-check` exit 0. Status: review.
+- 2026-10-15: Reviewed by dev manager — APPROVE; Status: done
