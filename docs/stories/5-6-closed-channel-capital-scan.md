@@ -1,6 +1,6 @@
 # Story 5.6: Closed-Channel Capital Scan
 
-Status: review
+Status: done
 
 ## Story
 
@@ -231,7 +231,52 @@ note-check: ok: numbers: 8 fitted values quoted as their records round them
 - `docs/adr/0036-closed-channel-capital-scan.md` (new, Proposed)
 - `docs/stories/5-6-closed-channel-capital-scan.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-16 · **Verdict: APPROVE**
+
+Reproduced on the review box at `5ca88dd`: `pytest -q` all pass (exit 0); `ruff` clean;
+`make figures-check` → 23 figures, **6 fits** ok. Fit records read: closed-channel rule
+picks 13,333,333 (−1,007.0) with 11,666,667 → −2,000.1 just below; par-open picks
+10,833,333 (−1,279.2), the same C\* as the observed-reference fit. `identification_table.py`
+table 4 reproduced to the bps, including the three 5-point scans and the ±10% ranges
+(closed: 12,488,146–12,949,109, 0 of 5 scan points inside).
+
+**What the result means (the dev manager's call).** Recorded as an F-17 refinement.
+
+With the channel shut, ladder B cannot reproduce the observed trough. The fit rule lands
+on the −1,000 tread (13.33M); the tread below is −2,000 (11.67M); the capitals between
+them (≈ 12.5–12.7M, builder's uncommitted scan) reach −1,373's *depth* but with the wrong
+*shape*: the price passes −1,000 at 31 h and keeps falling until the attacker's stock is
+gone at 40–50 h, then sits flat to 85 h. The observed trough is a 31 h low followed by a
+recovery. So **the believers' ladder and the redemption channel are not separately
+identified by one trough**: the open-channel C\* ($2.54B) reproduces depth and timing
+because the channel's first-four-hours payments to the arbitrageur were part of the
+absorption; remove them and no amount of ladder-B money gives the same path.
+
+**Ruling on the number v2 quotes (the builder's question).** Option 3, with the range:
+v2 quotes **$2.54B with its condition stated** — "a ladder of par-expecting buyers
+totalling $2.5B, if the redemption channel paid at its calibrated rate during the first
+hours of the run" — and adds one sentence: *with the channel shut, reaching the same
+depth needs about $2.9–3.0B and no ladder-B capital reproduces the 31 h low; the
+weekend's buyers and the channel are not separable from one trough.* 13.33M is recorded
+as the rule's pick and is not quoted as a C\*. The 5.2 family statement ($2.0–2.9B) is
+qualified the same way.
+
+**Rulings**
+
+1. **ADR-0036 accepted (finding).** Index row added. F-17 refinement in FINDINGS.
+2. The builder's reading of AC 3 (second refinement's spacing recomputed from the
+   record; ±10% range interpolated as in table 2) is accepted and is now the definition.
+3. Makefile rewriting the two new fit records in `make figures`: accepted; it is what
+   4.1's rule says every fit record does.
+4. The uncommitted nine-capital scan stays uncommitted; v2 cites the story's Debug Log
+   for "12.5–12.7M reaches the depth."
+
+**Epic 5 status.** 5.1, 5.2, 5.5, 5.6 done; 5.3 and 5.4 remain; then the re-freeze.
+
 ## Change Log
 
 - 2026-10-16: Story drafted by dev manager (5.5 review, ruling 4)
 - 2026-10-16: Implemented by Claude Code (Opus 5.5): two par-reference ladder-B fit records, table 4 in `identification_table.py`, VALIDATION.md section, ADR-0036 proposed. Closed-channel C\* 13,333,333 ($3.13B, 1.23×) on the −1,000 tread (−1,007.0); no run within ±10% of −1,373. Status: review.
+- 2026-10-16: Reviewed by dev manager — APPROVE; ADR-0036 accepted; F-17 refinement; Status: done

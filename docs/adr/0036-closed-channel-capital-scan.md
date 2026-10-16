@@ -1,6 +1,6 @@
 # ADR-0036: Closed-channel C\*: the rule picks 13,333,333 ($3.13B, 1.23× the open C\*) on the −1,000 tread; nothing it runs is within ±10% of −1,373, and the capital between the treads gives the depth as a 40–85 h plateau; table 4's scan
 
-**Status:** Proposed (finding + interface)
+**Status:** Accepted (finding; review 2026-10-16, unamended; F-17 refinement)
 **Date:** 2026-10-16
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.6 (F-17; Story 5.5 review, ruling 4)

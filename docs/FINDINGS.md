@@ -856,6 +856,22 @@ reproduces the trough with a believers' ladder and the Monday recovery with the 
 reopening; the two days between them need belief that updates with news, which the
 model does not have — and which the series shows.*
 
+## F-17 refinement (2026-10-16, from 5.6): the ladder and the channel are not separately identified
+
+**ADR:** [0036](adr/0036-closed-channel-capital-scan.md) · **Reproduce:** `python
+scripts/identification_table.py` (table 4); `docs/calibration/fits/holder-ladder-b-{par,closed}.json`.
+
+Re-fitting ladder B's capital with the weekend channel shut, the unchanged rule picks
+**13,333,333 ($3.13B)** on the −1,000 tread (−1,007 bps); 11,666,667 gives −2,000. The
+capitals between (≈ 12.5–12.7M, $2.9–3.0B) reach −1,373's depth but not its shape: the
+price passes −1,000 at 31 h and keeps falling until the attacker's stock is gone at
+40–50 h, then sits flat to the 85 h reopening. **No ladder-B capital reproduces the
+observed 31 h low with the channel shut.** The open-channel C\* ($2.54B) reproduces depth
+and timing because the channel's payments to the arbitrageur in 27–31 h (724k) were part
+of the absorption. For the note: C\* is quoted with its condition; the weekend's buyers
+and the channel cannot be separated from one trough; the extra Saturday-morning absorption
+that the real price shows came from somewhere the model does not distinguish between.
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

@@ -42,6 +42,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0033](0033-par-reference-replay.md) | Par-reference replay: with no observed input, ladder B's trough holds (−1,279 vs −1,373), the single-entry trough collapses (−607), and recovery comes at 37–40 h not 85 h (F-16); two-source figures in the guard | Accepted (finding + interface) | 2026-10-15 |
 | [0034](0034-joint-identification.md) | Joint identification on the par replay: the trough is a tread of the ladder; total capital identified to a few % at a given shape and depth (0.82–1.07× C\* over 0.5–2× D\*), ladder shape not identified; deeper pools need less capital | Accepted (finding + interface) | 2026-10-15 |
 | [0035](0035-closed-weekend-channel.md) | Closed weekend channel: shut or 10% until 85 h → trough at the 20% tranche (−2,001), pinned until the reopening, back in band 85.3 h vs 86.0 observed (F-17: the model brackets the weekend; belief is a switch, the weekend was a process); capacity 0 allowed; figure observed-source | Accepted (finding + interface) | 2026-10-16 |
+| [0036](0036-closed-channel-capital-scan.md) | Closed-channel C\*: the rule picks 13.33M on the −1,000 tread (−1,007); no ladder-B capital reproduces the observed trough's depth and 31 h timing with the channel shut; believers' ladder and channel not separately identified by one trough; scan definition | Accepted (finding) | 2026-10-16 |
 
 ## Template
 
