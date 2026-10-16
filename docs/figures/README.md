@@ -33,6 +33,7 @@ that are regenerated and guarded like the others but are not in the note.
 | [`validation_overlay_usdc_2023_tranches.png`](validation_overlay_usdc_2023_tranches.png) | 3 | `scenarios/usdc-2023-tranches.yaml` | F-09 |
 | [`validation_overlay_usdc_2023_par.png`](validation_overlay_usdc_2023_par.png) | 3 | `scenarios/usdc-2023-par.yaml` (+ `scenarios/usdc-2023.yaml`, grey) | F-08 |
 | [`validation_overlay_usdc_2023_tranches_par.png`](validation_overlay_usdc_2023_tranches_par.png) | 3 | `scenarios/usdc-2023-tranches-par.yaml` (+ `scenarios/usdc-2023-tranches.yaml`, grey) | F-09 |
+| [`identification_surface.png`](identification_surface.png) | 3 | `sweeps/usdc-par-depth-x-capital.yaml` | F-16, F-09 |
 | [`peg_trajectory_calibrated.png`](peg_trajectory_calibrated.png) | 4 | `scenarios/calibrated-baseline.yaml` | F-06, F-03 |
 | [`time_to_parity_ou.png`](time_to_parity_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
 | [`threshold_surface_ou.png`](threshold_surface_ou.png) | 4 | `sweeps/threshold-surface-ou-mc.yaml` | F-11, F-04 |
@@ -85,6 +86,14 @@ fed in: the reference is held at $1.00 for the whole run, and the observed hourl
 (black) reaches its trough of −1,279 bps at 32.8 h against −1,373 bps observed at 31.0 h,
 and is back within ±31 bps of par at 40.4 h, against 86.0 h observed. Grey dashed: the
 same replay fed the observed series as its reference (trough −1,323 bps at 31.2 h).
+
+**`identification_surface.png`.** On the par-reference replay, nothing from the observed
+series fed in. The trough (bps, one seed: the reference is constant) over pool depth
+(0.5–2× D\*) × the four-entry buyer's capital (0.5–2× C\*), neither re-fitted. Orange
+solid: within ±5% of the observed −1,373 bps; black dashed: ±10%; dotted square: the
+fitted point (−1,279 bps). The trough moves in steps that sit at the buyer's entry prices
+(about −2,000, −1,000 and −500 bps); the ±5% band crosses the grid from 1.06–1.07× C\* at
+half depth to 0.82–0.86× C\* at twice depth. Two of the 40 cells are within ±10%.
 
 **`peg_trajectory_calibrated.png`.** At calibrated depth, with the episode-size attack
 (seed 42), the price falls to −1,253 bps and the defender buys it back within minutes; the

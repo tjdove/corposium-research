@@ -1,0 +1,25 @@
+# Pool depth x believers' capital on the par-reference replay, ladder B (Story 5.2, joint
+# identification). Base: scenarios/usdc-2023-tranches-par.yaml, so the reference is
+# constant at 1.0 and nothing from the observed USDC/USD series is fed in (Story 5.1).
+# Both axes are multiples of the fitted values; the column holds the multiple and
+# `scales` turns it into the config value:
+#   - pool_depth: amm.reserve_stable and amm.reserve_reference together, x D* = 16,666,667
+#     (docs/calibration/fits/depth.json)
+#   - holder_capital: the ladder-B holder's total capital, x C* = 10,833,333
+#     (docs/calibration/fits/holder-ladder-b.json)
+# Nothing is re-fitted and the attacker's pace is not swept. One seed: the reference is
+# constant, so no run draws from ctx.rng and there is nothing to average.
+# 5 x 8 = 40 cells, full length (33,600 steps, 112 h).
+version: 1
+name: usdc-par-depth-x-capital
+base: scenarios/usdc-2023-tranches-par.yaml
+linked_axes:
+  - name: pool_depth
+    paths: [amm.reserve_stable, amm.reserve_reference]
+    values: [0.5, 0.75, 1, 1.5, 2]
+    scales: [16666667, 16666667]
+  - name: holder_capital
+    paths: ["agents[type=holder].capital"]
+    values: [0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2]
+    scales: [10833333]
+seeds: [42]

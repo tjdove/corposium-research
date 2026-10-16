@@ -1,4 +1,4 @@
-# Story 2.9. `make figures` regenerates every committed figure in full (runs all eleven
+# Story 2.9. `make figures` regenerates every committed figure in full (runs all twelve
 # sweeps first: ~15 min on 12 cores), records the code hash and re-writes the four fit
 # records in docs/calibration/fits/ (Story 4.1); `make figures-check` is
 # the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
@@ -13,7 +13,7 @@ SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml 
           sweeps/policy-comparison-mc.yaml sweeps/holder-exit-1992-mc.yaml \
           sweeps/budget-x-attack-mc.yaml sweeps/pace-x-trigger-mc.yaml \
           sweeps/pace-ratio-mc.yaml sweeps/threshold-surface-ou-mc.yaml \
-          sweeps/lp-flight-mc.yaml
+          sweeps/lp-flight-mc.yaml sweeps/usdc-par-depth-x-capital.yaml
 FITS_DIR := docs/calibration/fits
 
 .PHONY: figures figures-quick figures-check test lint

@@ -416,3 +416,88 @@ observed-reference replay (grey, dashed) and the par-reference replay (black).
   ≈ 30.6 h. It reaches its trough of −1,279 bps at 32.8 h, inside the grey line's
   shallow U, then rises in a near-straight line to the band at 40.4 h and lies on zero
   from there to 112 h.
+
+## Identification (Story 5.2)
+
+The question is how many (D\*, C\*) pairs reproduce the trough, not one. Both are swept
+on the par-reference ladder-B replay (`scenarios/usdc-2023-tranches-par.yaml`, Story
+5.1), so nothing from the observed series is fed in.
+`sweeps/usdc-par-depth-x-capital.yaml` (spec hash `bdf2a026ce52`) sets pool depth (both
+reserves) to {0.5, 0.75, 1, 1.5, 2} × D\* (16,666,667) and the holder's total capital
+to {0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2} × C\* (ladder B, 10,833,333). That is 40 cells,
+seed 42 only, because the reference is constant and no run draws from `ctx.rng`. Pace,
+the ladder and every other parameter are unchanged; nothing is re-fitted. Cell (1, 1)
+reproduces the Story 5.1 row exactly (−1,279.2 bps, step 9,850).
+
+`python scripts/identification_table.py` (40 sweep cells and 7 ladder runs, 40 s on
+Seoul with 12 workers) prints three tables. Re-entry and hours in band are
+`replay_table.py`'s definitions (ADR-0033). The sweep's own `steps_to_first_band_entry`
+is null in every cell, because these scenarios have no `peg_recovered` condition. Gap is
+(trough − observed) / |observed|; + means shallower.
+
+**1. Cells inside ±10% of −1,373.3 bps** (−1,510.6 … −1,236.0): 2 of 40.
+
+| depth × D\* | capital × C\* | trough bps | gap | trough h | first back in band, h | hours in band, 27–96 h | holder bought | holder redeemed | holder PnL |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1 | −1,279.2 | +6.9% | 32.8 | 40.4 | 55.6 | 8,646,604 | 8,646,604 | 521,604 |
+| 1.5 | 0.9 | −1,452.0 | −5.7% | 32.8 | 44.6 | 51.4 | 7,776,546 | 7,776,546 | 464,046 |
+
+**2. Capital inside ±5%, per depth** (−1,442.0 … −1,304.6 bps). The capital range is
+found by linear interpolation between adjacent grid points on the capital axis. Troughs
+on the capital grid, in bps:
+
+| depth × D\* | 0.5 | 0.75 | 0.9 | 1 | 1.1 | 1.25 | 1.5 | 2 | capital inside ±5% (× C\*) |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.5 | −4,882 | −2,012 | −2,007 | −2,003 | −1,017 | −1,013 | −1,007 | −521 | 1.057–1.071 |
+| 0.75 | −3,890 | −2,007 | −2,003 | −1,621 | −1,011 | −1,009 | −1,004 | −514 | 1.029–1.052 |
+| 1 | −3,227 | −2,004 | −2,001 | −1,279 | −1,008 | −1,006 | −1,003 | −510 | 0.977–0.996 |
+| 1.5 | −2,401 | −2,001 | −1,452 | −1,005 | −1,005 | −1,003 | −1,001 | −507 | 0.902–0.933 |
+| 2 | −2,002 | −1,726 | −1,131 | −1,004 | −1,003 | −1,002 | −813 | −505 | 0.822–0.856 |
+
+No grid point is itself inside ±5%. Every range lies between two grid points, on a step
+between treads (below). The response between those two points is a step, as the grid
+shows elsewhere, and the grid does not show where inside the interval the step falls. The
+ranges are what AC 3's linear interpolation gives, not a measured position.
+
+**3. Ladders at D\*, par reference.** Each ladder is run at its own C\* from Story 3.7
+(ADR-0030; A 8,333,333, B 10,833,333, C 10,000,000), then all three are run at ladder
+B's C\*. The last row is the continuous ladder at ladder B's C\* (AC 5: 2, 4, …, 20% at
+10% each). It is a `tranches` list for the existing holder, with no new agent type.
+
+| ladder | capital | trough bps | gap | trough h | first back in band, h | hours in band, 27–96 h | holder bought | holder PnL |
+|---|---|---|---|---|---|---|---|---|
+| A (1/2/5% at 50/30/20), own C\* | 8,333,333 | −1,409.2 | −2.6% | 32.8 | 41.1 | 55.0 | 8,535,377 | 202,044 |
+| B (2/5/10/20% at 25%), own C\* | 10,833,333 | −1,279.2 | +6.9% | 32.8 | 40.4 | 55.6 | 8,646,604 | 521,604 |
+| C (1/2/5/10/15% at 20%), own C\* | 10,000,000 | −1,498.0 | −9.1% | 32.8 | 41.5 | 54.5 | 8,412,338 | 412,338 |
+| A, ladder B's C\* | 10,833,333 | −503.2 | +63.4% | 30.4 | 36.6 | 59.4 | 9,467,496 | 174,266 |
+| B, ladder B's C\* | 10,833,333 | −1,279.2 | +6.9% | 32.8 | 40.4 | 55.6 | 8,646,604 | 521,604 |
+| C, ladder B's C\* | 10,833,333 | −1,006.8 | +26.7% | 29.1 | 39.1 | 56.9 | 8,941,432 | 427,258 |
+| continuous (2, 4, …, 20% at 10%), ladder B's C\* | 10,833,333 | −1,583.0 | −15.3% | 32.8 | 41.9 | 54.1 | 8,287,317 | 703,984 |
+
+With the observed reference (Story 3.7, ADR-0030), the own-C\* troughs were A −1,602.7,
+B −1,323.3 and C −1,489.0. Under the par reference all three are within ±10% of the
+observed trough, and A is the closest (−2.6%). At ladder B's capital, A and C sit on
+their −500 and −1,000 bps treads. The continuous ladder lands at −1,583.0.
+
+**The surface's shape** (`docs/figures/identification_surface.png`):
+- **Treads.** The trough comes in levels at the ladder's entry prices. These are about
+  −2,000 bps (the 20% tranche), −1,000 to −1,017 (10%) and −505 to −521 (5%). The
+  capital rows 0.75 and 0.9 sit on −2,000 at 4 and 3 of the 5 depths. Rows 1.1–1.5 sit
+  on −1,000 at every depth except one cell, −813 at (2× D\*, 1.5× C\*). Row 2 sits on
+  −500 at every depth. Row 0.5 is below the −2,000 tread at every depth but 2× D\*:
+  −4,882 at 0.5× D\*, rising to −2,401 at 1.5× and −2,002 at 2×.
+- **Steps between treads.** Six cells hold values between treads: −1,621, −1,279,
+  −1,452, −1,131, −1,726 and −813 bps. All but −813 lie between the −2,000 and −1,000
+  treads.
+- **Where the −2,000 → −1,000 step falls** moves to lower capital as the pool deepens.
+  It falls between 1.0 and 1.1 × C\* at 0.5× D\*, and between 0.9 and 1.1 at 0.75× and
+  1× (with a partial cell at 1.0). At 1.5× D\* it falls between 0.75 and 1.0 (a partial
+  cell at 0.9), and at 2× D\* between 0.5 and 1.0 (partial cells at 0.75 and 0.9).
+- **The ±5% region** is a thin band that runs from upper left to lower right: 1.06–1.07
+  × C\* at half depth, 0.82–0.86 × C\* at twice depth. Its width in capital is 0.014,
+  0.023, 0.019, 0.031 and 0.034 × C\* from shallowest to deepest. The −2,000 tread (the
+  cliff, F-09) lies below the band at every depth.
+- **Against the story's prediction** ("deeper pools need more believers' capital to
+  reach the same trough"): the band slopes the other way. Deeper pools reach the
+  observed trough with less capital. The prediction that the cliff runs below the band
+  holds.
