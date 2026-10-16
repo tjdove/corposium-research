@@ -1,6 +1,6 @@
 # ADR-0034: Joint identification on the par replay: the ±5% band runs from 1.06× C\* at half depth to 0.84× at twice depth (opposite the predicted slope); 2 of 40 cells within ±10%; ladder A is closest under par
 
-**Status:** Proposed (finding + interface)
+**Status:** Accepted (finding + interface; review 2026-10-15, unamended; F-09 second refinement)
 **Date:** 2026-10-15
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.2 (outside review 1, §5.9–5.11)

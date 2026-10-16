@@ -800,6 +800,24 @@ question with a test (Story 5.5: closed weekend channel).
 USDC fell and when, with a fitted believers' ladder, and it does not reproduce the two
 days the price stayed down.* The second half is as much a finding as the first.
 
+## F-09 second refinement (2026-10-15, from 5.2): the trough is a tread
+
+**ADR:** [0034](adr/0034-joint-identification.md) · **Reproduce:** `python
+scripts/identification_table.py`; `identification_surface.png`.
+
+On the par-reference replay, over 0.5–2× D\* and 0.5–2× C\* (40 cells), the trough sits
+on one of ladder B's entry levels (−500, −1,000, −2,000 bps) or on a jump between two.
+The observed −1,373 lies between treads: C\* is the capital at which the 10% tranche runs
+dry in the attack's tail. The ±5% seam is 2–3% of C\* wide at any depth, so **total
+capital is identified to a few percent for a given ladder and depth**; it runs from
+1.06× C\* at half depth to 0.84× at double depth (deeper pools need *less* capital; the
+prediction said more). **The ladder's shape is not identified:** A, B and C all land
+within ±10% at their own fitted capital (A −2.6%, B +6.9%, C −9.1%); at B's capital they
+spread from −503 to −1,279; a continuous 2–20% ladder gives −1,583. The believers claim
+for the note: *a ladder of par-expecting buyers with $2.0–2.9B in total, entered 1–20%
+below par, reproduces the trough within 10% across half to twice D\*; the trough tells
+you how much money ran out when, not where it sat.*
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

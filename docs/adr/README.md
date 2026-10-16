@@ -40,6 +40,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0031](0031-lp-withdrawal-and-liquidity-flight.md) | AMM remove_liquidity; LP withdrawal agent; liquidity that flees and holds what it withdrew helps the defender (F-15); panic threshold inert; F-03/F-11 qualified | Accepted (finding, amended) | 2026-10-08 |
 | [0032](0032-figure-pass-fit-records-and-freeze.md) | Policy panel (b) price paid per run; fit records under the guard; note set = all committed figures minus four record-only; freeze commit tagged, hash recorded in a following docs-only commit | Accepted | 2026-10-09 |
 | [0033](0033-par-reference-replay.md) | Par-reference replay: with no observed input, ladder B's trough holds (−1,279 vs −1,373), the single-entry trough collapses (−607), and recovery comes at 37–40 h not 85 h (F-16); two-source figures in the guard | Accepted (finding + interface) | 2026-10-15 |
+| [0034](0034-joint-identification.md) | Joint identification on the par replay: the trough is a tread of the ladder; total capital identified to a few % at a given shape and depth (0.82–1.07× C\* over 0.5–2× D\*), ladder shape not identified; deeper pools need less capital | Accepted (finding + interface) | 2026-10-15 |
 
 ## Template
 

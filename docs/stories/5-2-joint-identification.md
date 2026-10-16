@@ -1,6 +1,6 @@
 # Story 5.2: Joint Identification of D* and C*
 
-Status: review
+Status: done
 
 ## Story
 
@@ -229,7 +229,63 @@ New code hash (`charts.py` changed): `f40a6bb933f1b747384feea07d960569ea0a8186c0
 - `docs/adr/0034-joint-identification.md` (new, Proposed)
 - `docs/stories/5-2-joint-identification.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-15 · **Verdict: APPROVE**
+
+Reproduced on the review box: `pytest -q` all pass (exit 0); `ruff` clean; `make
+figures-check` → 22 figures, 4 fits ok. `python scripts/identification_table.py
+--workers 2` (3 m 25 s): every number in the three tables matches ADR-0034 and
+VALIDATION.md — 2 of 40 cells inside ±10% ((1,1) −1,279.2; (1.5, 0.9) −1,452.0); ±5% C\*
+ranges 1.057–1.071 at 0.5×D\* down to 0.822–0.856 at 2×D\*; ladders A/B/C at own C\*
+−1,409 / −1,279 / −1,498; at B's C\* −503 / −1,279 / −1,007; continuous −1,583. Figure
+read: the staircase is unmistakable; the ±5% seam runs along the jump between the
+−1,000 and −2,000 treads.
+
+**What the result means (the dev manager's call).** Recorded as a second refinement of
+F-09 under F-16's heading in FINDINGS.
+
+1. *The trough is a tread.* At every depth and every capital the trough sits on one of the
+   ladder's entry levels (−500, −1,000, −2,000 bps) or on a jump between two. The
+   observed −1,373 lies between treads, so a discrete ladder can only reach it by having
+   its last active tranche run out at the right moment. That is what C\* = 10,833,333 is:
+   the capital at which the 10% tranche runs dry during the attack's tail. The fit is
+   real but it is a knife-edge on a staircase, and the surface shows it.
+2. *Total capital is identified to a few percent at a given shape and depth; the shape is
+   not.* The ±5% seam is 2–3% of C\* wide at any depth. But all three fixed ladders land
+   within ±10% at their own C\* (A at −2.6% is now the closest), and the continuous
+   ladder misses by 15% at B's capital. The trough tells you how much money ran out when,
+   not where it sat.
+3. *The slope.* Deeper pools need **less** believers' capital to reach the same trough
+   (the dev manager's prediction was backwards, recorded): a deeper pool is pushed to each
+   entry level later and by more of the attacker's stock, so by the time the 10% tranche
+   is active there is less attacker stock left for it to absorb. Across 0.5–2× D\* the
+   fitting capital spans 0.82–1.07× C\*: a 25% band, which is the honest width of the
+   family.
+4. *For note v2 the believers claim becomes:* a ladder of par-expecting buyers with
+   $2.0–2.9B in total, entered between 1% and 20% below par, reproduces the observed
+   trough within 10% on the par-reference replay across pool depths from half to twice
+   D\*; the trough identifies the total to within a few percent for a given ladder and
+   depth, and does not identify the ladder's shape. No sentence stronger than that.
+
+**Rulings**
+
+1. **ADR-0034 accepted (finding + interface).** Index row added.
+2. `steps_to_first_band_entry` null on replay scenarios (no `peg_recovered` condition):
+   accepted as documented; `replay_table.simulated_row` is the reference for re-entry on
+   replays. A one-line note in `summary.py`'s docstring is enough; no code change.
+3. Figure 1e stays †; v2 cites it from §3.
+4. Ladder A being closest under par is **not** a reason to switch the note's ladder. The
+   three are within ±10% and the shape is unidentified (point 2); v2 reports all three
+   and keeps B as the worked example because its figures already exist. Recorded so
+   nobody re-fits toward A.
+
+**Lessons:** prediction half wrong (slope), recorded (L-15). The builder's "every ±5%
+range falls on a jump between grid points; the grid doesn't show where inside the
+interval the jump is" is exactly the right caveat and goes into the note verbatim.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager (Epic 5)
 - 2026-10-15: Implemented by Claude Code (Opus 5.5): depth × capital sweep on the par replay, `identification_surface.png`, `identification_table.py` (cells, ±5% ranges, ladders A/B/C and continuous), VALIDATION.md section, ADR-0034 proposed. ±5% band 1.06× → 0.84× C\* from half to twice depth (opposite the predicted slope); 2 of 40 cells within ±10%. Status: review.
+- 2026-10-15: Reviewed by dev manager — APPROVE; ADR-0034 accepted; F-09 second refinement; Status: done
