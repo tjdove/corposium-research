@@ -1,6 +1,6 @@
 # What the Model Found, in Plain Words
 
-**Status:** v0.1 (2026-10-13) · **Author:** Tim Dove with Claude
+**Status:** v0.1 (2026-10-13) · *being rewritten for note v2 after outside review 1 and Epic 5; Findings 1, 3 and 5 below carry interim corrections* · **Author:** Tim Dove with Claude
 **For:** anyone who wants the findings without the equations. Tim's study guide; also the
 source for the site page, the one-pager and the launch thread.
 **Read with:** [`BACKGROUND.md`](BACKGROUND.md) (1992), [`USDC-2023.md`](USDC-2023.md) (the test case),
@@ -66,7 +66,7 @@ for the weekend, so almost nobody could redeem. By 2 am Saturday USDC was at 87 
 Sunday evening the government guaranteed SVB's deposits. On Monday the banks opened, Circle
 paid out, and USDC was back at a dollar.
 
-**Nobody attacked USDC. It was a run.** In the model, the "attacker" stands in for the run:
+**No one has been identified as attacking USDC. It was a run.** In the model, the "attacker" stands in for the run:
 all the selling added up, about $2.7 billion.
 
 We fed the model the size of the run, the speed of the weekend redemption window, and the
@@ -188,9 +188,9 @@ out, the picture changes. See Finding 5.
 This is where the 1992 story stops fitting, and we made that a result instead of a
 footnote.
 
-**1992.** If you held pounds and stopped believing, there was one way out: hand them to the
-Bank of England at the floor price. Every pound handed in came out of the Bank's reserves.
-That is how the market, once it turned, finished off the peg.
+**1992.** If you held pounds and stopped believing, you sold them in the market. At the
+floor, the buyer of last resort was the Bank of England, so net selling at the floor came
+out of the Bank's reserves. That is how the market, once it turned, finished off the peg.
 
 **On-chain, there are two ways out.**
 
@@ -198,7 +198,7 @@ That is how the market, once it turned, finished off the peg.
 - **Redeem with the issuer.** Doesn't move the pool price. Pulls straight from the
   reserves.
 
-Only the second one breaks the peg in the 1992 sense.
+Selling breaks the *price*. Redeeming drains the *issuer*. Both are ways a peg fails, and USDC's price broke on the market that weekend while redemption was shut. What the 1992 story calls "breaking the Bank" is the second one.
 
 **How we found it.** By getting it wrong first. We modelled "losing faith" as dumping in the
 pool. The peg got *harder* to break, and the believer lost a lot of money. Then we saw that
@@ -210,10 +210,13 @@ had to use the first exit. They crashed the price and left Circle's reserves alo
 
 **Two smaller results next to this one:**
 
-- **Panicking liquidity helped the defender.** Liquidity providers who pulled out of the
-  pool took the attacker's dumped coins with them, and the peg recovered faster. That only
-  holds if they sit on what they took out. If they dump it or redeem it, they become a
-  second attacker. It's the first thing the next version will test.
+- **Panicking liquidity helps the defender only if it sits still.** Liquidity providers
+  who pulled out of the pool took the attacker's dumped coins with them, and the peg
+  recovered faster. We then let them dump or redeem what they took out (Story 5.4). Dumping
+  makes the crash deeper but the peg still recovers; redeeming leaves the crash alone and
+  the peg never recovers, because the provider's coins sit at the front of the redemption
+  line and the arbitrage that would restore the price waits behind them. Who is at the
+  front of the queue decides who recovers. 1992 had no queue.
 - **A believer who overpays is a free defender.** One who buys above what the coin is worth
   holds the price up with its own losses.
 
@@ -226,9 +229,10 @@ had to use the first exit. They crashed the price and left Circle's reserves alo
 - **Price-feed delay doesn't matter.** Across every update setting we tried, from one
   minute to 23 hours, the low moved by less than a tenth of a cent. At Chainlink's actual
   settings it is the same as a feed with no delay. (§6)
-- **Triggers don't matter; amounts and speeds do.** Three thresholds in the model (when
-  the defender starts, when the believer gives up, when the liquidity provider panics)
-  turned out to do nothing, because the first big sale crosses all of them at once.
+- **Triggers could not be tested.** Three thresholds in the model (when the defender
+  starts, when the believer gives up, when the liquidity provider panics) never made a
+  difference, because in every attack we ran the first sale crossed all of them at once.
+  That means we have not tested them, not that they do nothing (Story 5.3).
 - **The 1992 replay needs the believers.** Running the model as 1992, the Bank runs dry at
   about 4.9 times Quantum Fund's position when there are large believers who redeem, and at
   5.7 times without them. That ratio (attack to resources ≈ 1.04) is close to what the
