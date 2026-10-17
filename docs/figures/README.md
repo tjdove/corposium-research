@@ -42,6 +42,7 @@ that are regenerated and guarded like the others but are not in the note.
 | [`budget_attack.png`](budget_attack.png) | 4 | `sweeps/budget-x-attack-mc.yaml` | F-11 |
 | [`lp_flight.png`](lp_flight.png) | 4 | `sweeps/lp-flight-mc.yaml` | F-15, F-03, F-11 |
 | [`policy_comparison.png`](policy_comparison.png) | 5 | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | F-13, F-07 |
+| [`policy_comparison_gradual.png`](policy_comparison_gradual.png) | 5 | `sweeps/policy-comparison-gradual-mc.yaml` (+ `scenarios/policies/`) | F-13; gradual attack (5.3) |
 | [`pace_trigger.png`](pace_trigger.png) | 5 | `sweeps/pace-x-trigger-mc.yaml` | F-13 |
 | [`pace_ratio.png`](pace_ratio.png) | 5 | `sweeps/pace-ratio-mc.yaml` | F-13 |
 | [`peg_trajectory_baseline.png`](peg_trajectory_baseline.png) | 5 | `scenarios/soros-baseline.yaml` | F-01 |
@@ -162,6 +163,18 @@ price falls as the attack grows; the p05–p95 band has no width. Spread-only an
 never buy and are not drawn. (c) p(stays broken): only late-conservative stays below 0.5
 at 0.7× and 1.0×; spread-only and no-defense are 1.0 everywhere. Points are dodged sideways
 per policy so coinciding series stay visible.
+
+**`policy_comparison_gradual.png`.** The five policies of `policy_comparison.png` with
+the attacker's pace as a third axis: one row per pace (0.1, 0.02, 0.01 of its remaining
+stable per step), 16 seeds per point. Panels (a)–(c) are as in `policy_comparison.png`,
+and (d) is `discount_bps_hours`, the area below par from the attacker's first sale, mean
+with p05–p95. The pace-0.1 row repeats `policy_comparison.png`: late-conservative is fastest,
+pays least (0.283 at 1.0×) and has the smallest discount (5,242 / 37,884 / 87,082 bps·h).
+At 0.02 and 0.01 no policy recovers at any attack size (p = 1.0). Only at 0.02, 0.5× do
+the buyers re-enter at all, at 57.5–58.7 h, past the deadline. The buyers pay 0.72–0.91
+per stable at pace 0.01. Late-conservative still has the smallest discount in every cell,
+by 0.5% (452,147 against 454,494 for calibrated) at pace 0.01, 1.0×. Every trigger binds
+on the attacker's first sale at every pace (`docs/calibration/POLICY.md`).
 
 **`pace_trigger.png`.** Against the 1.0× attack at D\* (8 seeds per cell): median hours to
 first return over defender spend pace × trigger, at attacker pace 0.1 (left) and 0.02

@@ -139,7 +139,7 @@ def test_guard_checks_an_observed_source(tmp_path):
 
 def test_registry_names_every_source_once_per_file():
     files = [f.file for f in make_figures.FIGURES]
-    assert len(files) == len(set(files)) == 23  # Story 5.5: closed weekend channel overlay
+    assert len(files) == len(set(files)) == 24  # Story 5.3: gradual policy comparison
     for f in make_figures.FIGURES:
         assert Path(f.source).is_file(), f.source
         assert f.second is None or Path(f.second).is_file(), f.second

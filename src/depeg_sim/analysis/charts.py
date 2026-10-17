@@ -1071,6 +1071,7 @@ def plot_time_to_parity(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) -> 
 
 
 POLICY_COMPARISON = "policy_comparison.png"
+POLICY_COMPARISON_GRADUAL = "policy_comparison_gradual.png"
 REFERENCE_POLICY = "calibrated"
 
 
@@ -1111,11 +1112,17 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     spread-only) has no price and is left out of that panel, with a legend note; (c)
     ``p_stays_broken`` with Wilson 95% bars. Points are dodged sideways per policy so
     coinciding series stay visible. Reads ``mc.parquet``, ``sweep.parquet`` and the
-    manifest."""
+    manifest.
+
+    A sweep with an attacker-pace axis (Story 5.3) is drawn by ``_plot_policy_by_pace``
+    instead, into ``POLICY_COMPARISON_GRADUAL``: one row per attacker pace and a fourth
+    panel, ``discount_bps_hours``."""
     from matplotlib.ticker import FuncFormatter
 
     sweep_dir = Path(sweep_dir)
     mc, manifest = _read_sweep(sweep_dir)
+    if any(ATTACKER_PACE_PATH in a.get("paths", ()) for a in manifest["axes"]):
+        return _plot_policy_by_pace(sweep_dir, mc, manifest, usd_per_unit)
     base = manifest["base_config"]
     policy_col = _base_axis(manifest)["name"]
     policies = list(_base_axis(manifest)["values"])
@@ -1268,6 +1275,168 @@ def plot_policy_comparison(sweep_dir: Path, usd_per_unit: float = USD_PER_UNIT) 
     )
     _sweep_footer(fig, manifest)
     out = sweep_dir / POLICY_COMPARISON
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+def policy_cells(sweep_dir: Path, keys: list[str], interval_seconds: float) -> pd.DataFrame:
+    """Per cell of ``keys``, from ``sweep.parquet``: ``ttp_h``, the median over seeds of the
+    hours from run start to first re-entry (``(step_of_max_depeg +
+    steps_to_first_band_entry) x interval / 3600`` per run; NaN, "never", where fewer than
+    half the seeds re-enter), ``entered`` (seeds that re-enter) and ``n``. Per run, so the
+    trough step may differ across seeds (it can under a gradual attack), unlike
+    ``time_to_parity_hours``, which reads ``mc.parquet``. Story 5.3."""
+    from depeg_sim.experiments.sweep import SWEEP_PARQUET
+
+    cols = [*keys, "step_of_max_depeg", "steps_to_first_band_entry"]
+    runs = pd.read_parquet(Path(sweep_dir) / SWEEP_PARQUET, columns=cols)
+    runs["hours"] = (
+        (runs["step_of_max_depeg"] + runs["steps_to_first_band_entry"]) * interval_seconds / 3600
+    )
+    g = runs.groupby(keys, sort=False)["hours"]
+    out = pd.DataFrame({"ttp_h": g.median(), "entered": g.count(), "n": g.size()})
+    out["ttp_h"] = out["ttp_h"].where(out["entered"] >= out["n"] / 2)
+    return out.reset_index()
+
+
+def _plot_policy_by_pace(
+    sweep_dir: Path, mc: pd.DataFrame, manifest: dict, usd_per_unit: float
+) -> Path:
+    """Story 5.3: ``plot_policy_comparison`` for a sweep with an attacker-pace axis. One
+    row per attacker pace (fastest first), four panels over attacker capital: (a) median
+    hours from run start to first re-entry (``policy_cells``; "never" at the horizon with
+    an open marker), (b) price the defender paid per stable (``_price_paid``; buyers
+    only), (c) ``p_stays_broken`` with Wilson 95% bars, (d) ``discount_bps_hours``, mean
+    with its p05-p95 band over seeds (``mc.parquet``). Styles, dodging and the reference
+    lines are ``plot_policy_comparison``'s."""
+    from matplotlib.ticker import FuncFormatter
+
+    base = manifest["base_config"]
+    policy_col = _base_axis(manifest)["name"]
+    policies = list(_base_axis(manifest)["values"])
+    cap_col = _axis_named(manifest, CAPITAL_PATH)
+    pace_col = _axis_named(manifest, ATTACKER_PACE_PATH)
+    keys = [policy_col, cap_col, pace_col]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+    budget = next(a for a in base["agents"] if a["type"] == "defender")["budget"]
+    resources = budget + base["redemption"]["reserves"]
+    peg = base["redemption"]["peg_price"]
+
+    mc = mc.copy()
+    p, lo, hi = _p_broken(mc)
+    mc["p"], mc["p_lo"], mc["p_hi"] = p, lo, hi
+    mc = mc.merge(policy_cells(sweep_dir, keys, interval), on=keys, how="left")
+    mc = mc.merge(_price_paid(sweep_dir, keys), on=keys, how="left")
+    mc["ratio"] = mc[cap_col] / resources
+    buyers = [n for n in policies if mc.loc[mc[policy_col] == n, "paid_mean"].notna().any()]
+    skipped = [n for n in policies if n not in buyers]
+    ratios = sorted(mc["ratio"].unique())
+    paces = sorted(mc[pace_col].unique(), reverse=True)
+    gap = min(np.diff(ratios)) if len(ratios) > 1 else 1.0
+    dodge = {n: (i - (len(policies) - 1) / 2) * 0.08 * gap for i, n in enumerate(policies)}
+    others = iter(zip(SERIES, MARKERS, strict=False))
+    style = {}
+    for name in policies:
+        if name == REFERENCE_POLICY:
+            style[name] = {"color": DARK, "marker": "o", "lw": 3.0, "ms": 8, "zorder": 5}
+        else:
+            color, marker = next(others)
+            style[name] = {"color": color, "marker": marker, "lw": 1.6, "ms": 7, "zorder": 3}
+    disc_top = float(np.nanmax(mc["discount_bps_hours_p95"])) * 1.08
+
+    fig, axes = plt.subplots(
+        len(paces), 4, figsize=(20, 4.6 * len(paces) + 1.2), dpi=150, sharex=True,
+        squeeze=False, constrained_layout=True,
+    )  # fmt: skip
+    for row, pace in zip(axes, paces, strict=True):
+        ax_t, ax_s, ax_p, ax_d = row
+        for name in policies:
+            g = mc[(mc[policy_col] == name) & (mc[pace_col] == pace)].sort_values("ratio")
+            st = style[name]
+            line = {"color": st["color"], "lw": st["lw"], "zorder": st["zorder"]}
+            x = g["ratio"].to_numpy() + dodge[name]
+            hours = g["ttp_h"].to_numpy()
+            never = np.isnan(hours)
+            shown = np.where(never, horizon_h, hours)
+            ax_t.plot(x, shown, label=name, **line)
+            ax_t.plot(x[~never], shown[~never], ls="none", marker=st["marker"], ms=st["ms"],
+                      color=st["color"], zorder=st["zorder"])  # fmt: skip
+            ax_t.plot(x[never], shown[never], ls="none", marker=st["marker"], ms=st["ms"] + 2,
+                      mfc="white", mec=st["color"], mew=2, zorder=st["zorder"] + 1)  # fmt: skip
+            if name in buyers:
+                ax_s.fill_between(
+                    x, g["paid_p05"], g["paid_p95"], color=st["color"], alpha=0.15, lw=0
+                )
+                ax_s.plot(x, g["paid_mean"], marker=st["marker"], ms=st["ms"], label=name, **line)
+            ax_p.errorbar(x, g["p"], yerr=[g["p"] - g["p_lo"], g["p_hi"] - g["p"]],
+                          marker=st["marker"], ms=st["ms"], capsize=3, **line)  # fmt: skip
+            ax_d.fill_between(
+                x,
+                g["discount_bps_hours_p05"],
+                g["discount_bps_hours_p95"],
+                color=st["color"],
+                alpha=0.12,
+                lw=0,
+            )
+            ax_d.plot(x, g["discount_bps_hours_mean"], marker=st["marker"], ms=st["ms"], **line)
+
+        ax_t.axhline(deadline_h, color=ORANGE, ls="--", lw=1.4, zorder=1)
+        ax_t.text(ratios[0], deadline_h, f" deadline {deadline_h:.0f} h", va="bottom",
+                  ha="left", fontsize=8, color=DARK)  # fmt: skip
+        ax_t.axhline(horizon_h, color=GREY, ls=":", lw=1.0, zorder=1)
+        ax_t.text(ratios[0], horizon_h, f" never (horizon {horizon_h:.0f} h)", va="bottom",
+                  ha="left", fontsize=8, color=DARK)  # fmt: skip
+        ax_t.set_ylim(0, horizon_h * 1.08)
+        ax_t.set_ylabel(f"attacker pace {pace:g}\n\nmedian hours to first re-entry")
+        ax_s.axhline(peg, color=GREY, ls=":", lw=1.0, zorder=1)
+        ax_s.text(ratios[0], peg, " par", va="bottom", ha="left", fontsize=8, color=DARK)
+        ax_s.set_ylim(0, peg * 1.12)
+        ax_s.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.2f}"))
+        ax_s.set_ylabel("price paid per stable\n(mean, p05–p95)")
+        ax_p.set_ylim(-0.03, 1.03)
+        ax_p.set_ylabel("p(stays broken), Wilson 95%")
+        ax_d.set_ylim(0, disc_top)
+        ax_d.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+        ax_d.set_ylabel("bps·h below par\n(mean, p05–p95)")
+        for ax in row:
+            ax.grid(axis="y", color=BAND, lw=0.6)
+            ax.set_axisbelow(True)
+            ax.set_xticks(ratios)
+    titles = (
+        "(a) hours to parity (open marker = never)",
+        "(b) price the defender paid per stable",
+        "(c) p(stays broken)",
+        "(d) cost of the discount, from the first sale",
+    )
+    for ax, title in zip(axes[0], titles, strict=True):
+        ax.set_title(title, fontsize=10)
+    for ax in axes[-1]:
+        ax.set_xticklabels(
+            [f"{r:.2g}×\n{_usd(r * resources, usd_per_unit)}" for r in ratios], fontsize=8
+        )
+    fig.supxlabel("attacker capital (× defender budget + redemption reserves; $)", fontsize=10)
+    axes[0][0].legend(title="policy", fontsize=8, title_fontsize=8, loc="lower right")
+    if buyers:
+        axes[0][1].legend(
+            title="buying policies" + (f"\n(not shown, never buy: {', '.join(skipped)})"
+                                       if skipped else ""),
+            fontsize=8, title_fontsize=8, loc="lower left",
+        )  # fmt: skip
+    fig.suptitle(
+        f"{manifest['sweep_name']}: defender policies by attacker pace (rows: share of its "
+        f"remaining stable sold per step), criterion {_criterion(rec)} "
+        f"({len(manifest['seeds'])} seeds per point)\n"
+        f"re-entry = first step within ±{rec['tolerance'] * BPS:g} bps of {_against(rec)}; "
+        f"recovered = held for {rec['for_steps']:,} steps by step {horizon:,}",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / POLICY_COMPARISON_GRADUAL
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out

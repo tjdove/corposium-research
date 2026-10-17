@@ -1,0 +1,31 @@
+# Defender policy comparison under a gradual attack (Story 5.3; referee §5.21–5.23).
+# Identical to sweeps/policy-comparison-mc.yaml (untouched; read its header for the five
+# policies, the attack ratios, the seeds, the horizon and the oracle recovery criterion)
+# except:
+#   - name: policy-comparison-gradual-mc
+#   - a third axis, the attacker's pace (share of its remaining stable sold per 12 s step
+#     from start_step 50): 0.1 is the existing sweep's (10% in the first step, spot near
+#     0.23 before any trigger can bind, F-13 refinement); 0.02 and 0.01 sell the same
+#     capital over roughly 5x and 10x as many steps (half the stock gone by step 50 + 34
+#     and 50 + 69).
+# Every run also reports discount_bps_hours (summary.py, Story 5.3): the area below par
+# in bps·h from the attacker's first sale to the end of the run.
+# 5 policies x 3 ratios x 3 attacker paces = 45 grid points x 16 seeds = 720 runs.
+version: 1
+name: policy-comparison-gradual-mc
+base: scenarios/calibrated-baseline.yaml
+base_axis:
+  name: policy
+  bases:
+    calibrated: scenarios/calibrated-baseline.yaml
+    early-aggressive: scenarios/policies/early-aggressive.yaml
+    late-conservative: scenarios/policies/late-conservative.yaml
+    spread-only: scenarios/policies/spread-only.yaml
+    no-defense: scenarios/policies/no-defense.yaml
+axes:
+  agents[type=attacker].capital: [89727196, 125618074, 179454391]
+  agents[type=attacker].pace: [0.1, 0.02, 0.01]
+seeds: { count: 16, start: 1000 }
+max_steps: 18000
+overrides:
+  termination.peg_recovered.reference: oracle
