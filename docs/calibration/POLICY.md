@@ -74,17 +74,6 @@ result (the range over the 16 seeds is 0.0 for every metric above). The widest r
 | spread-only | never / never / never | 0 / 0 / 0 | — / — / — | 420,473 / 448,794 / 469,616 | 1.00 / 1.00 / 1.00 |
 | no-defense | never / never / never | 0 / 0 / 0 | — / — / — | 415,686 / 444,378 / 465,501 | 1.00 / 1.00 / 1.00 |
 
-| attacker pace | ratio | minimises discount_bps_hours | bps·h | minimises time to parity | h | agree |
-|---|---|---|---|---|---|---|
-| 0.1 | 0.5 | late-conservative | 5,242 | late-conservative | 6.6 | yes |
-| 0.1 | 0.7 | late-conservative | 37,884 | late-conservative | 19.2 | yes |
-| 0.1 | 1 | late-conservative | 87,082 | late-conservative | 29.9 | yes |
-| 0.02 | 0.5 | late-conservative | 282,570 | late-conservative | 57.5 | yes |
-| 0.02 | 0.7 | late-conservative | 380,920 | none | never | - |
-| 0.02 | 1 | late-conservative | 428,725 | none | never | - |
-| 0.01 | 0.5 | late-conservative | 320,055 | none | never | - |
-| 0.01 | 0.7 | late-conservative | 409,817 | none | never | - |
-| 0.01 | 1 | late-conservative | 452,147 | none | never | - |
 **Which policy minimises each measure** (`policy_table.py`, second table). A tie would
 be printed as "a=b"; there are none. "none" means no policy re-enters.
 

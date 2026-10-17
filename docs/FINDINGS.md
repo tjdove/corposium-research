@@ -872,6 +872,32 @@ of the absorption. For the note: C\* is quoted with its condition; the weekend's
 and the channel cannot be separated from one trough; the extra Saturday-morning absorption
 that the real price shows came from somewhere the model does not distinguish between.
 
+## F-13 second refinement (2026-10-16, from 5.3): the patient attacker is the result; the trigger claim is withdrawn
+
+**ADR:** [0037](adr/0037-policy-gradual-attack.md) · **Reproduce:** `python -m
+depeg_sim.sweep sweeps/policy-comparison-gradual-mc.yaml --mc --workers 8` (720 runs,
+4.5 min on 12 cores); `python scripts/policy_table.py --sweep …`; `scripts/trigger_table.py`;
+`policy_comparison_gradual.png`; `docs/calibration/POLICY.md`.
+
+With a cost of discount (`discount_bps_hours`, the area below par from the first sale)
+beside time-to-parity, and the attacker's pace swept over 0.1 / 0.02 / 0.01 of its stock
+per step: **late-conservative has the smallest discount in all nine cells and the earliest
+re-entry wherever anyone re-enters** — the sign of F-13 holds and the two measures never
+disagree. But its margin over the calibrated policy falls from 58% at pace 0.1 to 0.5% at
+pace 0.01, and at paces 0.02 and 0.01 **no policy recovers in any cell**, including the
+0.5× attack. The slow attacker deepens the trough (−8,800 … −9,800 bps against −5,800 …
+−8,700), raises the price every defender pays (0.72–0.91 against 0.28–0.58) and spends the
+defender's budget while its stock keeps coming. The headline of §5 is therefore *at
+matched scale a patient attacker beats every rule-based defender, whatever the policy*;
+"spend slower than the attacker sells" is true, conditional, and weak.
+
+**Withdrawn:** "the trigger does nothing" as a finding. Even the gentlest cell (0.5×,
+pace 0.01) has a first sale that moves spot 10%, past every trigger (0.5 / 1 / 2%); all
+four defenders act on step 51 in every run. The triggers were not separable at any attack
+size run; separating them needs a first-sale impact below 0.5% (≈ 0.02–0.05% of stock per
+step), a different sweep, left as future work. F-14's and F-15's "inert threshold" lines
+carry the same caveat.
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

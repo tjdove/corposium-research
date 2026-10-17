@@ -1,6 +1,6 @@
 # Story 5.3: Policy Comparison Under a Gradual Attack, With a Cost of Discount
 
-Status: review
+Status: done
 
 ## Story
 
@@ -267,7 +267,62 @@ note-check: ok: numbers: 8 fitted values quoted as their records round them
 - `tests/test_summary.py`, `tests/test_policy_gradual.py` (new), `tests/test_figures.py`, `tests/test_reference_recovery.py`
 - `docs/stories/5-3-policy-gradual-attack-and-cost.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-16 · **Verdict: APPROVE**
+
+Reproduced on the review box at `3777107`: `pytest -q` all pass (exit 0); `ruff` clean;
+`make figures-check` → 24 figures, 6 fits ok. The metric checked on a synthetic path
+(100 steps at −500 bps → 166.67 bps·h). The full 720-run sweep is 25+ min on 2 cores, so
+a 4-run subset was rerun instead (pace 0.01, ratio 1.0, calibrated and late-conservative,
+seeds 1000–1001): trough −9,798.3 at step 457 / −9,785.2 at 463, price paid 0.784 /
+0.720, discount 454,494 / 452,147 bps·h — identical to POLICY.md to the last digit, and
+identical across the two seeds as the builder reported. The pace-0.1 rows match Story
+3.2's tables. One doc slip fixed by the dev manager: the "which policy minimises" table
+appeared twice in POLICY.md.
+
+**What the result means (the dev manager's call).** Recorded as an F-13 second
+refinement and a withdrawal.
+
+1. *The claim survives in sign and loses its force.* Late-conservative has the smallest
+   discount in all nine cells and the earliest re-entry wherever anyone re-enters; the
+   two measures never disagree. But at pace 0.01 its margin over the calibrated policy is
+   0.5% of discount, and no policy recovers in any cell. "Spend slower than the attacker
+   sells" is true and nearly worthless against a patient attacker.
+2. *The patient attacker is the result.* Slowing the attacker from 10% to 1% of stock
+   per step deepens the trough from −5,800… −8,700 to −8,800… −9,800 bps, raises the
+   price every defender pays from 0.28–0.58 to 0.72–0.91, and takes P(never recovers) to
+   1.00 everywhere including the 0.5× attack. The defender's budget is spent at high
+   prices while the stock keeps coming. F-13's refinement ("a slower attacker is harder
+   to beat") was the small print; it is now the headline of §5: **at matched scale, a
+   patient attacker beats every rule-based defender, whatever the policy.**
+3. *The trigger claim is withdrawn as untested, not restated as inert.* Even the gentlest
+   cell (ratio 0.5, pace 0.01) has a first sale that moves spot 10%, past every trigger,
+   so all four defenders act on step 51 in every run. The referee's §5.22 stands: this
+   sweep cannot tell triggers apart. Note v2 says "the triggers were not separable at any
+   attack size we ran," names the first-sale impact needed (< 0.5%, roughly 0.02–0.05% of
+   stock per step) and leaves it as future work. The builder's optional follow-up is
+   logged in the Epic 3 retro carry-overs, not built now.
+4. *The cost metric did its job.* With a cost of discount in the table, the slow
+   defender still wins, so the referee's worry that waiting looked free was right in
+   principle and did not change the ranking here. v2 reports both columns.
+
+**Rulings**
+
+1. **ADR-0037 accepted (finding + interface).** Index row added. F-13 second refinement
+   in FINDINGS; headline (c) demoted to "conditional, weak."
+2. `discount_bps_hours` from the first executed sale: accepted as the definition.
+3. Per-run time-to-parity in the new figure (not the helper that assumes one trough
+   step): accepted; the old figure is byte-identical, which is the test that matters.
+4. Re-pinned `soros-baseline` summary bytes with the old-capture check: accepted.
+5. `POLICY.md` is the home for policy tables from now on; VALIDATION.md stays for the
+   replay.
+
+**Lessons:** five predictions, two right (L-15). The builder's "no cell of this sweep
+separates the triggers" is the sentence that goes in the note.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager (Epic 5)
 - 2026-10-16: Implemented by Claude Code (Opus 5.5): `discount_bps_hours`, the 720-run gradual policy sweep, a pace-faceted policy figure with a discount panel, `policy_table.py --sweep`, `trigger_table.py`, POLICY.md, ADR-0037 proposed. Against 2%/1%-per-step attackers no policy recovers; every trigger binds on the first sale; late-conservative still has the smallest discount in every cell (by 0.5% at pace 0.01, 1.0×). Status: review.
+- 2026-10-16: Reviewed by dev manager — APPROVE; ADR-0037 accepted; F-13 second refinement; Status: done

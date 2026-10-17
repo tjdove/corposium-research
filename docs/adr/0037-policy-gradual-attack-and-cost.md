@@ -1,6 +1,6 @@
 # ADR-0037: Policies under a gradual attack: against a 2%/1%-per-step attacker no policy recovers, every trigger still binds on the first sale, and the slow defender still has the smallest discount, by a shrinking margin; `discount_bps_hours`
 
-**Status:** Proposed (finding + interface)
+**Status:** Accepted (finding + interface; review 2026-10-16, unamended; F-13 second refinement)
 **Date:** 2026-10-16
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.3 (referee §5.21–5.23; F-13 and its refinement)
