@@ -156,3 +156,21 @@ byte-identical, so no quoted number moved. The commit that records this hash cha
 documentation, so the guard is clean at both. CI on the freeze commit: run
 [37860754187](https://github.com/tjdove/corposium-research/actions/runs/37860754187), `test`
 and `figures-quick` both success.
+
+**Executed 2026-10-17 (Story 5.7; command output in its Debug Log).** Freeze commit
+**`467ea54f063ab62c771ba335083ef2ec237eda5a`**, tag **`v0.95-freeze`**: the 25 figures,
+`manifest.json` and the 6 fit records, with the note guard's header-tag rule (ADR-0039);
+`code_hash` `446e73ef88a95ffbe7821dc1048b9c3249ed3e2f8176a29397351c3e4f1605a2`. Figures
+drawn at `e620d6a` (same code hash; the freeze commit adds the manifest, `check_note.py`,
+docs and ADR-0039, nothing under `src/`, `scenarios/`, `sweeps/` or `data/`). Clean venv:
+Python 3.12.13, install 49 s, 1,029 passed, coverage 98.99% (numpy 2.5.4, pydantic
+2.14.1, ruff 0.17.1 resolved). `make figures` from an empty `output/`: 1,299 s on Seoul,
+12 workers, 634 GB free; **no PNG changed bytes**, all 25 figures and all 6 fit records
+are byte-identical to the ones Epic 5's stories committed, and only the manifest's
+`commit` fields moved, so no quoted number moved. The commit that records this hash
+changes only documentation, the Makefile (`note-check` is `--strict-freeze` again) and
+the note's header line. `make figures-check` is clean at both commits. `make note-check`
+warns at the freeze commit (the note still names `v0.9-freeze` there) and is strict and
+clean, with no warning, at the hash commit. CI on the freeze
+commit: run [39042906248](https://github.com/tjdove/corposium-research/actions/runs/39042906248) (push to `main`) and run
+[39042906958](https://github.com/tjdove/corposium-research/actions/runs/39042906958) (tag push), `test` and `figures-quick` both success in each. CI on the hash commit: see the Story 5.7 Debug Log.

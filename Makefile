@@ -1,12 +1,13 @@
-# Story 2.9. `make figures` regenerates every committed figure in full (runs all thirteen
-# sweeps first: ~15 min on 12 cores, plus 4.5 min for the gradual policy sweep and 1 min for LP disposal),
+# Story 2.9. `make figures` regenerates every committed figure in full (runs all fourteen
+# sweeps first; the whole target took 1,299 s on 12 cores at the Story 5.7 freeze),
 # records the code hash and re-writes the six fit records in docs/calibration/fits/
 # (Story 4.1; the two par-reference ladder-B fits are Story 5.6's); `make figures-check`
 # is the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
 # warns on changed code); `make figures-quick` is the 2-seed smoke test. `make test` also
 # fails if line coverage of protocol/ and agents/ (together) drops below 85% (Story 3.5).
 # `make note-check` checks the figures, freeze tag and fitted numbers docs/NOTE.md cites
-# against the repository (Story 4.2; CI runs it beside figures-check).
+# against the repository (Story 4.2; CI runs it beside figures-check). It fails, not warns,
+# when the code differs from the freeze tag's (--strict-freeze, Story 5.7, ADR-0039).
 
 # The repo's .venv when there is one (no activation needed), else whatever `python` is.
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
@@ -56,7 +57,7 @@ figures-check:
 	$(PYTHON) scripts/check_figures.py
 
 note-check:
-	$(PYTHON) scripts/check_note.py
+	$(PYTHON) scripts/check_note.py --strict-freeze
 
 test:
 	$(PYTHON) -m pytest --cov=depeg_sim.protocol --cov=depeg_sim.agents \

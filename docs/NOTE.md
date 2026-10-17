@@ -1,6 +1,6 @@
 # What breaks a peg: a 1992 currency attack, replayed on-chain
 
-**Corposium Research · draft v1.0 · 2026-10-09 · code frozen at `v0.9-freeze`**
+**Corposium Research · draft v1.0 · 2026-10-09 · code frozen at `v0.95-freeze`**
 
 *A deterministic simulator of a stablecoin under speculative attack, calibrated to Curve,
 Chainlink and Circle, validated against USDC's March 2023 depeg, and run against the 1992
