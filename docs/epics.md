@@ -709,7 +709,7 @@ corrected. Then trader and hostile-referee passes.
 
 ---
 
-**Epic 5 Complete:** four stories done, tag `v0.95-freeze`, `make figures-check` clean,
+**Epic 5 Complete (2026-10-17):** seven stories done, tag `v0.95-freeze`, `make figures-check` clean,
 note v2 drafted, review passes 2 and 3 logged in `docs/reviews/`.
 
 ---

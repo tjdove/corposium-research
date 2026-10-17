@@ -1,6 +1,6 @@
 # ADR-0039: The note's freeze tag is the one on its header line; older tags must resolve; note-check strict again
 
-**Status:** Proposed
+**Status:** Accepted (interface; review 2026-10-17, unamended)
 **Date:** 2026-10-17
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.7 (re-freeze; ADR-0032 ruling 4)

@@ -874,7 +874,7 @@ that the real price shows came from somewhere the model does not distinguish bet
 
 ## F-13 second refinement (2026-10-16, from 5.3): the patient attacker is the result; the trigger claim is withdrawn
 
-**ADR:** [0037](adr/0037-policy-gradual-attack.md) · **Reproduce:** `python -m
+**ADR:** [0037](adr/0037-policy-gradual-attack-and-cost.md) · **Reproduce:** `python -m
 depeg_sim.sweep sweeps/policy-comparison-gradual-mc.yaml --mc --workers 8` (720 runs,
 4.5 min on 12 cores); `python scripts/policy_table.py --sweep …`; `scripts/trigger_table.py`;
 `policy_comparison_gradual.png`; `docs/calibration/POLICY.md`.
@@ -900,7 +900,7 @@ carry the same caveat.
 
 ## F-15 revised (2026-10-17, from 5.4): what the fleeing liquidity does with its inventory decides what it breaks
 
-**ADR:** [0038](adr/0038-lp-disposal.md) · **Reproduce:** `python -m depeg_sim.sweep
+**ADR:** [0038](adr/0038-lp-disposes-withdrawn-inventory.md) · **Reproduce:** `python -m depeg_sim.sweep
 sweeps/lp-flight-disposal-mc.yaml --mc --workers 8` (216 runs, 51 s on 12 cores); `python
 scripts/lp_flight_table.py --sweep …`; `lp_flight_disposal.png`; `docs/calibration/LP_DISPOSAL.md`.
 
@@ -922,39 +922,41 @@ F-11's clock result is qualified three ways: flight rescues the clock-lost cells
 hold and mostly under sell, and reverses under redeem. The unconditional "liquidity that
 flees helps the defender" is withdrawn; the conditional stands with its condition first.
 
-## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
+## Headline candidates (ranked, 2026-10-17 — after outside review 1 and Epic 5)
 
-1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**
-   (F-08, confirmed) — validation chart; lead.
-2. **"Deep liquidity protects the price and makes the defense unaffordable."** (F-03 +
-   F-11, refined) — the mechanism; the 2.8 oracle-criterion surface plus the 2.9
-   time-to-parity panel are its charts. The quantitative form: at D\* the issuer wins the
-   price and loses the clock; at 2× D\* it loses the price unless it roughly doubles its
-   budget.
-3. **"Spend slower than the attacker sells."** (F-13 + refinement) — the policy result in
-   five words; the trigger does nothing; the slow attacker is the hard one; the 1992 echo
-   writes itself.
-4. **"At issuer scale the binding constraint is not reserves but the clock — as long as
-   the venue keeps the attacker's stable."** (F-06 + F-11, qualified by F-15) — throughput;
-   explains why validation needed the buyer and why "recovery" is a speed question.
-5. **"Oracle lag is not a depeg risk factor at Chainlink's settings."** (F-10) — short,
-   quotable, a flat chart.
-6. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
+Order follows the referee's ranking by defensibility, revised by Epic 5. Every line
+carries its condition.
+
+1. **"At issuer scale the binding constraint is the redemption channel's throughput, not
+   the reserves — in these experiments, and as long as the pool keeps the attacker's
+   stable or the fleeing liquidity holds it."** (F-06, F-11, F-15 revised) — the clock;
+   figure 2.
+2. **"Deep liquidity protects the price and raises the cost of defending it."** (F-03,
+   F-11) — price-impact arithmetic with a finite budget; the quantitative form at D\* and
+   2× D\*.
+3. **"A ladder of par-expecting buyers reproduces how far USDC fell and when; the model
+   does not reproduce the two days the price stayed down."** (F-08, F-09 ×2, F-16, F-17 ×2)
+   — the replay, named as calibration; the trough survives without the observed input;
+   the trough is a tread of the ladder; total capital identified to a few % at a given
+   shape, shape not identified; C\* conditional on the open channel; the weekend is belief
+   as a process. Figures 1b/1d/1e/1f.
+4. **"At matched scale a patient attacker beats every rule-based defender; spending
+   slower than the attacker sells is true, conditional, and weak."** (F-13 ×2) — figure 3
+   and 3b; triggers not separable at any attack size run (withdrawn as a finding).
+5. **"On-chain the exits are two separate channels and the issuer's exit is a queue:
+   selling breaks the price and spares the reserves; redeeming spares the price, drains
+   the reserves, and crowds out the arbitrage that would restore the price."** (F-14,
+   F-15 revised, F-12) — the model's structure, shown in three agents; the queue is the
+   on-chain mechanism with no 1992 analogue.
+6. **"Oracle lag does not move the trough through the arbitrageur's rule at Chainlink's
+   settings."** (F-10) — narrowed; one paragraph.
+7. **"A peg can be permanently slightly broken with no one incentivised to fix it."**
    (F-01, F-07) — methods.
-7. **"One believer gives a cliff; many believers at different prices give a curve."**
-   (F-09) — limitations.
-8. **"A disciplined believer is a redeemer in waiting."** (F-12) — now folded into 9.
-9. **"On-chain a believer who loses faith has two exits: the venue or the issuer. One
-   breaks the price; only the other breaks the peg."** (F-12 + F-14) — the 1992 section's
-   result and the closing argument; could rise to 2 if the note is built around belief.
-10. **"Liquidity that flees and sits still has absorbed the attack; what breaks the peg is
-    what it does next."** (F-15, with its condition) — the stretch result; inverts the
-    charter's premise; the note's bridge from Soros to on-chain. — the 1992 section's
-   bridge to the switch-sides test (3.3).
 
-The note leads with 1 (overlay as figure 1), gives 2 and 4 as the two mechanisms with the
-2.9 time-to-parity chart, 3 with the policy chart, states 5 in one paragraph, uses 6 in
-methods and closes on 7, 8 and the 1992 open question.
+The note (v2) leads with the replay story (3) because it is what a reader can check,
+then 1 and 2 as the mechanisms, 4 as the policy result with its condition, 5 as the
+on-chain structure, 6 in one paragraph, 7 in methods; 1992 is the introduction and the
+"where the analogy breaks" section, not a result.
 
 ---
 

@@ -1,6 +1,6 @@
 # Epic 5 Retrospective — What the Referee Asked For
 
-**Drafted by the builder (Story 5.7 AC 6); the dev manager amends in review.**
+**Drafted by the builder (Story 5.7 AC 6); amended by the dev manager 2026-10-17 (section "Dev manager's amendments" at the end).**
 
 **Date:** 2026-10-17 (Epic ran 2026-10-15 – 2026-10-17; planned Oct 15–25)
 **Stories:** 7/7 (5.1–5.6 done, 5.7 in review) · **Tests:** 907 at the first freeze → 1,033
@@ -135,3 +135,23 @@ listed one by one: §5.1–5.5, 5.7, 5.8, 5.12, 5.13, 5.17–5.20, 5.24, 5.27–
 | sweep specs | 15 | 18 |
 | committed figures / fit records | 19 / 4 | 25 / 6 |
 | `make figures`, Seoul 12 workers | 934 s | 1,299 s |
+
+## Dev manager's amendments (2026-10-17)
+
+- **Predictions count.** The story's "seven" was the dev manager's miscount; six blocks is
+  right. The builder's 8½ of 17 is accepted as the Epic 5 score. Epic 3 was 18 of 37. Two
+  epics in a row the misses were the results, which is the argument for keeping the
+  predictions.
+- **The epic ran in three days against a planned eleven.** Same pattern as Epics 2 and 3.
+  The plan was not too loose; the stories were small and the builder is fast. The
+  calendar's slack now goes to note v2, the second review round and the human readers.
+- **All three "what I want the dev manager to hear" items are accepted** and are
+  PROCESS.md L-22, L-23 and L-24. The `slow` test marker is a carry-over for Epic 6.
+- **Housekeeping fixed in the closing PR:** the two ADR links in FINDINGS.md; the headline
+  candidates block rewritten for v2 (the "trigger does nothing" line is gone); PROCESS §8
+  and change log; `epics.md` Epic 5 Complete line. The `summary.py` docstring note from
+  the 5.2 ruling is left for the builder in Epic 6 (code is frozen).
+- **What the referee asked for, answered:** of the §5 items the dev manager marked
+  "experiment" on 2026-10-15, all are answered or explicitly left open with the reason;
+  §5.22 (triggers) is the one left open, and the note says so.
+- **Epic 5 is closed.** Note v2 is written against `v0.95-freeze`.

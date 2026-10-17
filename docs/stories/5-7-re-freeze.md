@@ -1,6 +1,6 @@
 # Story 5.7: Re-freeze
 
-Status: review
+Status: done
 
 ## Story
 
@@ -315,7 +315,33 @@ No `WARNING` line.
 - `docs/REPRODUCIBILITY.md` ("Executed 2026-10-17" paragraph)
 - `docs/stories/5-7-re-freeze.md`
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-17 · **Verdict: APPROVE**
+
+Reproduced on the review box at `d4a6b1d` (main after the two freeze commits and PR #50):
+tag `v0.95-freeze` → commit `467ea54`; `git diff --name-only v0.95-freeze..main` touches
+nothing under `src/`, `scripts/`, `scenarios/`, `sweeps/` or `data/`; `pytest -q` all pass
+(exit 0); `ruff` clean; `make figures-check` → 25 figures, 6 fits, code hash matches;
+`make note-check` (now strict) → four `ok` lines, no warning, `v0.95-freeze is 467ea54f063a,
+manifest code_hash 446e73ef88a9 matches; older tags named resolve: v0.9-freeze`. CI runs
+39042906248, 39042906958 and 39045748675 green as reported. The `-dirty` manifest catch
+and the clean re-run of `make_figures.py` alone were the right handling.
+
+**Rulings**
+
+1. **ADR-0039 accepted (interface).** Header tag compared; older tags must resolve. Index
+   row added.
+2. Strict note-check in CI from here: accepted. Any change under `src/` now fails CI until
+   the next freeze, which is the point.
+3. Retro accepted with the dev manager's amendments appended; three process lessons
+   (L-22…L-24) recorded; the seven-vs-six prediction miscount was the dev manager's.
+4. Housekeeping the retro found is fixed in this PR except the `summary.py` docstring
+   (frozen code; Epic 6).
+5. **Epic 5 closed.** Charter decision log updated; note v2 next.
+
 ## Change Log
 
 - 2026-10-17: Story drafted by dev manager (Epic 5 close)
 - 2026-10-17: Implemented (builder): `make figures` from an empty `output/` (1,299 s, all 25 figures and 6 fits byte-identical); freeze commit `467ea54`, tag `v0.95-freeze`; note-check header-tag rule and `--strict-freeze` (ADR-0039 proposed); NOTE.md header line; Epic 5 retro drafted; Status: review
+- 2026-10-17: Reviewed by dev manager — APPROVE; ADR-0039 accepted; Epic 5 closed; Status: done
