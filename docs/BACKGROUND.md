@@ -7,9 +7,9 @@
 
 ## Why this project starts in 1992
 
-On 16 September 1992 the British government spent a large share of its foreign-exchange reserves and raised interest rates twice in one day to keep the pound inside the European Exchange Rate Mechanism (ERM). By evening it gave up. Sterling left the ERM, fell sharply, and George Soros's Quantum Fund booked a profit of roughly $1 billion.
+On 16 September 1992 the British government spent a large share of its foreign-exchange reserves, raised interest rates from 10% to 12%, and announced a further rise to 15% that never took effect, to keep the pound inside the European Exchange Rate Mechanism (ERM). By evening it gave up. Sterling left the ERM, fell sharply, and George Soros's Quantum Fund booked a profit of roughly $1 billion.
 
-The event is the cleanest historical example of a **price promise that ran out of capacity under adversarial pressure.** A government promised a price. Markets judged the promise larger than the resources and political will behind it. Speculators sold until the defender stopped buying.
+The event is the clearest historical example of a **defended price promise abandoned under pressure.** A government promised a price. Markets judged the promise larger than the political will behind it: Britain did not run out of the ability to buy sterling, it ran out of the willingness to keep rates high in a recession. Speculators sold until the defender stopped buying.
 
 A stablecoin peg is the same kind of promise: one token will be worth one dollar. This project asks the 1992 question in DeFi terms: **under what combination of pool depth, oracle delay, attacker capital and defense policy do reserves run out before the peg recovers?**
 
@@ -124,7 +124,7 @@ Stating these up front is part of the result.
 4. **No partner central bank.** Sterling's fate depended partly on how much the Bundesbank would help. Most stablecoins have no lender of last resort. In March 2023 USDC recovered its peg only after US authorities guaranteed deposits at Silicon Valley Bank, an outside backstop outside the protocol.
 5. **The promise is different.** ERM obligations bound governments within a negotiated system. A stablecoin redemption promise is set by the issuer's terms and its reserve custody.
 6. **Market structure and time.** Currency markets in 1992 were deep, over-the-counter and slow to report. An AMM's price impact is exact, public and settles every block.
-7. **Two exits, not one.** *(Proposed by the dev manager after Story 3.3, 2026-10-06; Tim to accept or edit.)* A holder of sterling who lost faith in 1992 had one way out: sell to the Bank of England at the floor, which drained the reserves. A stablecoin holder has two: sell on the venue, which moves the price and never touches the issuer, or redeem, which drains the reserves and leaves the price alone. The model shows they do different things (F-14): the venue exit deepens the depeg and spares the reserves; the redemption exit is what breaks the peg. In the 1992 analogue, "the convergence traders switching sides" is a redemption, and under that mapping the model needs them to break the Bank at a historical-scale attack.
+7. **Two exits, and a queue.** *(Accepted 2026-10-17 after outside review 1 and Stories 5.4–5.6.)* Sterling traded in a deep foreign-exchange market with many private counterparties; the Bank of England was the buyer of last resort at the floor, so net selling at the floor landed on its reserves. A stablecoin holder's two exits are separate channels: sell on the venue, which moves the price and never touches the issuer, or redeem, which drains the reserves and leaves the price alone. The model shows they do different things (F-14, F-15 revised): the venue exit deepens the depeg and spares the reserves; the redemption exit drains the issuer. And the issuer's exit is a capacity-limited queue, which the Bank was not: a large redeemer crowds out the arbitrage that would have restored the price (F-15 revised). This corrects the project's own early mapping; it is not a correction to the currency-crisis literature, which has always distinguished primary from secondary markets.
 
 ---
 
