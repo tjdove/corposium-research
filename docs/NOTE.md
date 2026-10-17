@@ -1,307 +1,361 @@
-# What breaks a peg: a 1992 currency attack, replayed on-chain
+# What breaks a peg: a stablecoin under attack, and where the 1992 analogy ends
 
-**Corposium Research · draft v1.0 · 2026-10-09 · code frozen at `v0.95-freeze`**
+**Corposium Research · draft v2.0 · 2026-10-17 · code frozen at `v0.95-freeze`**
 
-*A deterministic simulator of a stablecoin under speculative attack, calibrated to Curve,
-Chainlink and Circle, validated against USDC's March 2023 depeg, and run against the 1992
-sterling crisis it was modelled on. Everything here regenerates from one command.*
+*A deterministic simulator of a stablecoin under selling pressure, calibrated to public
+Curve, Chainlink and Circle figures, replayed against USDC's March 2023 depeg. Every number
+regenerates from one command.*
 
 ---
 
 ## Abstract
 
-We built an agent-based simulator of a stablecoin defending its peg — an attacker sells
-into an on-chain pool; an issuer defends with a buying budget and a redemption channel;
-arbitrageurs and believers in the peg trade around them — and calibrated it to public
-parameters for USDC in March 2023. The replay of that weekend failed at first: the model
-fell four times too far. It came within 17% of the observed trough once a buyer who
-expects redemption at par was added, and within 4% and nine minutes once those buyers
-were spread across a ladder of entry prices. The depth of a depeg is set by the attacker
-against everyone who believes the promise.
+We built a small agent-based simulator of a stablecoin whose price is set in an automated
+market maker and whose issuer redeems at par through a capacity-limited channel, and asked
+of it the question the 1992 sterling crisis asks of any pegged price: under what
+combination of liquidity, selling pressure, resources and defense policy does the promise
+fail? Calibrated to public parameters and replayed against the USDC weekend of March 2023,
+the model first fell four times too far. It reproduces the observed trough within 10% once
+a ladder of buyers who expect redemption at par is added, and it does so with nothing from
+the observed price series fed in. It does not reproduce the two days the price stayed
+below par, and the reason it cannot is a finding: in the model belief is a switch; that
+weekend it was a process.
 
-Beyond that, the model says four things the 1992 analogy does not. Deep liquidity protects
-the price and makes the defense unaffordable. A defender that spends faster than the
-attacker sells is defending the attacker's exit price. At issuer scale the binding
-constraint is not reserves but the clock. And a believer who loses faith on-chain has two
-exits — the venue or the issuer — and only one of them breaks the peg. The code, every
-parameter's source, and every figure's regenerating command are public.
+Four other things the model shows, each with its condition. At issuer scale the binding
+constraint in these experiments is the redemption channel's throughput, not the reserves.
+Deep liquidity protects the price and raises the cost of defending it. At matched scale a
+patient attacker beats every rule-based defender we tried. And on-chain the two exits are
+separate channels, with the issuer's exit a queue: a large redeemer crowds out the
+arbitrage that would have restored the price. Where the chain stops looking like 1992 is
+where the model earns its keep. The code, every parameter's source, every fit's record
+and every figure's regenerating command are public.
 
 ---
 
 ## 1. The question
 
-A peg is a price promise. On 16 September 1992 the Bank of England spent its reserves and
-raised rates twice in a day to keep sterling inside its ERM band, and lost. The standard
-account is that the promise exceeded the resources behind it once speculators attacked and
-the market's belief in it broke. That account has a theory behind it — reserve-exhaustion
-models, self-fulfilling-crisis models, global games — and a question we can ask of any
-pegged asset: under what combination of liquidity, attacker capital, defense resources and
-defense policy does the promise fail?
+A peg is a price promise. On 16 September 1992 the British government spent reserves,
+raised the base rate from 10% to 12%, announced 15%, and gave up by evening. The standard
+account is that the promise exceeded the political will to keep paying for it once the
+market stopped believing. Behind that account sits a literature — reserve-exhaustion
+models, self-fulfilling-crisis models, bank-run models — and a question that applies to
+any pegged price: what breaks it?
 
-Stablecoins are pegs. They have an issuer with reserves, a redemption promise, venues where
-the price is set, and attackers with capital. They also have things 1992 did not: public
-reserves, an automated market maker whose price impact is exact, an oracle, and a
-redemption channel with a throughput limit. We built the smallest model that contains all
-of these, calibrated it to one real event, and asked the 1992 question of it.
+Stablecoins are pegs. They have an issuer with reserves, a redemption promise, venues
+where the price is set, and sellers with capital. They also have things 1992 did not: an
+automated market maker whose price impact is a formula, an oracle, a redemption channel
+with a throughput limit and a queue, and reserves that are attested rather than secret.
 
-The analogy is a tool, not a thesis. Where the on-chain mechanics turn out to work
-differently from 1992, that is a result, and §7 collects them.
+This project started from 1992 and built the smallest model that contains those parts.
+The analogy gave the model its question, its cast and its first calibration. It did not
+survive as an explanation: the model does not explain Black Wednesday, and we stopped
+asking it to. What it does is show, mechanically, how an on-chain peg behaves under
+pressure — and the places where that behaviour has no 1992 counterpart turned out to be
+the results worth publishing. Section 8 collects them.
 
 ## 2. The model in one page
 
-The simulator is a deterministic, discrete-step agent-based model. One seed and one
-scenario file produce byte-identical output; nine ordered phases per step, versioned.
+A discrete-step model, 12 seconds per step, nine ordered phases per step, versioned.
+One seed and one scenario file produce byte-identical output.
 
 **Venue.** A constant-product pool of stablecoin against a reference asset, with a fee on
-input. Its spot price is the stablecoin's price.
+input. Its spot price is the stablecoin's price. One pool stands in for every venue.
+(Curve's 3pool uses the StableSwap invariant, which is flatter near par than constant
+product; the pool depth fitted below absorbs part of that difference and is reported as a
+calibration, not a measurement.)
 
-**Oracle.** Publishes the reference price when it moves by a deviation threshold or when a
-heartbeat elapses, as Chainlink does.
+**Oracle.** Publishes the reference price on a deviation threshold or a heartbeat, as
+Chainlink does.
 
-**Redemption.** The issuer pays par, less a spread, from reserves, through a queue with a
-per-step capacity. Reserves are only reached through redemption.
+**Redemption.** The issuer pays par, less a spread, from reserves, through one first-in
+first-out queue with a per-step capacity. Any agent may join the queue; none has
+priority. Reserves are reached only through this channel.
 
-**Agents.** An *attacker* sells a fixed stock of stablecoin at a pace. A *defender* — the
-issuer — buys on the venue below a trigger, at a pace, from a budget, and may widen the
-redemption spread. An *arbitrageur* buys on the venue when the price is below the oracle by
-more than fees and redeems. A *holder* — the believer — buys below an entry discount because
-it expects par, redeems whenever the queue is clear, and (optionally) sells everything once
-the price passes an exit discount. A *liquidity provider* withdraws its share of the pool
-below a panic threshold and holds what it took out.
+**Agents.** An *attacker* sells a fixed stock at a fixed share of what remains per step;
+it has no motive and does not adapt. A *defender* (the issuer) buys on the venue below a
+trigger, at a pace, from a budget, and may widen the spread; it has no cost function and
+never gives up. An *arbitrageur* buys on the venue when the price is below the oracle by
+more than fees, and redeems. A *holder* (the believer) buys below an entry discount
+because it expects par, redeems when the queue is clear, and may be split into tranches
+at different entry prices. A *liquidity provider* withdraws its share of the pool below a
+panic threshold, and holds, sells or redeems what it took out.
 
-**Recovery.** The peg has recovered when the venue price has stayed within ±31 bps of par
-for 6,900 steps (23 h at 12 s per step), judged inside a 60 h horizon. The calm reference
-price reverts to par with a half-life of 1.4 h, fitted from the calm USDC series.
-*Time to parity* — hours until the price first re-enters the band — is the metric most
-figures use, and it does not depend on how the reference is modelled.
+**Recovery.** The venue price has stayed within ±31 bps of par for 6,900 steps (23 h) by
+a 60 h horizon, which makes first re-entry by 37 h the effective deadline. The calm
+reference reverts to par with a half-life of 1.4 h, fitted from the calm USDC series.
+*Time to parity* is hours until the price first re-enters the band; it does not depend on
+how the reference is modelled.
 
-Every real-world actor in the 1992 story has a counterpart here, mapped by what it touches
-(price, reserves, budget) rather than by its name. One of those mappings was wrong until
-late in the build, and it became a result (§7).
+Monte Carlo cells use 16 seeds (8 in the liquidity sweeps) over the reference path; in
+most cells the seeds barely move the numbers, and we say where they do.
 
-## 3. Calibration and validation
+## 3. The March 2023 replay
 
-**The event.** On Friday 10 March 2023 Silicon Valley Bank failed, and that night Circle
-disclosed that $3.3B of USDC's roughly $40B of reserves were held there. Holders sold. Banks
-were closed for the weekend, so Circle could barely redeem and exchanges paused
+**The event.** On Friday 10 March 2023 Silicon Valley Bank was closed, and that night
+Circle disclosed that $3.3B of USDC's roughly $40B of reserves were held there. Holders
+sold. Banks were closed for the weekend, so Circle could barely redeem and exchanges paused
 conversions; by 2 am Saturday USDC traded at $0.87. On Sunday evening US authorities
-guaranteed SVB's deposits, on Monday banks reopened and redemptions resumed, and the price
-returned to par. No one attacked USDC. In the model the attacker stands in for the run: the
-episode's net $2.71B of selling, whoever did it and why. A token sold in fear moves the
-pool's price exactly as one sold for profit does. ([USDC-2023.md](USDC-2023.md) has the
-full account and its sources.)
+guaranteed SVB's deposits; on Monday banks reopened, redemptions resumed, and the price
+returned to par. No coordinated attacker has been identified. In the model the attacker
+stands in for the run: the episode's net $2.71B fall in USDC supply, used as a proxy for
+selling pressure because gross selling is not public. A token sold in fear moves the pool
+exactly as one sold for profit. ([USDC-2023.md](USDC-2023.md) has the full account.)
 
-**Every parameter has a source.** Pool depth is anchored to the Curve 3pool's USDC leg; the
-oracle to Chainlink's USDC/USD feed (0.25% deviation, 82,800 s heartbeat); reserves and
-budget to Circle's disclosed 77/23 split of T-bills and cash; the redemption channel to the
-weekend's observed capacity. The attacker is sized to the episode's net USDC burn, $2.71B.
-Three numbers are fitted, each to one observation by a stated rule: the aggregate pool
-depth D\*, the believers' capital C\*, and the attacker's pace.
+**What is calibrated and what is fitted.** Pool fee, oracle settings (0.25% deviation,
+82,800 s heartbeat), reserves ($32.4B of T-bills), the redemption channel (the average net
+burn over 11–15 March, which includes Monday's catch-up and so probably overstates the
+weekend) and the attacker's stock come from public figures. Three numbers are fitted, each
+to one observation by a stated rule: the pool depth D\*, the believers' capital C\*, and
+the attacker's pace. The ladder of entry prices is chosen from three fixed alternatives
+by fit, which is also fitting. **This is a calibration, not a validation**: the trough was
+used to set the parameters, so matching it is not a prediction. What follows is what the
+calibration shows and what survives when its inputs are taken away.
 
-**The replay failed first.** Fed the observed USDC/USD series as its reference and run
-without an issuer buying on venues (Circle did not), the model's trough was −5,769 bps
-against −1,373 observed — four times too deep — though the timing was right to the half
-hour. The model had no agent who bought USDC at $0.88 on Saturday because they expected
-Circle to pay $1.00 on Monday. On the calibrated baseline that role had been hidden: the
-issuer's own buying absorbed 89% of the attack there, standing in for a market that in
-the real event was the buyer.
+**The replay failed first.** With no buyer of the discounted promise, the model's trough
+was −5,769 bps against −1,373 observed: four times too deep, timing right to the half
+hour. A model with almost no private demand for USDC at a discount cannot reproduce the
+weekend. That failure is the first result.
 
-**One buyer, one price.** With a single believer who buys below a 2% discount and redeems
-when it can, sized by back-solving the replay with everything else held, the trough is
-−1,138 bps: within 17%. The buyer's capital, $2.15B, is 0.79× the attack. From 35 h to
-49 h the simulated path lies on the observed one. The trough is 3.2 h late, which we
-report rather than re-fit.
+**One buyer, then a ladder.** A single believer who buys below a 2% discount, with capital
+fitted to the trough ($2.15B, 0.79× the attack), lands at −1,138 bps: within 17%, 3.2 h
+late. Real buyers did not all enter at one price. With the capital spread equally across
+entry discounts of 2, 5, 10 and 20% and refitted ($2.54B, 0.94× the attack), the trough is
+−1,323 bps in the observed trough hour (the data are hourly closes; nothing finer is
+claimed). The descent is a staircase: the price pauses at each tranche's entry while that
+tranche still has money.
 
-![Figure 1 — USDC/USD, March 2023, observed vs simulated with one believer](figures/validation_overlay_usdc_2023.png)
+![Figure 1 — USDC/USD, March 2023, observed vs the ladder replay](figures/validation_overlay_usdc_2023_tranches.png)
 
-*Figure 1. Observed hourly closes (blue) and the simulated venue price (black), in bps from
-par. One fitted parameter: the believer's capital.*
+*Figure 1. Observed hourly closes (blue) and the simulated venue price (black) with the
+believers' ladder, in bps from par. The observed series is the model's reference here.*
 
-**Many buyers, a ladder of prices.** Real buyers did not all enter at one discount. With
-the believers' capital spread equally across entry discounts of 2, 5, 10 and 20% — one
-of three fixed ladders we tried, the assumption stated as one — and the total again fitted
-by the same rule ($2.54B, 0.94× the attack), the trough is −1,323 bps at 31.2 h against
-−1,373 at 31.0 h: within 4%, and within nine minutes, with the timing improving without
-pace being touched. The deeper tranches absorb later, so the trough arrives when the
-attacker's selling ends rather than when a single buyer runs dry.
+**Take the input away.** In that replay the observed series is also the model's
+reference price: the oracle follows it and the arbitrageur trades against it, so part of
+the agreement is the input showing through. We reran with the reference fixed at par and
+nothing from the observed series fed in, parameters untouched. The ladder's trough is
+**−1,279 bps at 32.8 h** against −1,373 at 31.0 h: within 7%, two hours late. The
+single-buyer trough collapses to −607: it sat on a cliff, and a small change in who else
+absorbs tips it over. The ladder is the result; the single buyer is the cliff
+illustration ([single-buyer overlays](figures/validation_overlay_usdc_2023.png), [par](figures/validation_overlay_usdc_2023_par.png)). And after the trough, nothing holds the model down: it is back at par by
+40 h, while the real price sat 150–500 bps below par until 69 h.
 
-![Figure 1b — the same replay with believers at a ladder of entry prices](figures/validation_overlay_usdc_2023_tranches.png)
+![Figure 1b — the ladder replay with the reference fixed at par](figures/validation_overlay_usdc_2023_tranches_par.png)
 
-*Figure 1b. One fitted parameter plus one stated assumption. The descent is a staircase:
-the price pauses at each tranche's entry while that tranche still has money.*
+*Figure 1b. Observed (blue), the replay with the observed series as reference (grey,
+dashed), and the replay with nothing from the observed series fed in (black). The trough
+survives; the weekend does not.*
 
-**What validation claims and does not.** One event; one venue standing in for all venues;
-an hourly series that cannot resolve the first hour's shape. With a single entry price the
-fit cannot land on the observation: depth is bimodal in the believers' capital, attacker-set
-below a cliff and buyer-set above it, and −1,373 sits on the cliff face. A ladder turns
-the cliff into a staircase, not a curve, and no public data pins its spacing. We show both
-figures so a reader sees what one parameter buys and what an assumption adds.
+**How wide the family of fits is.** Sweeping pool depth and believers' capital on the
+par-reference replay, the trough sits on one of the ladder's entry levels — −500, −1,000,
+−2,000 bps — or on a jump between two. The observed trough lies between treads, so a
+discrete ladder reaches it only by having its last active tranche run out at the right
+moment. The capital that does so is pinned to within a few percent for a given ladder and
+depth, and runs from 1.06× C\* at half the fitted depth to 0.84× at twice it (deeper pools
+need *less* believers' money, because the same stock pushes a deep pool to each entry
+level later). The ladder's shape is not identified: all three fixed ladders land within
+±10% at their own fitted capital, and a continuous one misses by 15% at the same capital.
+The trough tells you how much money ran out when, not where it sat
+([figure](figures/identification_surface.png)).
 
-## 4. Depth, resources and the clock
+**Close the channel.** The calibrated weekend redemption rate is an average that includes
+Monday; the real channel was closer to shut. With it shut until Monday's reopening the
+trough falls to −2,001 — the 20% tranche's entry, because the arbitrageur can no longer
+recycle channel payments into buying — and the price is pinned there for fifty hours,
+then back in band at 85.3 h against 86.0 h observed. Right time, wrong depth; the open
+channel gave the reverse. Two consequences. First, **the believers' $2.54B is conditional
+on the channel paying during the first hours**; with it shut, reaching the observed depth
+needs about $2.9–3.0B and no ladder-B capital reproduces the 31 h low, so the buyers and
+the channel are not separately identified by one trough. Second, a shut channel gives a
+floor, not a drift: the real price drifted up for two days with the channel mostly shut,
+which means the buyers' reservation prices rose as news arrived — Circle's Saturday
+statement, the Sunday-evening guarantee visible as a jump in the series. **The model
+brackets the weekend; what moves inside the bracket is belief updating with news, which
+the model does not have.**
 
-The first-generation theory says a peg breaks when the attack exceeds the reserves. The
-model agrees, with two corrections about what "reserves" and "exceeds" mean on-chain.
+![Figure 1c — the ladder replay with the weekend channel shut](figures/validation_overlay_usdc_2023_tranches_par_closed.png)
 
-**Outcome is capital against resources; depth sets the price.** Across pool depths from a
-quarter of D\* to four times it, whether reserves run out is decided by the attacker's
-capital against the defender's budget plus what the redemption channel can pay — not by
-pool depth. Depth decides how far the price falls on the way.
+*Figure 1c. Channel open (grey, dashed): par by 40 h. Channel shut (black): pinned at the
+last believer's price until the reopening. Reality (blue) is between, and moves.*
 
-**But depth enters through the price the defender pays.** A shallow pool crashes harder, so
-each unit of budget buys more stablecoin; a deep pool holds the price near par, so the
-same budget absorbs less. In a pool at or below D\*, a dump worth the whole budget crashes
-the price to a fraction of a cent and the budget buys all of it back. At twice D\* the
-attacker is paid more per unit and the same budget cannot; holding the price there needs a
-budget of about a third of the attack, rising in proportion to it. **Deep liquidity
-protects the price and makes the defense unaffordable.**
+**What the replay claims.** A ladder of par-expecting buyers totalling $2.0–2.9B, entered
+1–20% below par, reproduces how far USDC fell and when, across pool depths from half to
+twice D\*, with the observed series not fed in, if the redemption channel paid at its
+calibrated rate during the first hours. It does not reproduce the two days the price
+stayed down, and it says why. One event; one pool for all venues; a proxy for selling;
+no data on who the buyers were.
 
-**At issuer scale the reserves cannot run out; the clock can.** USDC's redemption channel
-on that weekend could pay about 10.9M of 138.1M reserve-units in 60 h. Reserves are never
-exhausted inside the horizon at any attack size we ran. What fails is time: the price
-comes back, but too late to hold the band before the horizon ends.
+## 4. Throughput, not reserves
+
+USDC's channel on that weekend could pay about 8% of its reserves in 60 h. In every attack
+we ran at issuer scale, reserves were never exhausted inside the horizon; what failed was
+time. The price comes back, but too late to hold the band before the horizon ends.
 
 ![Figure 2 — time to parity over pool depth and attacker capital](figures/time_to_parity_ou.png)
 
-*Figure 2. Median hours until the venue price is back within 31 bps of par, over pool depth
-(rows, × D\*) and attacker capital (columns, × the defender's budget plus reserves). Cells
-inside the dashed outline re-enter after 37 h — too late to hold the band by 60 h — and are
-lost on the clock. Hatched cells never re-enter and are lost on the price.*
+*Figure 2. Median hours until the venue price is back within 31 bps of par, over pool
+depth (rows, × D\*) and attacker capital (columns, × the defender's budget plus reserves).
+Cells inside the dashed outline re-enter after 37 h and are lost on the clock; hatched
+cells never re-enter and are lost on the price.*
 
 Read Figure 2 by row. At a quarter and a half of D\*, the price is back within minutes to
 half an hour at every attack size. At D\*, attacks of 0.8× resources and up are won on the
-price and lost on the clock: median re-entry at 42–56 h. At twice D\* and above, the same
-attacks are lost on the price outright. The clock at D\* is the redemption channel's
-throughput, and nothing else: it is the same to the decimal whether the reference wanders
-or reverts, and whether recovery is judged against par or against the oracle.
+price and lost on the clock. At twice D\* and above, the same attacks are lost on the price
+outright. The clock at D\* is the channel's throughput and nothing else: it is the same to
+the decimal whether the reference wanders or reverts, and whether recovery is judged
+against par or the oracle.
 
-One qualification, from the last thing we built (§7): the clock result assumes the pool
-keeps the attacker's stablecoin. If liquidity leaves, it does not.
+This is known in theory — a run is a liquidity problem before it is a solvency problem —
+and the model makes the boundary visible in hours. Its condition: the pool keeps the
+attacker's stablecoin, or whoever takes it out sits on it (§7).
 
-## 5. Which defense survives
+## 5. Deep liquidity protects the price and raises the cost of defending it
 
-Charter question five was which defense policy survives a matched attack. We compared an
-issuer that buys early and fast (trigger 0.5%, 50% of remaining budget per step), the
-calibrated one (1%, 20%), one that buys late and slowly (2%, 10%), one that only widens the
-redemption spread, and no defense at all, at three attack sizes.
+Whether reserves run out is decided by the attacker's capital against the defender's
+budget plus what the channel can pay, not by pool depth. Depth decides how far the price
+falls on the way, and through that, what the defender pays. A shallow pool crashes harder,
+so each unit of budget buys more stablecoin; a deep pool holds the price near par, so the
+attacker is paid more per unit and the same budget absorbs less. At or below D\*, a dump
+worth the whole budget crashes the price to a fraction of a cent and the budget buys all
+of it back. At twice D\*, holding the price needs a budget of about a third of the attack,
+rising in proportion to it. This is constant-product arithmetic meeting a finite budget;
+the model's contribution is the number, not the sign.
 
-![Figure 3 — defender policies under matched attacks](figures/policy_comparison.png)
+## 6. The patient attacker
 
-*Figure 3. Left: time to parity. Middle: average price paid per stablecoin by the three
-buying policies. Right: probability the peg stays broken. Every buying policy spends its
-entire budget at every attack size.*
+We compared an issuer that buys early and fast (trigger 0.5%, 50% of remaining budget per
+step), the calibrated one (1%, 20%), one that buys late and slowly (2%, 10%), one that only
+widens the redemption spread, and no defense, at three attack sizes and three attacker
+paces, judged on time to parity and on *discount-hours*: the area between the price and
+par while below par, so that waiting is not free.
 
-Every buying defender spends its whole budget. What differs is what the budget bought.
-The fast defender is dry within twelve steps, before the attacker has finished selling,
-having bought near par; the attacker's remaining stock then sets a new low that nothing
-defends. The slow defender still has budget when the selling stops and buys the bottom —
-0.283 per stablecoin against 0.358 — and at a full-size attack it is the only policy that
-recovers at all (29.9 h against 48–59 h, 11 of 16 seeds against none). It is not cheaper
-because someone else paid: the believers absorb less under it.
+![Figure 3 — defender policies under matched attacks, by attacker pace](figures/policy_comparison_gradual.png)
 
-The trigger does nothing. The attacker's first sale puts the price near $0.23, which
-crosses every trigger up to 4% on the first step. What decides the outcome is the
-defender's spending pace relative to the attacker's selling pace: at half the attacker's
-pace the defender is back in hours; at equal pace, back late; at one and a half times the
-attacker's pace or more, never. A slower attacker is harder to beat at every ratio.
-**Spend slower than the attacker sells.** In September 1992 the Bank of England spent fast,
-at the floor, while the selling was still coming; the model says that is the policy most
-likely to lose.
+*Figure 3. Rows: attacker pace (share of its stock sold per step). Panels: time to parity,
+price paid per stablecoin, discount-hours, probability the peg stays broken. Every buying
+policy spends its whole budget at every attack size.*
 
-The spread-only defense never recovers — but not because of a dead zone. Capacity-limited
-redemption keeps paying out through the band and the 200 bps spread costs about an hour;
-spread-only fails on the clock, like no defense.
+Every buying defender spends its whole budget; what differs is what the budget bought.
+Against the fast attacker (10% of stock per step) the slow defender buys the bottom —
+0.283 per stablecoin against 0.358 — has the smallest discount cost by 58%, and at a
+full-size attack is the only policy that recovers (29.9 h; 11 of 16 seeds against none).
+*Spend slower than the attacker sells* is true there ([the fast-attacker panels alone](figures/policy_comparison.png)).
 
-## 6. Oracle lag
+Slow the attacker to 1% of its stock per step and it is true and nearly worthless. The
+slow defender still has the smallest discount cost in every cell, by 0.5%. No policy
+recovers in any cell, including the smallest attack. The trough deepens from about −60% to
+about −98%, and every defender pays 0.72–0.91 per stablecoin instead of 0.28–0.58, because
+its budget is spent at high prices while the selling keeps coming. **At matched scale a
+patient attacker beats every rule-based defender, whatever the policy.** The defender in
+this model has no cost function and never quits; adding one would make it give up sooner,
+not win.
 
-Chart (3) of the plan was oracle-lag sensitivity. It is a flat line. Across heartbeats
-from one minute to 23 hours and deviation thresholds from zero to 1%, the trough moves by
-less than 11 bps; Chainlink's actual settings (0.25%, 82,800 s) are within 0.5 bps of a
-zero-lag oracle. Under stress volatility the reference moves a quarter percent within a
-few steps, so a deviation-triggered oracle updates almost continuously and the heartbeat
-never binds. Oracle lag is not a depeg risk factor at Chainlink's settings
-([figure](figures/oracle_sensitivity.png)).
+The triggers could not be tested. In every cell we ran, the attacker's first sale moved
+the price at least 10%, past every trigger, so all four defenders act on the same step.
+Separating them needs a first sale below half a percent of price impact, a different
+sweep, left open ([supporting figures](figures/README.md)).
 
-## 7. The 1992 analogue, and where it breaks
+## 7. Two exits, and a queue
 
-We ran the model as 1992: the Bank's reserves and defense budget as the war chest, the two
-rate rises as a redemption spread of 200 bps, Quantum's position as the attacker's unit,
-and the question "at what multiple of Quantum does the Bank run dry?"
+The model has two ways out of a stablecoin, and they are separate channels. Selling on
+the venue moves the price and never touches the issuer. Redeeming draws on the reserves
+and leaves the venue price alone. This is primary versus secondary market, standard
+stablecoin structure; the model's contribution is to show what each does, in three
+agents.
 
-![Figure 5 — the 1992 analogue at six times Quantum](figures/peg_trajectory_1992.png)
+*The believer.* A believer who loses faith and dumps on the venue makes the peg harder to
+break in the reserve sense and loses 36–77% of its capital. One who keeps the faith and
+redeems at par is the one who drains the reserves. A believer who overpays holds the
+price up with its own losses: an accidental defender.
 
-*Figure 5. The analogue at 6× Quantum: reserves exhaust at step 9,553 (32 h). The
-no-defense counterfactual is [Figure 5b](figures/peg_trajectory_1992_no_defense.png).*
+*The liquidity provider.* Liquidity that flees a depeg takes the attacker's stablecoin out
+of the pool with it. If it **sits on** what it withdrew, it helps the defender on both
+counts: a half-flighty pool turns a full-size attack from "never holds par" into recovery
+in 22 h, with the trough deepened by under 1%. If it **sells** what it withdrew, it is a
+second attacker: the trough deepens by up to 59%, but the peg still recovers, because its
+stablecoin ends up with the arbitrageur and leaves through the channel. If it **redeems**,
+the trough is untouched and the peg never recovers, even at the smallest attack.
 
-With no believers, the analogue breaks at 5.7× Quantum. With a believer the size of the
-USDC one, 5.2×. With believers at 0.9× the attacker, **4.9×** — a ratio of attack to
-resources of 1.04, within 4% of the first-generation formula. The model's Black Wednesday
-needs the convergence traders.
+*The queue.* The last result is the new one. The issuer's exit is one first-in first-out
+queue with a per-step cap. A liquidity provider that redeems 13M puts 13M at the back of
+that queue — a 72 h wait at the weekend rate — and the arbitrageur's redemptions, the ones
+that bring the price back, wait behind it: 1.35M against 8.23M when the provider holds.
+**A large redeemer does not just drain reserves; it crowds out the arbitrage that would
+have restored the price. Who is at the front of the queue decides who recovers.** 1992 had
+no queue: the Bank of England bought at the floor from whoever came.
 
-But it needs them in a particular way, and finding out which way corrected our mapping.
-The 1992 account says the peg broke when the convergence traders "switched sides." We first
-modelled that as the believer selling everything on the venue once the price fell past an
-exit discount. That version makes the peg *harder* to break (the flip moves back to 5.7×)
-and costs the believer 36–77% of its capital. Selling on the venue moves the price; it
-never touches the reserves. Reserves are reached only through redemption. In 1992 a holder
-of sterling who lost faith had one way out: sell to the Bank at the floor — which is, in
-the model's terms, a redemption. The believer who breaks the Bank is the one who keeps
-the faith and redeems, calmly, at par, until the reserves are gone.
+Three thresholds in the model — the defender's trigger, the believer's exit price, the
+provider's panic level — never made a difference in any attack we ran, because the first
+sale crossed all of them. That is untested, not inert.
 
-**On-chain, a believer who loses faith has two exits: the venue or the issuer. Selling on
-the venue breaks the price and spares the reserves; redeeming spares the price and drains
-the reserves. Only the second breaks the peg.**
+Oracle lag, for completeness, does not move the trough through the arbitrageur's rule:
+across heartbeats from one minute to 23 hours and deviation thresholds from zero to 1%,
+the trough moves by less than 11 bps, and Chainlink's settings are within 0.5 bps of a
+zero-lag oracle ([figure](figures/oracle_sensitivity.png)). The model has no
+oracle-dependent liquidations or collateral, so this says nothing about those.
 
-Two more places the analogy breaks, both results rather than caveats:
+## 8. Where the 1992 analogy ends
 
-- *Liquidity flight helps the defender.* The charter called liquidity leaving when it is
-  needed "the core Soros dynamic." In the model, liquidity providers who flee a depeg and
-  sit on what they withdrew take the attacker's stablecoin out of the venue with them: a
-  half-flighty pool turns a full-size attack from "never holds par" into recovery in
-  22 h, and deepens the trough by under 1%, because a provider reacting to a price is one
-  step behind the sale that set it. The condition is the whole result — a provider who
-  dumped or redeemed what it withdrew would be a second attacker or a second redeemer —
-  and it is the first thing the next version of this model will test.
-- *A believer who overpays is an accidental defender.* Before its fills were capped at its
-  entry price, the model's believer held the venue above the redemption payout, the
-  arbitrageur stopped redeeming, and the Bank survived to the horizon — at the believer's
-  expense. A disciplined believer is a redeemer in waiting.
+We ran the model as 1992 — the Bank's reserves and budget, the rate rises as a redemption
+spread, Quantum's position as the attacker's unit — and asked at what multiple of Quantum
+the Bank runs dry. With believers who redeem at historical scale, 4.9×; without them,
+5.7× ([figure](figures/peg_trajectory_1992.png); [no-defense counterfactual](figures/peg_trajectory_1992_no_defense.png)).
+That is a comparative static inside the model, not a historical threshold, and the
+near-equality of attack and resources at the flip is the model's own conservation
+arithmetic. The model is a finite-inventory price-defense model inspired by the
+first-generation literature; it is not a test of it, and it has none of the
+second-generation mechanism (a government weighing the cost of defending against the cost
+of quitting) that the 1992 story turns on.
 
-And the list we started with (BACKGROUND, "Where the analogy breaks"), each now tied to
-where the model showed it: the defense lever (a spread is not a rate rise, and here it
-buys an hour); no political cost function (our defender follows rules); transparency; no
-partner central bank; the promise itself; market structure and time; and the two exits.
+What the analogy gave us: the question, the cast, the instinct that the believers
+switching sides is where pegs die. What it could not give us, because the chain differs:
 
-Three thresholds in the model — the defender's trigger, the believer's exit, the
-provider's panic — turned out to be inert, because a first sale that crosses all of them
-makes *when* irrelevant. Only how much, and how fast, matter.
+1. **The defense lever.** A rate rise rewards holders and raises the cost of shorting; a
+   redemption spread makes exit dearer. In the model the spread buys about an hour.
+2. **No cost function, no quitting.** Our defender follows rules to the last unit. Black
+   Wednesday was a decision.
+3. **Reserves are attested, not secret.** On-chain supply is public block by block;
+   reserves are reported. An attacker can size a run.
+4. **No lender of last resort.** USDC recovered after an outside authority guaranteed a
+   bank's deposits. The model has no government; its Monday is a capacity change.
+5. **Two exits, and the queue.** Sterling traded in a deep market with the Bank as buyer of
+   last resort at the floor. A stablecoin's exits are separate channels and the issuer's is
+   a capacity-limited queue, which is the mechanism in §7.
+6. **Belief is a process.** The model's believer has a fixed entry price. The weekend's
+   believers updated theirs with every statement and every hour, and that is what the
+   bracket in §3 is missing.
+7. **The patient attacker.** Soros sold fast against a defender who had to decide by
+   evening. On-chain, against a rule-based defender with a finite budget, slow wins.
 
-## 8. Limitations and next questions
+## 9. Limitations and next questions
 
-One validation event. One venue standing in for an aggregate of venues. A single entry
-price gives a cliff and a ladder gives a staircase; no public data says where the
-believers' money sat. The liquidity provider holds what it withdraws. The defender has no
-cost function and never gives up. Stress-volatility surfaces were run under the random-walk
-reference, calm ones under the reverting one.
+One calibration event, and it is a calibration. One pool for every venue; constant
+product for a StableSwap pool. Net supply change as a proxy for selling. The weekend
+channel rate is an average that includes Monday. Who the buyers were and at what prices
+is not public; the ladder is an assumption, and three ladders fit equally well. The
+believer's entry price is fixed. The defender never quits; the attacker never adapts. The
+triggers were not separable at any attack size run. Stress surfaces used the random-walk
+reference, calm ones the reverting one; time to parity was checked to be the same under
+both where it was compared.
 
-Next: a provider that dumps or redeems what it withdrew; several providers with different
-thresholds; a second validation event (Terra's UST, May 2022, or Ethena's USDe single-venue
-print of September 2026, which is the one case where the oracle module itself would be
-under test); a multi-venue structure; a defender that weighs the cost of defending against
-the cost of quitting.
+Next: a believer whose reservation price moves with the price path and with news; a
+trigger-separation sweep with a first sale below half a percent of impact; a second
+calibration event (Terra's UST, May 2022, or Ethena's USDe single-venue print of
+September 2026, where the oracle module itself would be under test); a multi-venue
+structure; a defender that weighs the cost of defending against the cost of quitting.
 
-Two recent benchmarks frame why a mechanistic, replicable model is worth publishing: a
-game-theoretic treatment of stablecoin attacks (Gupta & Gupta 2025) names the critical
-attack fraction this model computes, and StableEval Arena (Wan, Liu & Zhang 2026) reports
-that LLM-backed peg-risk agents "still miss most rare severe-stress and sustained-depeg
-cases." Sustained depeg is exactly what Figure 2 is a map of.
+Two recent pieces frame why a mechanistic, replicable model is worth publishing: a
+game-theoretic treatment of stablecoin attacks (Gupta & Gupta 2025) names a critical
+attack fraction of the kind this model computes, and StableEval Arena (Wan, Liu & Zhang
+2026) reports that LLM-backed peg-risk agents "still miss most rare severe-stress and
+sustained-depeg cases." Sustained depeg is what Figure 2 is a map of.
 
-## 9. Reproducibility
+## 10. Reproducibility
 
-`git clone`, `pip install -e .`, `make figures`. Every figure's source scenario or sweep
-and its hash are in a manifest; a guard in CI fails if a source changes and warns if the
-code does; the three fitted numbers are written with their inputs and script hashes.
-Nineteen figures regenerate in about fifteen minutes on twelve cores. Code is frozen at
-`v0.9-freeze`.
+`git clone`, `pip install -e .`, `make figures`. Every figure's source scenario or sweep and
+its hash are in a manifest; a guard in CI fails if a source changes or the code hash
+differs from the tagged freeze; every fitted number is written with its inputs and script
+hash and checked against the text of this note. Twenty-five figures and six fit records
+regenerate in about twenty-two minutes on twelve cores. Code is frozen at `v0.95-freeze`.
 
 ---
 
@@ -314,27 +368,27 @@ figure not moved to the record); the dev manager may move any of them to the rec
 
 | # | file | section | finding(s) | status |
 |---|---|---|---|---|
-| 1 | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final |
-| 1b | `validation_overlay_usdc_2023_tranches.png` | 3 | F-09 refinement | final |
-| 1c | `validation_overlay_usdc_2023_par.png` † | 3 | F-08; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
-| 1d | `validation_overlay_usdc_2023_tranches_par.png` † | 3 | F-09; par-reference replay (5.1) | new (5.1); placement for v2 is the dev manager's |
-| 1e | `identification_surface.png` † | 3 | F-16; joint identification (5.2) | new (5.2); placement for v2 is the dev manager's |
-| 1f | `validation_overlay_usdc_2023_tranches_par_closed.png` † | 3 | F-16; closed weekend channel (5.5) | new (5.5); placement for v2 is the dev manager's |
+| — | `validation_overlay_usdc_2023.png` | 3 | F-08 (+confirmation), F-09 | final |
+| 1 | `validation_overlay_usdc_2023_tranches.png` | 3 | F-09 refinement | final |
+| — | `validation_overlay_usdc_2023_par.png` † | 3 | F-08; par-reference replay (5.1) | new (5.1); placed in v2 |
+| 1b | `validation_overlay_usdc_2023_tranches_par.png` | 3 | F-09; par-reference replay (5.1) | new (5.1); placed in v2 |
+| — | `identification_surface.png` † | 3 | F-16; joint identification (5.2) | new (5.2); placed in v2 |
+| 1c | `validation_overlay_usdc_2023_tranches_par_closed.png` | 3 | F-16; closed weekend channel (5.5) | new (5.5); placed in v2 |
 | — | `peg_trajectory_calibrated.png` † | 4 | F-06, F-03 | final |
 | 2 | `time_to_parity_ou.png` | 4 | F-03, F-06, F-11, F-04 resolution | final |
 | — | `threshold_surface_ou.png` † | 4 (supporting) | F-11, F-04 resolution | final |
 | — | `budget_depth.png` † | 4 (supporting) | F-11 refinement | final; may drop for length |
 | — | `budget_attack.png` † | 4 (supporting) | F-11 second refinement | final (3.4) |
 | — | `lp_flight.png` † | 4 | F-15, F-03, F-11 | final |
-| — | `lp_flight_disposal.png` † | 4 | F-15; LP disposal (5.4) | new (5.4); placement for v2 is the dev manager's |
-| 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | final (panel (b) = price paid, 4.1) |
-| 3b | `policy_comparison_gradual.png` † | 5 | F-13; gradual attack (5.3) | new (5.3); placement for v2 is the dev manager's |
+| — | `lp_flight_disposal.png` † | 4 | F-15; LP disposal (5.4) | new (5.4); placed in v2 |
+| — | `policy_comparison.png` | 5 | F-13, F-07 refinement | final (panel (b) = price paid, 4.1) |
+| 3 | `policy_comparison_gradual.png` | 5 | F-13; gradual attack (5.3) | new (5.3); placed in v2 |
 | — | `pace_trigger.png` † | 5 (supporting) | F-13 refinement | final (3.4) |
 | — | `pace_ratio.png` † | 5 (supporting) | F-13 refinement | final (3.4) |
 | — | `peg_trajectory_baseline.png` † | 5 | F-01 | final |
-| 4 | `oracle_sensitivity.png` | 6 | F-10 | final |
-| 5 | `peg_trajectory_1992.png` | 7 | F-07, F-12, F-14 | final |
-| 5b | `peg_trajectory_1992_no_defense.png` | 7 | counterfactual | final |
+| — | `oracle_sensitivity.png` | 6 | F-10 | final |
+| — | `peg_trajectory_1992.png` | 7 | F-07, F-12, F-14 | final |
+| — | `peg_trajectory_1992_no_defense.png` | 7 | counterfactual | final |
 | — | `threshold_surface_par.png` | record only | F-11 | not in the note |
 | — | `threshold_surface.png` | record only | F-11, F-03 | not in the note (random-walk, oracle criterion) |
 | — | `time_to_parity.png` | record only | F-11 | not in the note (random-walk) |
@@ -342,14 +396,13 @@ figure not moved to the record); the dev manager may move any of them to the rec
 
 ## Open decisions for Tim
 
-1. Lead with the validation (headline 1) or with the mechanism (headline 2)? Outline
-   assumes validation first: it is the thing a reader can check.
-2. How much 1992 narrative in §7 — the note's own retelling, or a pointer to BACKGROUND
-   published alongside?
-3. Named author(s) and the Corposium Research framing in the first paragraph.
-4. Hero image for the README and the site page: the single-entry overlay (one parameter,
-   17%) or the ladder overlay (one parameter + an assumed ladder, 4%, timing to nine
-   minutes)? The note shows both in §3 either way.
+1. **Title.** v2 proposes *What breaks a peg: a stablecoin under attack, and where the 1992
+   analogy ends*. v1's *a 1992 currency attack, replayed on-chain* overstated 1992.
+2. **Named author(s)** and the Corposium Research line in the header.
+3. **Hero image** for README and site: Figure 1b (the bracket's first half) or Figure 1c
+   (the full bracket).
+4. **§8's seven-item list** could move to the site page and leave the note at six
+   sections; keep or cut after the second review round.
 
 ## Change Log
 
@@ -364,3 +417,4 @@ figure not moved to the record); the dev manager may move any of them to the rec
 - 2026-10-16: Figure list only, Story 5.5 (builder): row 1f (`validation_overlay_usdc_2023_tranches_par_closed.png`, †) added. Note text not edited.
 - 2026-10-16: Figure list only, Story 5.3 (builder): row 3b (`policy_comparison_gradual.png`, †) added. Note text not edited.
 - 2026-10-17: Figure list only, Story 5.4 (builder): `lp_flight_disposal.png` (†, section 4) added. Note text not edited.
+- 2026-10-17: **v2.0 draft** written against `v0.95-freeze` from the Epic 5 results and the outside-review disposition table: "replay/calibration" not "validation"; findings in the referee's order; 1992 in §1 and §8 only; the bracket (F-16/F-17), the tread (F-09), the patient attacker (F-13), the queue (F-15 revised); every "cannot" narrowed; fact fixes. Figures 1/1b/1c = tranches, tranches-par, tranches-par-closed; 2 = time_to_parity_ou; 3 = policy_comparison_gradual.
