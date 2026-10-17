@@ -165,6 +165,7 @@ All committed figures, with source, caption and the finding each supports:
 - [`docs/GUIDE.md`](docs/GUIDE.md) — the findings in plain words
 - [`docs/LITERATURE.md`](docs/LITERATURE.md) — outside sources and events, with verification status
 - [`docs/calibration/POLICY.md`](docs/calibration/POLICY.md) — defender policies under a gradual attack, with the cost of the discount (Story 5.3)
+- [`docs/calibration/LP_DISPOSAL.md`](docs/calibration/LP_DISPOSAL.md) — the fleeing LP that sells or redeems what it withdrew (Story 5.4)
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) — versions, commands, timings and hashes for reproducing every figure
 - [`docs/adr/`](docs/adr/README.md) — architecture and research decision records
 - [`docs/PROCESS.md`](docs/PROCESS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) — how the project is built and how to add to it

@@ -44,6 +44,7 @@ order, in [`docs/FINDINGS.md`](../FINDINGS.md); that file is the research note's
 | [0035](0035-closed-weekend-channel.md) | Closed weekend channel: shut or 10% until 85 h → trough at the 20% tranche (−2,001), pinned until the reopening, back in band 85.3 h vs 86.0 observed (F-17: the model brackets the weekend; belief is a switch, the weekend was a process); capacity 0 allowed; figure observed-source | Accepted (finding + interface) | 2026-10-16 |
 | [0036](0036-closed-channel-capital-scan.md) | Closed-channel C\*: the rule picks 13.33M on the −1,000 tread (−1,007); no ladder-B capital reproduces the observed trough's depth and 31 h timing with the channel shut; believers' ladder and channel not separately identified by one trough; scan definition | Accepted (finding) | 2026-10-16 |
 | [0037](0037-policy-gradual-attack-and-cost.md) | Policy comparison under a gradual attack with `discount_bps_hours`: the slow defender still minimises discount in every cell but by 0.5% at pace 0.01; no policy recovers against a patient attacker; triggers not separable at any attack size run (first sale ≥ 10%) | Accepted (finding + interface) | 2026-10-16 |
+| [0038](0038-lp-disposes-withdrawn-inventory.md) | LP `after_withdrawal: hold/sell/redeem`: sell deepens the trough up to 59% and keeps recovery; redeem keeps the trough and blocks recovery (LP's 13M at the back of the FIFO queue starves the arbitrageur); only hold helps both (F-15 revised; the redemption queue as a mechanism) | Accepted (finding + interface) | 2026-10-17 |
 
 ## Template
 

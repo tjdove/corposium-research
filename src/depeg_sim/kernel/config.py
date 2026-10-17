@@ -278,13 +278,20 @@ class LPConfig(StrictModel):
     """Flighty liquidity provider (Story 3.8): owns ``share`` of the AMM pool at the start
     and, each step that AMM spot is more than ``panic_threshold_pct`` below peg, withdraws
     ``pace`` of what it has left. One-way: it never re-adds. A new type, so no existing
-    scenario's hash moves."""
+    scenario's hash moves.
+
+    Story 5.4: ``after_withdrawal`` is what it does with the stable it has withdrawn, on
+    steps it does not withdraw: ``hold`` (the default, Story 3.8's LP), ``sell`` it on the
+    AMM or ``redeem`` it through the redemption queue, ``disposal_pace`` of what it holds
+    per step. Both enter the hash only when not at their defaults."""
 
     type: Literal["lp"]
     id: str
     share: float = Field(gt=0, le=1)
     panic_threshold_pct: float = Field(gt=0)
     pace: float = Field(gt=0, le=1)
+    after_withdrawal: Literal["hold", "sell", "redeem"] = "hold"
+    disposal_pace: float = Field(default=0.1, gt=0, le=1)
 
 
 AgentConfig = Annotated[
@@ -327,7 +334,8 @@ class ScenarioConfig(StrictModel):
         (``True``, ``None``; Story 3.2). A holder's ``exit_discount_pct`` enters only when set
         (Story 3.3). ``environment.mean_reversion_per_step`` enters only when > 0 (Story 3.6).
         A holder's ``tranches`` enters only when set, and then replaces its (absent)
-        ``entry_discount_pct`` (Story 3.7)."""
+        ``entry_discount_pct`` (Story 3.7). An LP's ``after_withdrawal`` and ``disposal_pace``
+        enter only when not at their defaults (``hold``, 0.1; Story 5.4)."""
         data = self.model_dump(mode="json")
         env = data["environment"]
         if env["mean_reversion_per_step"] == 0:
@@ -352,6 +360,11 @@ class ScenarioConfig(StrictModel):
                     del agent["tranches"]  # Story 3.7: the scalar form keeps its hash
                 else:
                     del agent["entry_discount_pct"]  # absent by the validator
+            elif agent["type"] == "lp":  # Story 5.4: the holding LP keeps its hash
+                if agent["after_withdrawal"] == "hold":
+                    del agent["after_withdrawal"]
+                if agent["disposal_pace"] == 0.1:
+                    del agent["disposal_pace"]
         payload = json.dumps(data, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
 
