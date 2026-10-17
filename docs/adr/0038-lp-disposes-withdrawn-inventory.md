@@ -1,6 +1,6 @@
 # ADR-0038: The LP's disposal of withdrawn stable: `after_withdrawal` (hold / sell / redeem) at `disposal_pace`, after withdrawing, through the shared redemption queue
 
-**Status:** Proposed (interface; the finding is the dev manager's to write)
+**Status:** Accepted (finding + interface; review 2026-10-17, unamended; F-15 revised)
 **Date:** 2026-10-17
 **Deciders:** Tim Dove, Claude (dev manager)
 **Origin:** Story 5.4 (referee §4, §5.25–5.26; F-15's condition)

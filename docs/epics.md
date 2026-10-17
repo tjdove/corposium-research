@@ -615,7 +615,7 @@ story names.** The freeze is lifted for this epic and re-applied at its end (`v0
 
 **Dates:** Oct 15–25 · **Re-freeze:** ~Oct 26 · **Note v2:** Oct 26–31
 
-**Story Count:** 6 builder stories + note v2 (dev manager)
+**Story Count:** 7 builder stories + note v2 (dev manager)
 
 ---
 
@@ -687,6 +687,15 @@ quotes the believers' capital with and without the open-channel condition (F-17)
 One table, two fit records, no figure.
 
 **Prerequisites:** Story 5.5
+
+---
+
+### Story 5.7: Re-freeze
+
+Checklist, `make figures`, tag `v0.95-freeze`, hash commit, CI note-check strict,
+NOTE.md header only; Epic 5 retro drafted by the builder.
+
+**Prerequisites:** Stories 5.1–5.6
 
 ---
 

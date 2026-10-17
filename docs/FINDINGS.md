@@ -898,6 +898,30 @@ size run; separating them needs a first-sale impact below 0.5% (≈ 0.02–0.05%
 step), a different sweep, left as future work. F-14's and F-15's "inert threshold" lines
 carry the same caveat.
 
+## F-15 revised (2026-10-17, from 5.4): what the fleeing liquidity does with its inventory decides what it breaks
+
+**ADR:** [0038](adr/0038-lp-disposal.md) · **Reproduce:** `python -m depeg_sim.sweep
+sweeps/lp-flight-disposal-mc.yaml --mc --workers 8` (216 runs, 51 s on 12 cores); `python
+scripts/lp_flight_table.py --sweep …`; `lp_flight_disposal.png`; `docs/calibration/LP_DISPOSAL.md`.
+
+The LP can now `hold`, `sell` or `redeem` what it withdrew (`disposal_pace` 0.1/step,
+after withdrawing stops). **Hold** reproduces F-15: 8/8 recovered at 0.7× and 1.0× (no LP:
+0/8), trough within 0.9% of no-LP. **Sell**: the LP is a second attacker 190 steps behind
+the first — trough 2.7–59% deeper, LP loses 2–15M — but recovery survives in five of six
+cells because its stable ends with the arbitrageur and leaves through the channel.
+**Redeem**: trough identical to hold, and recovery lost in every 0.7×/1.0× cell and even at
+0.5×/0.25 — the LP's ~13M sits at the back of the FIFO redemption queue (a 72 h wait at
+605.79/step) and the arbitrageur's redemptions, which restore the price, wait behind it
+(1.35M against 8.23M under hold at 1.0×/0.5). **Only holding helps on both counts.**
+
+This is F-14's two-exit structure in a second agent: the venue exit breaks the price and
+spares the reserves; the issuer exit spares the price and loads the queue. The new piece
+is the queue itself: *a large redeemer does not just drain reserves, it crowds out the
+arbitrage that would have restored the price.* No 1992 analogue (the Bank had no queue).
+F-11's clock result is qualified three ways: flight rescues the clock-lost cells under
+hold and mostly under sell, and reverses under redeem. The unconditional "liquidity that
+flees helps the defender" is withdrawn; the conditional stands with its condition first.
+
 ## Headline candidates (ranked, 2026-10-08, revised after 3.8 — Epic 3 complete)
 
 1. **"A depeg's depth is set by the attacker against everyone who believes the promise."**

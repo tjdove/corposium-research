@@ -1,6 +1,6 @@
 # Story 5.4: Liquidity Provider That Disposes of Withdrawn Inventory
 
-Status: review
+Status: done
 
 ## Story
 
@@ -241,7 +241,64 @@ note-check: ok: numbers: 8 fitted values quoted as their records round them
   `docs/figures/README.md`, `docs/NOTE.md` (figure list only) (modified)
 - `docs/stories/5-4-lp-disposes-withdrawn-inventory.md` (this file)
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-17 · **Verdict: APPROVE**
+
+Reproduced on the review box at `0ae1a88`: `pytest -q` all pass (exit 0); `ruff` clean;
+`make figures-check` → 25 figures, 6 fits ok. The full 216-run sweep rerun (2 workers)
+and `lp_flight_table.py --sweep` on it: every cell matches the builder's tables and
+LP_DISPOSAL.md — hold 8/8 in all six 0.7×/1.0× cells with troughs within 0.9% of no-LP
+(ADR-0031 reproduced); sell 8/8 in five of six (1.0×, share 0.25 is 0/8), troughs 2.7–59.0%
+deeper, LP PnL −2.2 … −14.6M; redeem 0/8 in all six and in 0.5×/0.25, troughs identical to
+hold, arbitrageur redeemed 1.35M at 1.0×/0.5 against 8.23M under hold. `agents/lp.py`
+diff read: one action per step, withdraw first, disposal from its own counter, no `ctx.rng`,
+no scheduler change; the float-residue bug and its fix are the right call and the
+`undisposed_stable` counter is cleaner than the subtraction it replaced.
+
+**What the result means (the dev manager's call).** Recorded as **F-15 revised**.
+
+1. *F-15's sign splits along the two exits.* A fleeing LP that **sells** what it withdrew
+   is a second attacker, 190 steps behind the first: the trough deepens by up to 59%, but
+   the recovery survives because its stable ends up with the arbitrageur and goes out
+   through the channel. One that **redeems** leaves the trough alone and kills the
+   recovery: 13M at the back of a FIFO queue that pays 605.79/step is a 72 h wait, and the
+   arbitrageur's redemptions, the ones that bring the price back, sit behind it. Only an LP
+   that **sits on** its inventory helps on both counts.
+2. *This is F-14's structure showing up in a second agent.* The referee called the
+   venue/issuer distinction elementary. Elementary or not, it now organises three results:
+   the believer's exit (F-14), the LP's disposal (here), and the arbitrageur's recycling
+   (F-16/F-17). In every case, selling on the venue breaks the price and spares the
+   reserves; redeeming spares the price and loads the queue. v2 presents it as the
+   model's structure, not as a discovery, and puts the LP result under it.
+3. *The redemption queue is the new thing.* A large redeemer does not just drain
+   reserves; it crowds out the arbitrage that restores the price, because the channel is
+   one FIFO queue with a per-step cap. "Who is at the front of the queue decides who
+   recovers" is a sentence the referee did not have, and it is the on-chain mechanism that
+   has no 1992 analogue (the Bank had no queue; it bought at the floor from whoever came).
+   It goes in §7 beside two exits.
+4. *The F-11 clock result is qualified again, the other way.* 3.8 said flighty liquidity
+   turns clock-lost cells into recoveries. That holds for `hold`, mostly for `sell`, and
+   reverses for `redeem`. v2 states the three-way split and drops the unconditional line.
+
+**Rulings**
+
+1. **ADR-0038 accepted (finding + interface).** Index row added. F-15 revised in FINDINGS.
+2. Disposal after withdrawal, price-blind, from an own counter: accepted as the
+   semantics. The 190-step lag is a consequence of the one-action rule and is stated.
+3. `lp_pnl` as a third column: accepted; the AC undercounted.
+4. Panic-threshold axis dropped (fixed at 5%): accepted on ADR-0031's evidence.
+5. `docs/calibration/LP_DISPOSAL.md` is the home for this table; the pattern (one
+   calibration doc per experiment family) stands: VALIDATION, POLICY, LP_DISPOSAL.
+6. **Epic 5's builder stories are complete.** Story 5.7 (re-freeze) is drafted and is the
+   last; note v2 is written against `v0.95-freeze`.
+
+**Lessons:** four predictions, two right, one half (sell deepens, but 190 steps behind,
+not one) (L-15). The builder's "only holding helps on both counts" is the finding in
+one line.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager (Epic 5)
 - 2026-10-17: Implemented (builder); sweep run once into output/; ADR-0038 proposed; status review
+- 2026-10-17: Reviewed by dev manager — APPROVE; ADR-0038 accepted; F-15 revised; Status: done
