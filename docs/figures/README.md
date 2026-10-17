@@ -5,7 +5,7 @@ from the scenario or sweep named below, and recorded in [`manifest.json`](manife
 with that source's hash, the drawing function and the commit that drew them.
 
 ```bash
-make figures         # runs the eleven sweeps in full, then scripts/make_figures.py and the four fits (~15 min on 12 cores)
+make figures         # runs the fourteen sweeps in full, then scripts/make_figures.py and the six fits (~22 min on 12 cores)
 make figures-check   # stale-figure guard: exit 1 if any source changed since its figure was drawn;
                      # a warning (exit 0) if the package code changed
 make figures-quick   # 2-seed smoke test into a temp dir; writes nothing here
@@ -149,12 +149,13 @@ at 0.25 / 0.5 / 0.75) and not at all with threshold, because the first dump take
 below every threshold. The pool left at the trough at 1.0× is 0.76 / 0.52 / 0.28 (`liq`);
 the reference-reserve measure (colour) also falls with price impact (0.43 with no LP).
 
-**`lp_flight_disposal.png`.** What the fleeing liquidity provider does with the stable it
-withdrew decides whether its flight helps. At D\* (8 seeds per cell), one column per mode:
-it holds the stable, sells 0.1 of it per step on the AMM, or queues 0.1 of it per step for
-redemption. Top: median hours to first return over the LP's share (rows) × attack (0.5,
-0.7, 1.0× resources); bottom: mean trough. Holding is `lp_flight.png` at the 5% threshold:
-every run recovers. Selling deepens the trough by 2.7–59.0% (−9,721 bps at 1.0×, share
+**`lp_flight_disposal.png`.** At D\* (8 seeds per cell), with the fleeing liquidity
+provider's panic threshold held at 5%, one column per what it does with the stable it
+withdrew: it holds it, sells 0.1 of it per step on the AMM, or queues 0.1 of it per step
+for redemption. Top: median hours to first return over the LP's share (rows) × attack
+(0.5, 0.7, 1.0× resources); bottom: mean trough. What it does with the stable decides
+whether its flight helps. Holding is `lp_flight.png` at the 5% threshold: every run
+recovers. Selling deepens the trough by 2.7–59.0% (−9,721 bps at 1.0×, share
 0.75) and still recovers 8 of 8 in every cell but 1.0× at share 0.25, where the return at
 42.4 h comes after the 37 h deadline. Redeeming leaves the trough exactly where holding has
 it and recovers nothing at 0.7× or 1.0× (0 of 8 everywhere), nor at 0.5× with share 0.25;

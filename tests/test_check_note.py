@@ -231,7 +231,45 @@ def test_freeze_tag_missing_fails(tmp_path, capsys):
 
 def test_note_naming_no_tag_fails(tmp_path, capsys):
     code, _, err = run(make_repo(tmp_path, NOTE.replace("`v0.9-freeze`", "the tag")), capsys)
-    assert code == 1 and "must name one freeze tag, found none" in err
+    assert code == 1 and "must name a freeze tag, found none" in err
+
+
+def _refreeze(tmp_path: Path, note: str) -> list[str]:
+    """``make_repo`` (code c0de at ``v0.9-freeze``), then code beef committed and tagged
+    ``v0.95-freeze``, with ``note`` as the note at both tags."""
+    args = make_repo(tmp_path, note)
+    manifest = Path(args[3])
+    manifest.write_text(manifest.read_text().replace("c0de", "beef"))
+    _git(tmp_path, "commit", "-q", "-am", "re-freeze")
+    _git(tmp_path, "tag", "-a", "v0.95-freeze", "-m", "re-freeze")
+    return args
+
+
+def test_the_header_tag_is_compared_and_older_tags_need_only_resolve(tmp_path, capsys):
+    """Story 5.7: the header names the new tag; the old one stays in the text and Change Log."""
+    note = NOTE.replace("Code frozen at `v0.9-freeze`.", "Code frozen at `v0.95-freeze`.")
+    note += "- Draft written against `v0.9-freeze`.\n"
+    code, out, err = run(_refreeze(tmp_path, note) + ["--strict-freeze"], capsys)
+    assert code == 0 and err == "", err
+    assert "ok: freeze: v0.95-freeze is " in out
+    assert "code_hash beef matches; older tags named resolve: v0.9-freeze" in out
+
+
+def test_an_old_tag_in_the_header_is_compared_even_with_a_newer_one_below(tmp_path, capsys):
+    note = NOTE + "- Re-frozen at `v0.95-freeze`.\n"
+    code, _, err = run(_refreeze(tmp_path, note) + ["--strict-freeze"], capsys)
+    assert code == 1 and "FAIL: freeze: v0.9-freeze" in err and "has code_hash c0de" in err
+
+
+def test_an_older_tag_that_does_not_resolve_fails(tmp_path, capsys):
+    code, _, err = run(make_repo(tmp_path, NOTE + "- Before `v0.8-freeze`.\n"), capsys)
+    assert code == 1 and "tag v0.8-freeze named in the note does not resolve" in err
+
+
+def test_a_header_line_naming_two_tags_fails(tmp_path, capsys):
+    note = NOTE.replace("`v0.9-freeze`.", "`v0.9-freeze`, then `v0.95-freeze`.")
+    code, _, err = run(_refreeze(tmp_path, note), capsys)
+    assert code == 1 and "the header line must name one freeze tag" in err
 
 
 def test_freeze_without_git_warns(tmp_path, capsys, monkeypatch):

@@ -10,12 +10,14 @@ Four checks, one ``ok:`` line each; exit 0 when all pass, exit 1 naming every fa
   linked or embedded at least once in the body (the text above the figure list). The four
   record-only figures (``docs/figures/README.md``, "Record only", read beside the manifest)
   are never linked or embedded anywhere in the note.
-- **freeze.** The freeze tag the note names (``v\\d+\\.\\d+-freeze``) resolves to a commit
-  whose ``manifest.json`` has the working tree manifest's ``code_hash``. A tag that does
-  not resolve, or has no manifest, fails. A ``code_hash`` that differs warns (the freeze
-  is lifted during Epic 5; Story 4.2 rulings, second round, ruling 2) and fails only with
-  ``--strict-freeze``. When git is not installed or the note is not in a git work tree,
-  this warns and does not fail.
+- **freeze.** The freeze tag on the note's header line (the first line that names a tag
+  ``v\\d+\\.\\d+-freeze``; it must name exactly one) resolves to a commit whose
+  ``manifest.json`` has the working tree manifest's ``code_hash``. A tag that does not
+  resolve, or has no manifest, fails. A ``code_hash`` that differs warns (the freeze is
+  lifted during Epic 5; Story 4.2 rulings, second round, ruling 2) and fails only with
+  ``--strict-freeze``. Every other tag the note names (an older freeze in the text or the
+  Change Log; Story 5.7) must resolve but is not compared. When git is not installed or
+  the note is not in a git work tree, this warns and does not fail.
 - **numbers.** ``NUMBERS`` maps fit-record results to the strings the note quotes, with a
   rounding rule each; the normalised note must contain each one. The depth fit is quoted
   as the symbol D\\*: the symbol must appear, and the fitted value ``16,666,667`` appearing
@@ -173,11 +175,16 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
 def check_freeze(
     text: str, manifest_path: Path, manifest: dict, report: Report, strict: bool = False
 ) -> None:
-    tags = sorted(set(FREEZE_TAG.findall(text)))
-    if len(tags) != 1:
-        report.fail.append(f"freeze: the note must name one freeze tag, found {tags or 'none'}")
+    named = [ln for ln in text.splitlines() if FREEZE_TAG.search(ln)]
+    if not named:
+        report.fail.append("freeze: the note must name a freeze tag, found none")
         return
-    tag, where = tags[0], manifest_path.parent
+    header = sorted(set(FREEZE_TAG.findall(named[0])))
+    if len(header) != 1:
+        report.fail.append(f"freeze: the header line must name one freeze tag, found {header}")
+        return
+    tag, where = header[0], manifest_path.parent
+    others = sorted(set(FREEZE_TAG.findall(text)) - {tag})
     try:
         inside = _git(where, "rev-parse", "--is-inside-work-tree")
     except FileNotFoundError:
@@ -189,6 +196,13 @@ def check_freeze(
     commit = _git(where, "rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}")
     if commit.returncode != 0:
         report.fail.append(f"freeze: tag {tag} does not resolve (git fetch --tags?)")
+        return
+    unresolved = [
+        t for t in others
+        if _git(where, "rev-parse", "--verify", "--quiet", f"{t}^{{commit}}").returncode != 0
+    ]  # fmt: skip
+    if unresolved:
+        report.fail += [f"freeze: tag {t} named in the note does not resolve" for t in unresolved]
         return
     sha = commit.stdout.strip()
     shown = _git(where, "show", f"{sha}:./{manifest_path.name}")
@@ -207,7 +221,8 @@ def check_freeze(
         report.warn.append(line)
         report.ok.append(f"freeze: {tag} is {sha[:12]} (code differs, see warning)")
         return
-    report.ok.append(f"freeze: {tag} is {sha[:12]}, manifest code_hash {now[:12]} matches")
+    also = f"; older tags named resolve: {', '.join(others)}" if others else ""
+    report.ok.append(f"freeze: {tag} is {sha[:12]}, manifest code_hash {now[:12]} matches{also}")
 
 
 def check_numbers(text: str, fits: Path, report: Report) -> None:
