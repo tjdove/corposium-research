@@ -33,6 +33,9 @@ EXPECTED = [
     "pool_depth_at_trough",
     "pool_liquidity_at_trough",
     "discount_bps_hours",
+    "lp_sold_stable",
+    "lp_redeemed_stable",
+    "lp_pnl",
     "phase_order_version",
     "package_version",
 ]

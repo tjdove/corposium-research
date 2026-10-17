@@ -20,8 +20,21 @@ below the LP's panic price, i.e. the withdrawals an LP whose own flight changed 
 would have made. ``withdrawals > panic steps`` means the LP's withdrawals kept the price
 below its threshold longer: its flight fed its own panic.
 
+Story 5.4: a sweep with an ``agents[type=lp].after_withdrawal`` axis
+(``sweeps/lp-flight-disposal-mc.yaml``) prints instead one table per disposal mode
+(``hold``, ``sell``, ``redeem``), one row per attack ratio x LP share plus a ``no LP``
+row per ratio (from ``lp-flight-nolp``, run as above): runs that recovered, hours from
+run start to first re-entry (median; ``never`` as above), trough (mean bps, and its
+change against ``hold`` at the same cell), defender spend, LP PnL, **redemption paid to
+the LP** (``lp_paid_M``: ``redeem_fulfilled.paid_reference`` from each cell's
+``events.jsonl``), **LP sold on the AMM** (``lp_sold_M``: ``lp_sold_stable``), the LP's
+stable filled by the channel (``lp_redeemed_M``: ``lp_redeemed_stable``) and what the
+channel paid the arbitrageur (``arb_redeemed_M``), all means over seeds in millions. No
+episode-attack table.
+
     python scripts/lp_flight_table.py [--sweep output/lp-flight-mc] [--output output]
         [--workers N]
+    python scripts/lp_flight_table.py --sweep output/lp-flight-disposal-mc
 """
 
 from __future__ import annotations
@@ -33,7 +46,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from depeg_sim.analysis.charts import CAPITAL_PATH, LP_SHARE_PATH, LP_THRESHOLD_PATH
+from depeg_sim.analysis.charts import (
+    CAPITAL_PATH,
+    LP_DISPOSAL_PATH,
+    LP_SHARE_PATH,
+    LP_THRESHOLD_PATH,
+)
 from depeg_sim.experiments.sweep import SWEEP_MANIFEST, SWEEP_PARQUET, SweepSpec, run_sweep
 
 LP_BASE = Path("scenarios/calibrated-baseline-lp.yaml")
@@ -62,6 +80,17 @@ def _panic_steps(cell: Path, threshold_pct: float, start_step: int) -> int:
     dev = pd.read_parquet(cell / "timeseries.parquet", columns=["step", "peg_deviation"])
     after = dev[dev["step"] >= start_step]
     return int((after["peg_deviation"] < -threshold_pct / 100).sum())
+
+
+def _paid_to(cell: Path, agent_id: str) -> float:
+    """Reference the redemption channel paid ``agent_id`` in one run."""
+    paid = 0.0
+    with open(cell / "events.jsonl", encoding="utf-8") as f:
+        for line in f:
+            e = json.loads(line)
+            if e["kind"] == "redeem_fulfilled" and e["payload"]["source"] == agent_id:
+                paid += e["payload"]["paid_reference"]
+    return paid
 
 
 def load_runs(sweep_dir: Path) -> pd.DataFrame:
@@ -121,6 +150,53 @@ def table(lp: pd.DataFrame, nolp: pd.DataFrame, keys: list[str], interval: float
     )
 
 
+MODES = ("hold", "sell", "redeem")
+
+
+def disposal_table(lp: pd.DataFrame, nolp: pd.DataFrame, interval: float, resources: float,
+                   lp_id: str) -> pd.DataFrame:  # fmt: skip
+    """One row per disposal mode x ratio x share of ``lp`` (a sweep with an
+    ``after_withdrawal`` axis) plus a ``no LP`` row per ratio; means over seeds unless
+    marked. ``lp`` needs a ``cell`` column (``load_runs``) for ``lp_paid_M``."""
+    lp = lp.assign(hours=_hours(lp, interval), ratio=(lp[CAPITAL_PATH] / resources).round(2))
+    nolp = nolp.assign(hours=_hours(nolp, interval),
+                       ratio=(nolp[CAPITAL_PATH] / resources).round(2))  # fmt: skip
+    lp["lp_paid"] = lp["cell"].map(lambda c: _paid_to(c, lp_id))
+    hold = lp[lp[LP_DISPOSAL_PATH] == "hold"].groupby(["ratio", LP_SHARE_PATH])
+    hold_trough = hold["max_depeg_bps"].mean()
+
+    def summarise(g: pd.DataFrame, label: dict, base: float | None) -> dict:
+        n, entered = len(g), g["hours"].notna().sum()
+        trough = g["max_depeg_bps"].mean()
+        row = label | {
+            "recovered": f"{(g['terminated_by'] == 'peg_recovered').sum()}/{n}",
+            "hours": f"{g['hours'].median():.1f}" if entered >= n / 2 else "never",
+            "trough_bps": round(trough, 1),
+            "vs_hold": "" if base is None else f"{trough / base - 1:+.1%}",
+            "defender_M": round(g["defender_spent"].mean() / 1e6, 2),
+            "arb_redeemed_M": round(g["arbitrageur_redeemed"].mean() / 1e6, 2),
+        }
+        if label["share"] != "no LP":
+            row |= {
+                "lp_pnl_M": round(g["lp_pnl"].mean() / 1e6, 2),
+                "lp_paid_M": round(g["lp_paid"].mean() / 1e6, 2),
+                "lp_sold_M": round(g["lp_sold_stable"].mean() / 1e6, 2),
+                "lp_redeemed_M": round(g["lp_redeemed_stable"].mean() / 1e6, 2),
+            }
+        return row
+
+    rows = []
+    for mode in MODES:
+        sub = lp[lp[LP_DISPOSAL_PATH] == mode]
+        for ratio, g0 in nolp.groupby("ratio", sort=True):
+            rows.append(summarise(g0, {"mode": mode, "ratio": ratio, "share": "no LP"}, None))
+            at = sub[sub["ratio"] == ratio]
+            for share, g in at.groupby(LP_SHARE_PATH, sort=True):
+                base = None if mode == "hold" else hold_trough.loc[(ratio, share)]
+                rows.append(summarise(g, {"mode": mode, "ratio": ratio, "share": share}, base))
+    return pd.DataFrame(rows)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--sweep", type=Path, default=Path("output/lp-flight-mc"))
@@ -136,16 +212,25 @@ def main(argv: list[str] | None = None) -> int:
     defender = next(a for a in base["agents"] if a["type"] == "defender")
     resources = defender["budget"] + base["redemption"]["reserves"]
     axes = {a["name"]: a["values"] for a in manifest["axes"]}
-    lp_axes = {k: axes[k] for k in (LP_SHARE_PATH, LP_THRESHOLD_PATH)}
     w, out = args.workers, args.output
 
     lp = load_runs(args.sweep)
     nolp = _sweep("lp-flight-nolp", NOLP_BASE, {CAPITAL_PATH: axes[CAPITAL_PATH]}, seeds,
                   max_steps, out, w)  # fmt: skip
+    pd.set_option("display.width", 200)
+    if LP_DISPOSAL_PATH in axes:
+        lp_id = next(a for a in base["agents"] if a["type"] == "lp")["id"]
+        d = disposal_table(lp, nolp, interval, resources, lp_id)
+        for mode, g in d.groupby("mode", sort=False):
+            print(f"{mode}: LP {mode}s its withdrawn stable ({len(seeds)} seeds per cell; "
+                  "means in millions; no LP rows are the same in every block)")  # fmt: skip
+            print(g.drop(columns="mode").fillna("").to_string(index=False))
+            print()
+        return 0
+    lp_axes = {k: axes[k] for k in (LP_SHARE_PATH, LP_THRESHOLD_PATH)}
     ep = _sweep("lp-flight-episode", LP_BASE, lp_axes, seeds, max_steps, out, w)
     ep_nolp = _sweep("lp-flight-episode-nolp", NOLP_BASE, {}, seeds, max_steps, out, w)
 
-    pd.set_option("display.width", 200)
     keys = [CAPITAL_PATH, LP_SHARE_PATH, LP_THRESHOLD_PATH]
     a = table(lp, nolp, keys, interval, attacker["start_step"])
     a.insert(1, "ratio", (a.pop("capital") / resources).round(2))

@@ -1,0 +1,29 @@
+# Liquidity flight with disposal of the withdrawn stable, Monte Carlo (Story 5.4 AC 3).
+# Base: scenarios/calibrated-baseline-lp.yaml (calibrated-baseline-ou plus one flighty LP:
+# lp-1 share 0.5, panic_threshold_pct 5, pace 0.1; assumptions with no public anchor,
+# ADR-0031), as lp-flight-mc.yaml. Question: F-15 found that liquidity which flees a depeg
+# helps the defender, on the condition that the LP holds what it withdrew. Does the sign
+# survive an LP that sells its withdrawn stable on the AMM, or redeems it?
+# Numbers and their origins:
+#   LP after_withdrawal in {hold, sell, redeem}: what it does with the withdrawn stable on
+#        the steps it does not withdraw (agents/lp.py). hold = Story 3.8's LP.
+#   LP disposal_pace 0.1 (the default, not an axis): share of the stable it holds and has
+#        not queued that it sells or queues per step; 0.1 = the attacker's and the LP's
+#        own withdrawal pace.
+#   LP share in {0.25, 0.5, 0.75} and attacker capital = ratio x (defender budget +
+#        redemption reserves) = ratio x 179,454,391, ratio in {0.5, 0.7, 1.0}: the
+#        lp-flight-mc grid. Its panic-threshold axis is dropped: it is inert at every one of
+#        these attacks (ADR-0031), so the threshold stays at the base's 5%.
+#   seeds 1000..1007 (8 per grid point, as lp-flight-mc); max_steps 18,000 = ~60 h.
+# Metric: median hours from run start to first re-entry, recovered fraction, trough,
+# defender spent, LP PnL, lp_sold_stable and lp_redeemed_stable.
+# 3 x 3 x 3 = 27 grid points x 8 seeds = 216 runs.
+version: 1
+name: lp-flight-disposal-mc
+base: scenarios/calibrated-baseline-lp.yaml
+axes:
+  agents[type=attacker].capital: [89727196, 125618074, 179454391]
+  agents[type=lp].share: [0.25, 0.5, 0.75]
+  agents[type=lp].after_withdrawal: [hold, sell, redeem]
+seeds: { count: 8, start: 1000 }
+max_steps: 18000

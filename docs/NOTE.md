@@ -326,6 +326,7 @@ figure not moved to the record); the dev manager may move any of them to the rec
 | — | `budget_depth.png` † | 4 (supporting) | F-11 refinement | final; may drop for length |
 | — | `budget_attack.png` † | 4 (supporting) | F-11 second refinement | final (3.4) |
 | — | `lp_flight.png` † | 4 | F-15, F-03, F-11 | final |
+| — | `lp_flight_disposal.png` † | 4 | F-15; LP disposal (5.4) | new (5.4); placement for v2 is the dev manager's |
 | 3 | `policy_comparison.png` | 5 | F-13, F-07 refinement | final (panel (b) = price paid, 4.1) |
 | 3b | `policy_comparison_gradual.png` † | 5 | F-13; gradual attack (5.3) | new (5.3); placement for v2 is the dev manager's |
 | — | `pace_trigger.png` † | 5 (supporting) | F-13 refinement | final (3.4) |
@@ -362,3 +363,4 @@ figure not moved to the record); the dev manager may move any of them to the rec
 - 2026-10-15: Figure list only, Story 5.2 (builder): row 1e (`identification_surface.png`, †) added. Note text not edited.
 - 2026-10-16: Figure list only, Story 5.5 (builder): row 1f (`validation_overlay_usdc_2023_tranches_par_closed.png`, †) added. Note text not edited.
 - 2026-10-16: Figure list only, Story 5.3 (builder): row 3b (`policy_comparison_gradual.png`, †) added. Note text not edited.
+- 2026-10-17: Figure list only, Story 5.4 (builder): `lp_flight_disposal.png` (†, section 4) added. Note text not edited.

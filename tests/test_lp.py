@@ -283,7 +283,7 @@ def test_lp_scenario_is_ou_plus_one_lp():
     lp_ = load_scenario(LP_SCENARIO).model_dump(mode="json")
     assert lp_["name"] == "calibrated-baseline-lp"
     *rest, added = lp_["agents"]
-    assert added == LP
+    assert added == LP | {"after_withdrawal": "hold", "disposal_pace": 0.1}  # Story 5.4 defaults
     for d in (ou, lp_):
         del d["name"]
     lp_["agents"] = rest

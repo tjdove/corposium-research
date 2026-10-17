@@ -41,6 +41,7 @@ that are regenerated and guarded like the others but are not in the note.
 | [`budget_depth.png`](budget_depth.png) | 4 | `sweeps/budget-x-depth-mc.yaml` | F-11 |
 | [`budget_attack.png`](budget_attack.png) | 4 | `sweeps/budget-x-attack-mc.yaml` | F-11 |
 | [`lp_flight.png`](lp_flight.png) | 4 | `sweeps/lp-flight-mc.yaml` | F-15, F-03, F-11 |
+| [`lp_flight_disposal.png`](lp_flight_disposal.png) | 4 | `sweeps/lp-flight-disposal-mc.yaml` | F-15; LP disposal (5.4) |
 | [`policy_comparison.png`](policy_comparison.png) | 5 | `sweeps/policy-comparison-mc.yaml` (+ `scenarios/policies/`) | F-13, F-07 |
 | [`policy_comparison_gradual.png`](policy_comparison_gradual.png) | 5 | `sweeps/policy-comparison-gradual-mc.yaml` (+ `scenarios/policies/`) | F-13; gradual attack (5.3) |
 | [`pace_trigger.png`](pace_trigger.png) | 5 | `sweeps/pace-x-trigger-mc.yaml` | F-13 |
@@ -147,6 +148,17 @@ deadline and every run recovers; with no LP the 0.7× and 1.0× attacks return a
 at 0.25 / 0.5 / 0.75) and not at all with threshold, because the first dump takes the price
 below every threshold. The pool left at the trough at 1.0× is 0.76 / 0.52 / 0.28 (`liq`);
 the reference-reserve measure (colour) also falls with price impact (0.43 with no LP).
+
+**`lp_flight_disposal.png`.** What the fleeing liquidity provider does with the stable it
+withdrew decides whether its flight helps. At D\* (8 seeds per cell), one column per mode:
+it holds the stable, sells 0.1 of it per step on the AMM, or queues 0.1 of it per step for
+redemption. Top: median hours to first return over the LP's share (rows) × attack (0.5,
+0.7, 1.0× resources); bottom: mean trough. Holding is `lp_flight.png` at the 5% threshold:
+every run recovers. Selling deepens the trough by 2.7–59.0% (−9,721 bps at 1.0×, share
+0.75) and still recovers 8 of 8 in every cell but 1.0× at share 0.25, where the return at
+42.4 h comes after the 37 h deadline. Redeeming leaves the trough exactly where holding has
+it and recovers nothing at 0.7× or 1.0× (0 of 8 everywhere), nor at 0.5× with share 0.25;
+with no LP, 0.5× recovers and 0.7× and 1.0× do not.
 
 **`policy_comparison.png`.** When every buying defender spends its whole budget, the
 defense is decided by the price it pays. Five defender policies at calibrated scale against

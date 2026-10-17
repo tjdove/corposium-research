@@ -33,6 +33,13 @@ row stands for ``metrics.record_every`` steps (exact at the default 1). A step w
 deviation is NaN adds nothing. ``None`` when the world has no attacker or the attacker
 never sells. Against par always, whatever ``peg_recovered.reference`` is.
 
+``lp_sold_stable`` and ``lp_redeemed_stable`` (Story 5.4) are the withdrawn stable the
+first liquidity provider sold on the AMM (executed ``amount_in``) and had filled by the
+redemption channel (``redeem_fulfilled.amount_stable``; the reference paid is that times
+``1 - spread``). Both 0.0 for an LP that holds (``after_withdrawal: hold``). ``lp_pnl`` is
+its PnL at the last step (``LiquidityProvider.mark_to_market`` against its starting pool
+position at peg). All three ``None`` without an LP.
+
 Values are plain Python types (no numpy scalars, no NaN) so the summary serialises to
 strict JSON. Missing agents give ``None``.
 
@@ -96,6 +103,9 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "pool_depth_at_trough",
     "pool_liquidity_at_trough",
     "discount_bps_hours",
+    "lp_sold_stable",
+    "lp_redeemed_stable",
+    "lp_pnl",
     "phase_order_version",
     "package_version",
 )
@@ -192,8 +202,8 @@ def summarize(
                 sustained = result.steps_run - rec.for_steps - step_of_max
 
     red = world.get("redemption")
-    atk, arb, dfn, hld = (
-        _first(world, t) for t in ("attacker", "arbitrageur", "defender", "holder")
+    atk, arb, dfn, hld, lp = (
+        _first(world, t) for t in ("attacker", "arbitrageur", "defender", "holder", "lp")
     )
     return {
         "scenario": cfg.name,
@@ -225,6 +235,9 @@ def summarize(
             _attack_start(result, atk),
             cfg.metrics.record_every * cfg.steps.interval_seconds / 3600,
         ),
+        "lp_sold_stable": None if lp is None else _float(lp.sold_stable),
+        "lp_redeemed_stable": None if lp is None else _float(lp.redeemed_stable),
+        "lp_pnl": None if lp is None else _float(lp.pnl_last),
         "phase_order_version": PHASE_ORDER_VERSION,
         "package_version": __version__,
     }

@@ -1981,6 +1981,8 @@ def plot_pace_ratio(sweep_dir: Path) -> Path:
 LP_FLIGHT = "lp_flight.png"
 LP_SHARE_PATH = "agents[type=lp].share"
 LP_THRESHOLD_PATH = "agents[type=lp].panic_threshold_pct"
+LP_DISPOSAL_PATH = "agents[type=lp].after_withdrawal"
+LP_FLIGHT_DISPOSAL = "lp_flight_disposal.png"
 
 
 def plot_lp_flight(sweep_dir: Path) -> Path:
@@ -1992,11 +1994,17 @@ def plot_lp_flight(sweep_dir: Path) -> Path:
     ``pool_depth_at_trough`` (reference reserve at the trough / start; falls with price
     impact as well as flight) and labelled with ``pool_liquidity_at_trough`` too
     (``sqrt(k / k0)``: the share of the pool still there; 1.0 with no LP). Means over seeds.
-    Reads only ``mc.parquet`` + manifest."""
+    Reads only ``mc.parquet`` + manifest.
+
+    A sweep with an ``agents[type=lp].after_withdrawal`` axis (Story 5.4,
+    ``sweeps/lp-flight-disposal-mc.yaml``) is drawn by ``_plot_lp_flight_by_disposal`` into
+    ``lp_flight_disposal.png`` instead."""
     from matplotlib.colors import LinearSegmentedColormap
 
     sweep_dir = Path(sweep_dir)
     mc, manifest = _read_sweep(sweep_dir)
+    if any(LP_DISPOSAL_PATH in a.get("paths", (a["name"],)) for a in manifest["axes"]):
+        return _plot_lp_flight_by_disposal(sweep_dir, mc, manifest)
     base = manifest["base_config"]
     cap_col = _axis_named(manifest, CAPITAL_PATH)
     share_col = _axis_named(manifest, LP_SHARE_PATH)
@@ -2073,6 +2081,106 @@ def plot_lp_flight(sweep_dir: Path) -> Path:
     )
     _sweep_footer(fig, manifest)
     out = sweep_dir / LP_FLIGHT
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+DISPOSAL_MODES = ("hold", "sell", "redeem")
+_DISPOSAL_TITLE = {
+    "hold": "LP holds its withdrawn stable",
+    "sell": "LP sells it on the AMM",
+    "redeem": "LP redeems it",
+}
+
+
+def _plot_lp_flight_by_disposal(sweep_dir: Path, mc: pd.DataFrame, manifest: dict) -> Path:
+    """``lp_flight_disposal.png``: one column per disposal mode (hold, sell, redeem), rows
+    = LP share x columns = attack ratio in each panel. Top row: median hours from run start
+    to first re-entry (``time_to_parity_hours``; "never" hatched, the deadline dashed, as
+    ``plot_time_to_parity``), labelled with runs recovered. Bottom row: mean trough in bps,
+    labelled with its change against ``hold`` at the same cell. Means over seeds."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    base = manifest["base_config"]
+    cap_col = _axis_named(manifest, CAPITAL_PATH)
+    share_col = _axis_named(manifest, LP_SHARE_PATH)
+    mode_col = _axis_named(manifest, LP_DISPOSAL_PATH)
+    lp = next(a for a in base["agents"] if a["type"] == "lp")
+    defender = next(a for a in base["agents"] if a["type"] == "defender")
+    resources = defender["budget"] + base["redemption"]["reserves"]
+    rec = base["termination"]["peg_recovered"]
+    interval = base["steps"]["interval_seconds"]
+    horizon = manifest.get("max_steps") or base["steps"]["max_steps"]
+    horizon_h = horizon * interval / 3600
+    deadline_h = (horizon - rec["for_steps"]) * interval / 3600
+
+    mc = mc.sort_values([cap_col, share_col]).reset_index(drop=True)
+    mc["hours"] = time_to_parity_hours(mc, interval)
+    mc["recovered"] = (mc["p_peg_recovered"] * mc["n"]).round().astype(int)
+    shares = sorted(mc[share_col].unique())
+    caps = sorted(mc[cap_col].unique())
+    modes = [m for m in DISPOSAL_MODES if m in set(mc[mode_col])]
+
+    def grid(mode: str, values: str) -> np.ndarray:
+        g = mc[mc[mode_col] == mode]
+        return g.pivot(index=share_col, columns=cap_col, values=values).loc[shares, caps].to_numpy()
+
+    troughs = mc["max_depeg_bps_mean"]
+    lo = float(troughs.min())
+    hold_trough = grid("hold", "max_depeg_bps_mean") if "hold" in modes else None
+    cmap = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
+    fig, axes = plt.subplots(
+        2, len(modes), figsize=(5.5 * len(modes) + 1.5, 10), dpi=150, constrained_layout=True,
+        squeeze=False,
+    )  # fmt: skip
+    for k, mode in enumerate(modes):
+        ax = axes[0, k]
+        im = _parity_grid(ax, grid(mode, "hours"), deadline_h, horizon_h)
+        n_rec, n = grid(mode, "recovered"), grid(mode, "n")
+        for i in range(len(shares)):
+            for j in range(len(caps)):
+                ax.text(j, i - 0.32, f"{n_rec[i, j]}/{n[i, j]} recovered", ha="center",
+                        va="center", fontsize=7, color=GREY,
+                    bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.0})  # fmt: skip
+        ax.set_title(_DISPOSAL_TITLE.get(mode, mode), fontsize=11)
+        ax = axes[1, k]
+        tr = grid(mode, "max_depeg_bps_mean")
+        im2 = ax.imshow(-tr, origin="lower", aspect="auto", cmap=cmap, vmin=0, vmax=-lo)
+        for i in range(len(shares)):
+            for j in range(len(caps)):
+                vs = (
+                    ""
+                    if hold_trough is None or mode == "hold"
+                    else (f"\n{tr[i, j] / hold_trough[i, j] - 1:+.1%} vs hold")
+                )
+                ax.text(j, i, f"{tr[i, j]:,.0f} bps{vs}", ha="center", va="center",
+                        fontsize=8, color="white" if -tr[i, j] >= -0.6 * lo else DARK)  # fmt: skip
+        ax.set_title(f"mean trough: {_DISPOSAL_TITLE.get(mode, mode)}", fontsize=10)
+    for ax in axes.flat:
+        ax.set_xticks(range(len(caps)))
+        ax.set_xticklabels([f"{c / resources:.2g}×" for c in caps], fontsize=8)
+        ax.set_yticks(range(len(shares)))
+        ax.set_yticklabels([f"{s:g}" for s in shares], fontsize=8)
+        ax.set_xlabel("attacker capital / (defender budget + redemption reserves)")
+        ax.set_ylabel("flighty LP share of the pool")
+    fig.colorbar(im, ax=list(axes[0]), label="median hours from run start to first re-entry",
+                 shrink=0.9)  # fmt: skip
+    fig.colorbar(im2, ax=list(axes[1]), label="trough depth, bps below par", shrink=0.9)
+    fig.suptitle(
+        f"{manifest['sweep_name']}: liquidity flight and what the LP does with the stable it "
+        f"withdrew, criterion {_criterion(rec)}\n({len(manifest['seeds'])} seeds per cell"
+        f"{_reversion(base['environment'])}; the LP withdraws {lp['pace']:g} of what it has "
+        f"left per step below {lp['panic_threshold_pct']:g}% and otherwise disposes of "
+        f"{lp.get('disposal_pace', 0.1):g} of its withdrawn stable per step)\n"
+        f"top: median hours from run start to first re-entry within ±{rec['tolerance'] * BPS:g}"
+        f" bps of {_against(rec)}; orange dashed = {deadline_h:.0f} h, the latest first "
+        f"re-entry that can still hold {rec['for_steps']:,} steps by step {horizon:,};\n"
+        f"hatched = never re-enters by {horizon_h:.0f} h. bottom: mean trough",
+        fontsize=10,
+    )
+    _sweep_footer(fig, manifest)
+    out = sweep_dir / LP_FLIGHT_DISPOSAL
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out

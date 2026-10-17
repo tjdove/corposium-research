@@ -230,19 +230,27 @@ def test_flat_reference_oracle_equals_par(tmp_path):
 
 
 def test_soros_baseline_summary_bytes_unchanged(tmp_path):
-    # summary.json sha256 re-captured in Story 5.3 (one new key, discount_bps_hours);
-    # without that line it is the Story 3.8 capture (two new keys, pool_depth_at_trough and
-    # pool_liquidity_at_trough); without those lines it is the Story 3.5 capture (one new
-    # key, arbitrageur_redeemed), and without that line the bytes captured at b29c7c0,
-    # before Story 2.8.
+    # summary.json sha256 re-captured in Story 5.4 (three new keys, lp_sold_stable,
+    # lp_redeemed_stable and lp_pnl); without those lines it is the Story 5.3 capture (one
+    # new key, discount_bps_hours); without that line it is the Story 3.8 capture (two new
+    # keys, pool_depth_at_trough and pool_liquidity_at_trough); without those lines it is
+    # the Story 3.5 capture (one new key, arbitrageur_redeemed), and without that line the
+    # bytes captured at b29c7c0, before Story 2.8.
     art = run_scenario(
         load_scenario(Path("scenarios/soros-baseline.yaml")), output_dir=tmp_path, chart=False
     )
     raw = (art.run_dir / "summary.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "d653c4764a8cd60ea4303935012bdde946b6967b7087b538db39553507102684"
+        "0085b134cc00cd8526d367c8f7e04d6d730595691bebd25681226c96d26f1215"
     )
     lines = raw.splitlines(keepends=True)
+    lp_keys = (b'  "lp_sold', b'  "lp_redeemed', b'  "lp_pnl')
+    lp_lines = [ln for ln in lines if ln.startswith(lp_keys)]
+    assert len(lp_lines) == 3
+    lines = [ln for ln in lines if ln not in lp_lines]
+    assert hashlib.sha256(b"".join(lines)).hexdigest() == (
+        "d653c4764a8cd60ea4303935012bdde946b6967b7087b538db39553507102684"
+    )
     discount = [ln for ln in lines if ln.startswith(b'  "discount_bps_hours')]
     assert len(discount) == 1
     lines = [ln for ln in lines if ln not in discount]
