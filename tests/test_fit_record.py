@@ -13,7 +13,11 @@ sys.path.insert(0, str(Path("scripts").resolve()))
 import fit_record  # noqa: E402
 
 FITS = Path("docs/calibration/fits")
-COMMITTED = ["depth.json", "holder-single.json", "holder-ladder-b.json", "reversion.json"]
+COMMITTED = [
+    "depth.json", "holder-single.json", "holder-ladder-b.json", "reversion.json",
+    "holder-ladder-b-par.json", "holder-ladder-b-closed.json",  # Story 5.6
+]  # fmt: skip
+LADDER_B = "2:0.25,5:0.25,10:0.25,20:0.25"
 
 
 def guard(manifest: Path, fits: Path) -> subprocess.CompletedProcess:
@@ -116,6 +120,16 @@ def test_committed_fits_name_their_inputs():
     ]  # fmt: skip
     for n in ("holder-single.json", "holder-ladder-b.json"):
         assert recs[n]["inputs"]["data"] == "data/usdcusd_1h_stress_2023-03-10_2023-03-13.csv"
+    for n, scenario, c_star in (
+        ("holder-ladder-b-par.json", "scenarios/usdc-2023-tranches-par.yaml", 10_833_333),
+        ("holder-ladder-b-closed.json", "scenarios/usdc-2023-tranches-par-closed.yaml", 13_333_333),
+    ):
+        assert recs[n]["inputs"]["scenario"] == scenario
+        assert recs[n]["inputs"]["data"] is None  # par reference: no series
+        assert recs[n]["inputs"]["args"] == recs["holder-ladder-b.json"]["inputs"]["args"] | {
+            "scenario": scenario
+        }
+        assert recs[n]["result"]["c_star"] == c_star
     rev = recs["reversion.json"]
     assert rev["inputs"]["scenario"] is None
     assert rev["inputs"]["data"] == "data/usdcusd_1h_calm_2023-02-27_2023-03-03.csv"
@@ -153,3 +167,22 @@ def test_fit_holder_write_refuses_the_cliff_test(tmp_path):
         capture_output=True, text=True, check=False,
     )  # fmt: skip
     assert run.returncode == 2 and "--write records a fit" in run.stderr
+
+
+@pytest.mark.parametrize(
+    ("name", "scenario"),
+    [
+        ("holder-ladder-b-par.json", "scenarios/usdc-2023-tranches-par.yaml"),
+        ("holder-ladder-b-closed.json", "scenarios/usdc-2023-tranches-par-closed.yaml"),
+    ],
+)
+def test_fit_holder_par_write_reproduces_committed_bytes(tmp_path, name, scenario):
+    """Story 5.6 AC 5: the two par-reference ladder-B fits re-run to the same bytes."""
+    out = tmp_path / name
+    run = subprocess.run(
+        [sys.executable, "scripts/fit_holder.py", "--scenario", scenario, "--tranches",
+         LADDER_B, "--workers", "4", "--output", str(tmp_path / "output"), "--write", str(out)],
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    assert run.returncode == 0, run.stderr
+    assert out.read_bytes() == (FITS / name).read_bytes()

@@ -24,6 +24,8 @@ import replay_table  # noqa: E402
 SPEC = Path("sweeps/usdc-par-depth-x-capital.yaml")
 SPEC_HASH = "bdf2a026ce52b28fb075831f347498cd8718d041002e701d13c280d04b903192"
 D_STAR, C_STAR_B = 16_666_667, 10_833_333
+OPEN_SCAN = [9_166_667, 10_000_000, 10_833_333, 11_666_667, 12_500_000]
+CLOSED_SCAN = [10_000_000, 11_666_667, 13_333_333, 15_000_000, 16_666_667]
 
 
 def test_spec_hash_is_pinned():
@@ -133,6 +135,15 @@ def test_table_smoke_and_deterministic(tmp_path):
     assert text.startswith("observed trough -1,373.3 bps at 31.0 h")
     assert "2. capital (x ladder B's C* = 10,833,333)" in text
     assert "continuous (2, 4, ..., 20% at 10% each), ladder B's C*" in text
+    # table 4 (Story 5.6): three fits, each a 5-point scan with C* in the middle
+    assert [f["fit"] for f in a["fits"]] == [
+        "holder-ladder-b.json", "holder-ladder-b-par.json", "holder-ladder-b-closed.json"
+    ]  # fmt: skip
+    assert [f["c_star"] for f in a["fits"]] == [C_STAR_B, C_STAR_B, 13_333_333]
+    assert [s["capital"] for s in a["fits"][2]["scan"]] == CLOSED_SCAN
+    assert all(f["scan"][2]["capital"] == f["c_star"] for f in a["fits"])
+    assert "4. ladder B's C* by fit, with a 5-point scan" in text
+    assert "par reference, channel closed (holder-ladder-b-closed.json) scan: 10,000,000" in text
     b = it.build(tmp_path / "b", max_steps=8400, spec=small)
     assert it.format_tables(b) == text
 
@@ -144,3 +155,36 @@ def test_continuous_ladder_is_ten_equal_tranches_over_2_to_20():
     cfg = it.ladder_config(tranches, C_STAR_B, None)
     holder = next(a for a in cfg.agents if a.type == "holder")
     assert len(holder.tranches) == 10 and holder.capital == C_STAR_B
+
+
+# Story 5.6: table 4's scan from the committed fit records -------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "lo", "step", "scan"),
+    [
+        ("holder-ladder-b.json", 10_000_000, 5_000_000 / 6, OPEN_SCAN),
+        ("holder-ladder-b-par.json", 10_000_000, 5_000_000 / 6, OPEN_SCAN),
+        ("holder-ladder-b-closed.json", 10_000_000, 10_000_000 / 6, CLOSED_SCAN),
+    ],
+)
+def test_scan_is_the_second_refinement_lattice(name, lo, step, scan):
+    record = json.loads((it.FITS_DIR / name).read_text())
+    assert it.refine_step(record) == pytest.approx((lo, step))
+    assert it.scan_capitals(record["result"]["c_star"], lo, step) == scan
+    # k = ±1 are capitals the fit itself ran
+    ran = {r["holder_capital"] for r in record["result"]["runs"]}
+    assert {scan[1], scan[3]} <= ran
+
+
+def test_scan_off_the_lattice_centres_on_c_star():
+    assert it.scan_capitals(10_400_000, 10_000_000, 1_000_000) == [
+        8_400_000, 9_400_000, 10_400_000, 11_400_000, 12_400_000
+    ]  # fmt: skip
+
+
+def test_refine_step_rejects_runs_that_are_not_the_rule():
+    record = json.loads((it.FITS_DIR / "holder-ladder-b-closed.json").read_text())
+    record["result"]["runs"].append({"holder_capital": 12_345_678, "max_depeg_bps": -1500.0})
+    with pytest.raises(ValueError, match="two-pass rule"):
+        it.refine_step(record)
