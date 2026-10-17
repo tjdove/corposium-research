@@ -22,6 +22,17 @@ oracle price), where a step before the first publish (``oracle_price`` NaN) is o
 band, as in ``termination.check``. ``max_depeg_bps``, ``step_of_max_depeg`` and
 ``final_depeg_bps`` are always against par.
 
+``discount_bps_hours`` (Story 5.3) is what the discount costs while it lasts: the area
+between the venue price and par while below par, in bps·hours,
+``sum(max(0, -peg_deviation_bps) * record_every * interval_seconds / 3600)`` over the
+recorded steps from the attack start to the end of the run. The attack start is the step
+of the first attacker's first executed AMM sale (``swap_executed`` with that agent as
+``source``), not its configured ``start_step``, so a waiting or empty attacker does not
+start the clock; that step's row already shows the price after the sale. Each recorded
+row stands for ``metrics.record_every`` steps (exact at the default 1). A step whose
+deviation is NaN adds nothing. ``None`` when the world has no attacker or the attacker
+never sells. Against par always, whatever ``peg_recovered.reference`` is.
+
 Values are plain Python types (no numpy scalars, no NaN) so the summary serialises to
 strict JSON. Missing agents give ``None``.
 
@@ -84,6 +95,7 @@ SUMMARY_KEYS: tuple[str, ...] = (
     "holder_pnl",
     "pool_depth_at_trough",
     "pool_liquidity_at_trough",
+    "discount_bps_hours",
     "phase_order_version",
     "package_version",
 )
@@ -118,6 +130,32 @@ def _redeemed_by(result: RunResult, agent_id: str) -> float:
             if e.kind == "redeem_fulfilled" and e.payload["source"] == agent_id
         )
     )
+
+
+def _attack_start(result: RunResult, attacker: Agent | None) -> int | None:
+    """Step of ``attacker``'s first executed AMM sale; ``None`` if it never sells."""
+    if attacker is None:
+        return None
+    return next(
+        (
+            e.step
+            for e in result.events
+            if e.kind == "swap_executed" and e.payload["source"] == attacker.agent_id
+        ),
+        None,
+    )
+
+
+def discount_bps_hours(
+    metrics_df: pd.DataFrame, start_step: int | None, step_hours: float
+) -> float | None:
+    """Area below par in bps·h over recorded rows with ``step >= start_step``, each row
+    weighted ``step_hours``; ``None`` without a start step."""
+    if start_step is None:
+        return None
+    dev = metrics_df.loc[metrics_df["step"] >= start_step, "peg_deviation"]
+    below = (-dev * BPS).clip(lower=0.0).fillna(0.0)
+    return float(below.sum() * step_hours)
 
 
 def summarize(
@@ -182,6 +220,11 @@ def summarize(
         "holder_pnl": None if hld is None else _float(hld.pnl_last),
         "pool_depth_at_trough": depth_at_trough,
         "pool_liquidity_at_trough": liquidity_at_trough,
+        "discount_bps_hours": discount_bps_hours(
+            metrics_df,
+            _attack_start(result, atk),
+            cfg.metrics.record_every * cfg.steps.interval_seconds / 3600,
+        ),
         "phase_order_version": PHASE_ORDER_VERSION,
         "package_version": __version__,
     }

@@ -230,7 +230,8 @@ def test_flat_reference_oracle_equals_par(tmp_path):
 
 
 def test_soros_baseline_summary_bytes_unchanged(tmp_path):
-    # summary.json sha256 re-captured in Story 3.8 (two new keys, pool_depth_at_trough and
+    # summary.json sha256 re-captured in Story 5.3 (one new key, discount_bps_hours);
+    # without that line it is the Story 3.8 capture (two new keys, pool_depth_at_trough and
     # pool_liquidity_at_trough); without those lines it is the Story 3.5 capture (one new
     # key, arbitrageur_redeemed), and without that line the bytes captured at b29c7c0,
     # before Story 2.8.
@@ -239,9 +240,15 @@ def test_soros_baseline_summary_bytes_unchanged(tmp_path):
     )
     raw = (art.run_dir / "summary.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "be7d32669a8fe6e2efb933bfca6ed213240b9eb85c26a2ee7aef4bea6cdc2fa9"
+        "d653c4764a8cd60ea4303935012bdde946b6967b7087b538db39553507102684"
     )
     lines = raw.splitlines(keepends=True)
+    discount = [ln for ln in lines if ln.startswith(b'  "discount_bps_hours')]
+    assert len(discount) == 1
+    lines = [ln for ln in lines if ln not in discount]
+    assert hashlib.sha256(b"".join(lines)).hexdigest() == (
+        "be7d32669a8fe6e2efb933bfca6ed213240b9eb85c26a2ee7aef4bea6cdc2fa9"
+    )
     pool = [ln for ln in lines if ln.startswith((b'  "pool_depth_at', b'  "pool_liquidity_at'))]
     assert len(pool) == 2
     lines = [ln for ln in lines if ln not in pool]

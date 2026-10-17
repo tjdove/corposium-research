@@ -1,6 +1,6 @@
 # Story 5.3: Policy Comparison Under a Gradual Attack, With a Cost of Discount
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -44,14 +44,14 @@ discount, so a defender that waits and buys the bottom is rewarded by constructi
 
 ## Tasks / Subtasks
 
-- [ ] `discount_bps_hours` metric (AC: 1)
-- [ ] Gradual sweep (AC: 2)
-- [ ] Figure and table (AC: 3, 4)
-- [ ] Trigger-binding table (AC: 5)
-- [ ] Write-up (AC: 6)
-- [ ] Tests, gates (AC: 7)
-  - [ ] Dev Agent Record, Change Log, `Status: review`
-  - [ ] Commit `story 5.3: policy under gradual attack`, push `story/5-3-policy-gradual-attack-and-cost`
+- [x] `discount_bps_hours` metric (AC: 1)
+- [x] Gradual sweep (AC: 2)
+- [x] Figure and table (AC: 3, 4)
+- [x] Trigger-binding table (AC: 5)
+- [x] Write-up (AC: 6)
+- [x] Tests, gates (AC: 7)
+  - [x] Dev Agent Record, Change Log, `Status: review`
+  - [x] Commit `story 5.3: policy under gradual attack`, push `story/5-3-policy-gradual-attack-and-cost`
 
 ## Dev Notes
 
@@ -84,6 +84,245 @@ reverse. Record whichever.
 
 ## Dev Agent Record
 
+### Agent Model Used
+
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code on Seoul.
+
+### Debug Log
+
+The sweep was run once, into `output/` (`output/policy-comparison-gradual-mc`, 720 run
+directories with `events.jsonl` and `timeseries.parquet`), after the metric was in
+`summary.py`:
+
+```
+$ time python -m depeg_sim.sweep sweeps/policy-comparison-gradual-mc.yaml --mc --workers 12
+sweep: policy-comparison-gradual-mc cells=720 workers=12
+wrote: output/policy-comparison-gradual-mc/sweep.parquet
+mc: policy-comparison-gradual-mc grid_points=45 seeds=16 runs=720
+wrote: output/policy-comparison-gradual-mc/mc.parquet
+
+real	4m29.293s
+user	50m20.204s
+sys	0m22.978s
+```
+
+`python scripts/policy_table.py --sweep output/policy-comparison-gradual-mc`, the second
+table (the first is transcribed into POLICY.md by a script that reads `table()`; nothing
+is hand-copied):
+
+```
+which policy minimises discount_bps_hours, and which time to parity:
+ attacker_pace  ratio      min_discount disc_bps_h min_time_to_parity ttp_h agree
+          0.10    0.5 late-conservative      5,242  late-conservative   6.6   yes
+          0.10    0.7 late-conservative     37,884  late-conservative  19.2   yes
+          0.10    1.0 late-conservative     87,082  late-conservative  29.9   yes
+          0.02    0.5 late-conservative    282,570  late-conservative  57.5   yes
+          0.02    0.7 late-conservative    380,920               none   NaN     -
+          0.02    1.0 late-conservative    428,725               none   NaN     -
+          0.01    0.5 late-conservative    320,055               none   NaN     -
+          0.01    0.7 late-conservative    409,817               none   NaN     -
+          0.01    1.0 late-conservative    452,147               none   NaN     -
+```
+
+`python scripts/trigger_table.py`, then `--pace 0.02`, `--pace 0.1`, `--ratio 0.5`:
+
+```
+attacker pace 0.01, ratio 1, seed 1000
+policy             trigger binds step     h    act price seen first buy at attacker sold trough bps trough step
+---------------------------------------------------------------------------------------------------------------
+calibrated             1.0         51  0.17    buy     0.8150       0.7584          1.0%   -9,798.3         457
+early-aggressive       0.5         51  0.17    buy     0.8150       0.7584          1.0%   -9,801.5         454
+late-conservative      2.0         51  0.17    buy     0.8150       0.7584          1.0%   -9,785.2         463
+spread-only            1.0         51  0.17 spread     0.8150            -          1.0%   -9,851.2         427
+no-defense            none      never     -      -          -            -             -   -9,850.8         427
+attacker pace 0.02, ratio 1, seed 1000
+policy             trigger binds step     h    act price seen first buy at attacker sold trough bps trough step
+---------------------------------------------------------------------------------------------------------------
+calibrated             1.0         51  0.17    buy     0.6770       0.6158          2.0%   -9,716.0         304
+early-aggressive       0.5         51  0.17    buy     0.6770       0.6158          2.0%   -9,726.5         301
+late-conservative      2.0         51  0.17    buy     0.6770       0.6158          2.0%   -9,669.8         310
+spread-only            1.0         51  0.17 spread     0.6770            -          2.0%   -9,777.5         292
+no-defense            none      never     -      -          -            -             -   -9,777.1         292
+attacker pace 0.1, ratio 1, seed 1000
+policy             trigger binds step     h    act price seen first buy at attacker sold trough bps trough step
+---------------------------------------------------------------------------------------------------------------
+calibrated             1.0         51  0.17    buy     0.2319       0.2707         10.0%   -8,151.2          84
+early-aggressive       0.5         51  0.17    buy     0.2319       0.2780         10.0%   -8,698.1          78
+late-conservative      2.0         51  0.17    buy     0.2319       0.1893         10.0%   -7,681.2          50
+spread-only            1.0         51  0.17 spread     0.2319            -         10.0%   -9,496.9          60
+no-defense            none      never     -      -          -            -             -   -9,496.9          60
+attacker pace 0.01, ratio 0.5, seed 1000
+policy             trigger binds step     h    act price seen first buy at attacker sold trough bps trough step
+---------------------------------------------------------------------------------------------------------------
+calibrated             1.0         51  0.17    buy     0.9004       0.8621          1.0%   -8,819.2         562
+early-aggressive       0.5         51  0.17    buy     0.9004       0.8621          1.0%   -8,824.7         562
+late-conservative      2.0         51  0.17    buy     0.9004       0.8621          1.0%   -8,796.9         565
+spread-only            1.0         51  0.17 spread     0.9004            -          1.0%   -9,558.3         469
+no-defense            none      never     -      -          -            -             -   -9,557.5         466
+```
+
+Checks on the sweep (one-off `python -c`, not committed):
+- `policy_table.table()` at pace 0.1 equals the Story 3.2 table from
+  `output/policy-comparison-mc` (`pd.testing.assert_frame_equal`). All 240 pace-0.1 runs
+  equal the Story 3.2 runs on every shared summary column (`240 True`).
+- The largest range over seeds within a cell: `discount_bps_hours` 0.0 / 297.4 / 1,964.9
+  at pace 0.01 / 0.02 / 0.1. `max_depeg_bps` and `step_of_max_depeg` are 0 at every pace.
+  `final_depeg_bps` is 0.0 / 187.4 / 170.5.
+
+`time python scripts/make_figures.py --workers 12` (existing sweeps in `output/`, nothing
+re-run):
+
+```
+real	0m33.834s
+user	0m34.187s
+sys	0m0.549s
+```
+
+`git status` afterwards: only `docs/figures/manifest.json` modified and
+`policy_comparison_gradual.png` new, so the 23 existing PNGs are byte-identical.
+
+`tests/test_reference_recovery.py::test_soros_baseline_summary_bytes_unchanged` failed
+on the first `make test`, because the new key changes `summary.json`'s bytes. It is
+re-pinned as in Story 3.8: the new sha256 is `d653c4764a8c…`, and with the
+`discount_bps_hours` line removed the bytes hash to the old `be7d32669a8f…` (both
+asserted).
+
+Gates:
+
+```
+$ time make test
+Required test coverage of 85% reached. Total coverage: 99.06%
+991 passed in 192.37s (0:03:12)
+$ make lint
+All checks passed!
+113 files already formatted
+$ make figures-check
+figures-check: ok, 24 figures match their sources (code_hash matches)
+figures-check: ok, 6 fits match their inputs (script hashes match)
+$ make note-check
+note-check: WARNING: freeze: v0.9-freeze (76e7a1cf6a03) manifest has code_hash a0ae9594e7a4…, the working tree's has 84505b3b3a11…
+note-check: ok: figures: 7 cited figures exist and are in the manifest
+note-check: ok: cited: all 7 listed figures not marked † are cited; none of the 4 record-only figures is
+note-check: ok: freeze: v0.9-freeze is 76e7a1cf6a03 (code differs, see warning)
+note-check: ok: numbers: 8 fitted values quoted as their records round them
+```
+
+### Completion Notes List
+
+- **AC 1.** The lower bound of `discount_bps_hours` is the attacker's first *executed*
+  sale, not its configured `start_step`; the two coincide at step 50 in every run here.
+  The metric is `None` with no attacker, or an attacker that never sells. Each recorded
+  row is weighted `record_every` steps. No scenario hash changed (the pinned-hash tests
+  pass). One pinned `summary.json` byte hash was re-pinned, as above.
+- **AC 2.** Spec hash `712e3cd96851…`. The spec is the policy sweep plus the pace axis
+  (`tests/test_policy_gradual.py` checks that nothing else differs).
+- **AC 3.** `plot_policy_comparison` dispatches on the pace axis to
+  `_plot_policy_by_pace`. The old figure's code path is untouched and
+  `policy_comparison.png` is byte-identical. Time to parity in the faceted chart is the
+  per-run median (`policy_cells`), not `time_to_parity_hours`. The latter needs one
+  trough step per cell; that holds in this sweep, but under a gradual attack it need
+  not.
+- **AC 4.** `policy_table.py --sweep` adds `price_paid`, `disc_bps_h` and the
+  two-minimiser table, with `agree` = yes / no / "-".
+- **AC 5.** New `scripts/trigger_table.py` reads the sweep's own runs and reruns nothing.
+  The table is in **`docs/calibration/POLICY.md`** (builder's choice). All four defenders
+  act at step 51 at every pace and ratio checked.
+- **AC 6.** New `docs/calibration/POLICY.md`, linked from the README. Its tables are
+  generated from `policy_table.table()`.
+- **Results, recorded before interpretation.**
+  - At pace 0.02 and 0.01, no policy recovers at any ratio (P = 1.00).
+  - Late-conservative minimises `discount_bps_hours` in all 9 cells, and time to parity
+    in the 4 cells where anyone re-enters. The two measures never disagree in this sweep.
+  - At pace 0.01, 1.0×, its margin over calibrated is 0.5%.
+  - The triggers bind on the first sale everywhere.
+- **Prediction.**
+  - Triggers bind at different steps: wrong.
+  - Early-aggressive buys above $0.90: no. Its first buy is at 0.862 (0.5×) or 0.758
+    (1.0×), and its average price is 0.911 at 0.5×.
+  - Early-aggressive loses on discount: yes, the largest discount of the buyers in all 9
+    cells.
+  - The slow defender's time-to-parity advantage shrinks: yes, from 11.7 h to 1.0 h
+    where measurable.
+  - The discount ranking may reverse: no.
+- **Also changed:** the Makefile `SWEEPS` list (so `make figures` runs the new sweep),
+  figure row 3b † in NOTE.md, a figures README row and caption, the figure count in
+  `test_figures.py`.
+- **ADR-0037 Proposed** (finding + interface). Index and FINDINGS.md not edited.
+- New code hash `84505b3b3a11…`; note-check warns about the freeze, as expected.
+
+### File List
+
+- `src/depeg_sim/analysis/summary.py` (`discount_bps_hours`, `_attack_start`, docstring)
+- `src/depeg_sim/experiments/mc.py` (`METRICS`, docstring)
+- `src/depeg_sim/analysis/charts.py` (`POLICY_COMPARISON_GRADUAL`, `policy_cells`, `_plot_policy_by_pace`, dispatch)
+- `sweeps/policy-comparison-gradual-mc.yaml` (new)
+- `scripts/policy_table.py` (`--sweep`, price paid, discount, `winners`)
+- `scripts/trigger_table.py` (new)
+- `scripts/make_figures.py` (registry entry)
+- `Makefile` (`SWEEPS`, header)
+- `docs/figures/policy_comparison_gradual.png` (new), `docs/figures/manifest.json`
+- `docs/figures/README.md`, `docs/NOTE.md` (figure list row 3b †, change log), `README.md` (link)
+- `docs/calibration/POLICY.md` (new)
+- `docs/adr/0037-policy-gradual-attack-and-cost.md` (new, Proposed)
+- `tests/test_summary.py`, `tests/test_policy_gradual.py` (new), `tests/test_figures.py`, `tests/test_reference_recovery.py`
+- `docs/stories/5-3-policy-gradual-attack-and-cost.md`
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude (dev manager) · **Date:** 2026-10-16 · **Verdict: APPROVE**
+
+Reproduced on the review box at `3777107`: `pytest -q` all pass (exit 0); `ruff` clean;
+`make figures-check` → 24 figures, 6 fits ok. The metric checked on a synthetic path
+(100 steps at −500 bps → 166.67 bps·h). The full 720-run sweep is 25+ min on 2 cores, so
+a 4-run subset was rerun instead (pace 0.01, ratio 1.0, calibrated and late-conservative,
+seeds 1000–1001): trough −9,798.3 at step 457 / −9,785.2 at 463, price paid 0.784 /
+0.720, discount 454,494 / 452,147 bps·h — identical to POLICY.md to the last digit, and
+identical across the two seeds as the builder reported. The pace-0.1 rows match Story
+3.2's tables. One doc slip fixed by the dev manager: the "which policy minimises" table
+appeared twice in POLICY.md.
+
+**What the result means (the dev manager's call).** Recorded as an F-13 second
+refinement and a withdrawal.
+
+1. *The claim survives in sign and loses its force.* Late-conservative has the smallest
+   discount in all nine cells and the earliest re-entry wherever anyone re-enters; the
+   two measures never disagree. But at pace 0.01 its margin over the calibrated policy is
+   0.5% of discount, and no policy recovers in any cell. "Spend slower than the attacker
+   sells" is true and nearly worthless against a patient attacker.
+2. *The patient attacker is the result.* Slowing the attacker from 10% to 1% of stock
+   per step deepens the trough from −5,800… −8,700 to −8,800… −9,800 bps, raises the
+   price every defender pays from 0.28–0.58 to 0.72–0.91, and takes P(never recovers) to
+   1.00 everywhere including the 0.5× attack. The defender's budget is spent at high
+   prices while the stock keeps coming. F-13's refinement ("a slower attacker is harder
+   to beat") was the small print; it is now the headline of §5: **at matched scale, a
+   patient attacker beats every rule-based defender, whatever the policy.**
+3. *The trigger claim is withdrawn as untested, not restated as inert.* Even the gentlest
+   cell (ratio 0.5, pace 0.01) has a first sale that moves spot 10%, past every trigger,
+   so all four defenders act on step 51 in every run. The referee's §5.22 stands: this
+   sweep cannot tell triggers apart. Note v2 says "the triggers were not separable at any
+   attack size we ran," names the first-sale impact needed (< 0.5%, roughly 0.02–0.05% of
+   stock per step) and leaves it as future work. The builder's optional follow-up is
+   logged in the Epic 3 retro carry-overs, not built now.
+4. *The cost metric did its job.* With a cost of discount in the table, the slow
+   defender still wins, so the referee's worry that waiting looked free was right in
+   principle and did not change the ranking here. v2 reports both columns.
+
+**Rulings**
+
+1. **ADR-0037 accepted (finding + interface).** Index row added. F-13 second refinement
+   in FINDINGS; headline (c) demoted to "conditional, weak."
+2. `discount_bps_hours` from the first executed sale: accepted as the definition.
+3. Per-run time-to-parity in the new figure (not the helper that assumes one trough
+   step): accepted; the old figure is byte-identical, which is the test that matters.
+4. Re-pinned `soros-baseline` summary bytes with the old-capture check: accepted.
+5. `POLICY.md` is the home for policy tables from now on; VALIDATION.md stays for the
+   replay.
+
+**Lessons:** five predictions, two right (L-15). The builder's "no cell of this sweep
+separates the triggers" is the sentence that goes in the note.
+
 ## Change Log
 
 - 2026-10-15: Story drafted by dev manager (Epic 5)
+- 2026-10-16: Implemented by Claude Code (Opus 5.5): `discount_bps_hours`, the 720-run gradual policy sweep, a pace-faceted policy figure with a discount panel, `policy_table.py --sweep`, `trigger_table.py`, POLICY.md, ADR-0037 proposed. Against 2%/1%-per-step attackers no policy recovers; every trigger binds on the first sale; late-conservative still has the smallest discount in every cell (by 0.5% at pace 0.01, 1.0×). Status: review.
+- 2026-10-16: Reviewed by dev manager — APPROVE; ADR-0037 accepted; F-13 second refinement; Status: done

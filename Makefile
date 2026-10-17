@@ -1,8 +1,8 @@
-# Story 2.9. `make figures` regenerates every committed figure in full (runs all twelve
-# sweeps first: ~15 min on 12 cores), records the code hash and re-writes the six fit
-# records in docs/calibration/fits/ (Story 4.1; the two par-reference ladder-B fits are
-# Story 5.6's); `make figures-check` is
-# the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
+# Story 2.9. `make figures` regenerates every committed figure in full (runs all thirteen
+# sweeps first: ~15 min on 12 cores, plus 4.5 min for the gradual policy sweep),
+# records the code hash and re-writes the six fit records in docs/calibration/fits/
+# (Story 4.1; the two par-reference ladder-B fits are Story 5.6's); `make figures-check`
+# is the stale-figure guard CI runs (no sweeps, no PNG comparison: fails on a changed source,
 # warns on changed code); `make figures-quick` is the 2-seed smoke test. `make test` also
 # fails if line coverage of protocol/ and agents/ (together) drops below 85% (Story 3.5).
 # `make note-check` checks the figures, freeze tag and fitted numbers docs/NOTE.md cites
@@ -16,7 +16,8 @@ SWEEPS := sweeps/threshold-surface-ref-mc.yaml sweeps/threshold-surface-mc.yaml 
           sweeps/policy-comparison-mc.yaml sweeps/holder-exit-1992-mc.yaml \
           sweeps/budget-x-attack-mc.yaml sweeps/pace-x-trigger-mc.yaml \
           sweeps/pace-ratio-mc.yaml sweeps/threshold-surface-ou-mc.yaml \
-          sweeps/lp-flight-mc.yaml sweeps/usdc-par-depth-x-capital.yaml
+          sweeps/lp-flight-mc.yaml sweeps/usdc-par-depth-x-capital.yaml \
+          sweeps/policy-comparison-gradual-mc.yaml
 FITS_DIR := docs/calibration/fits
 
 .PHONY: figures figures-quick figures-check note-check test lint

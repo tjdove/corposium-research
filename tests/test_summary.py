@@ -5,7 +5,7 @@ import pytest
 from test_metrics import cfg_with, run
 
 from depeg_sim import __version__
-from depeg_sim.analysis.summary import SUMMARY_KEYS, summarize
+from depeg_sim.analysis.summary import SUMMARY_KEYS, discount_bps_hours, summarize
 from depeg_sim.kernel.config import ScenarioConfig, load_scenario
 from depeg_sim.kernel.scheduler import PHASE_ORDER_VERSION
 
@@ -32,6 +32,7 @@ EXPECTED = [
     "holder_pnl",
     "pool_depth_at_trough",
     "pool_liquidity_at_trough",
+    "discount_bps_hours",
     "phase_order_version",
     "package_version",
 ]
@@ -221,3 +222,43 @@ def test_pool_liquidity_follows_lp_flight_and_depth_mixes_in_price():
     assert s["pool_liquidity_at_trough"] == pytest.approx(0.5, abs=1e-3)
     assert s["pool_depth_at_trough"] < s["pool_liquidity_at_trough"]  # price impact too
     assert world["lp-1"].share_remaining == 0.0
+
+
+# Story 5.3: discount_bps_hours -------------------------------------------------------
+
+
+def test_discount_area_on_a_synthetic_path():
+    """A known area: 0 until step 3, then -100, -200, +50 (above par, adds nothing) and
+    -100 bps; 12 s steps (1/300 h each): (100 + 200 + 100) / 300 = 4/3 bps·h."""
+    df = pd.DataFrame(
+        {"step": range(7), "peg_deviation": [-0.5, 0.0, 0.0, -0.01, -0.02, 0.005, -0.01]}
+    )
+    assert discount_bps_hours(df, 3, 12 / 3600) == pytest.approx(400 / 300)
+    # the lower bound is inclusive and nothing before it counts (step 0's -5,000 bps)
+    assert discount_bps_hours(df, 4, 12 / 3600) == pytest.approx(300 / 300)
+    assert discount_bps_hours(df, None, 12 / 3600) is None
+
+
+def test_discount_area_skips_nan_and_weights_rows():
+    df = pd.DataFrame({"step": [0, 5, 10], "peg_deviation": [float("nan"), -0.01, -0.03]})
+    # record_every 5 at 12 s: each row stands for 60 s = 1/60 h
+    assert discount_bps_hours(df, 0, 5 * 12 / 3600) == pytest.approx((100 + 300) / 60)
+
+
+def test_discount_area_in_a_run_starts_at_the_first_sale():
+    from depeg_sim.analysis.summary import _attack_start
+
+    cfg = cfg_with(max_steps=120)
+    _, world, result, df = run(cfg)
+    s = summarize(cfg, result, df, world)
+    assert _attack_start(result, world["attacker-1"]) == world["attacker-1"].start_step == 50
+    below = (-df.loc[df["step"] >= 50, "peg_deviation"] * 10_000).clip(lower=0)
+    assert s["discount_bps_hours"] == pytest.approx(below.sum() * 12 / 3600)
+    assert s["discount_bps_hours"] > 0
+
+
+def test_discount_area_is_none_without_an_attacker():
+    data = cfg_with(max_steps=60).model_dump(mode="json")
+    data["agents"] = [a for a in data["agents"] if a["type"] != "attacker"]
+    s, _, _ = summary_for(ScenarioConfig.model_validate(data))
+    assert s["discount_bps_hours"] is None
