@@ -258,6 +258,17 @@ Numbered so reviews and retros can cite them. Add to the list; do not delete.
   review and every Monday: `git fetch; for b in story/*: rev-list --count main..b` and read
   the `Status:` line of any branch ahead of main.
 
+- **L-22 — Every quoted number is recomputed by a script before review.** 5.4's builder
+  caught three wrong numbers and one wrong provenance in its own write-up only by
+  recomputing every figure in the doc from the run data. That check is a task in every
+  story from now on ("numbers in the write-up reproduced by `scripts/<x>_table.py`"), not
+  a habit.
+- **L-23 — Predictions get a scorecard line.** A Dev Notes prediction block is numbered;
+  the review's Lessons line reads "predictions: N of M held (half-credit allowed)". The
+  Epic 5 retro could not state its count because three reviews gave one-word verdicts.
+- **L-24 — Check a story's ACs against the guards they touch.** 5.7's "header line only"
+  contradicted `check_note.py`'s one-tag rule; foreseeable from reading the checker.
+
 ## 7. Environment notes
 
 - **Seoul** (builder): uv-managed venv on Python 3.12 (system is 3.14). `bash time` is
@@ -283,7 +294,7 @@ The detailed plan is `epics.md`. The intent behind Epics 3 and 4, so it is not l
 - **Epic 4** — the note (2,000–3,500 words, built from `FINDINGS.md` headline ranking),
   the site Research page, the one-pager, the launch thread. Committed figures from 2.8
   are the only charts the note may use.
-- **Freeze** Oct 21; **publish** Nov 1. See `CHARTER.md` §6.
+- **Second freeze** `v0.95-freeze` 2026-10-17 (Epic 5); **publish** Nov 15. See `CHARTER.md` §6.
 
 ---
 
@@ -293,3 +304,4 @@ The detailed plan is `epics.md`. The intent behind Epics 3 and 4, so it is not l
   guard against dev-manager context loss. L-1 to L-12 lifted from the Epic 1 retro and
   the Epic 2 reviews to date.
 - 2026-10-15: L-18…L-20 from outside review 1; Epic 5 added; publish Nov 15.
+- 2026-10-17: L-21 (added 10-15), L-22…L-24 from the Epic 5 retro; roadmap line updated.
